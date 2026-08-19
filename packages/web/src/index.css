@@ -1,0 +1,500 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-outfit: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+
+    /* Echora Motion System Tokens */
+    --tempo-ambient: 16s;
+    --tempo-ambient-slow: 24s;
+    --tempo-lyric: 480ms;
+    --tempo-breath: 320ms;
+    --tempo-fast: 180ms;
+    --tempo-modal: 280ms;
+    --tempo-crossfade: 800ms;
+
+    /* Motion Curves */
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-out-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-lyric: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-ambient: cubic-bezier(0.45, 0.05, 0.55, 0.95);
+
+    /* Mint Palette (Visual focus strictly reserved for playback / active lyric line) */
+    --mint-glow: rgba(98, 245, 196, 0.75);
+    --mint-primary: #62f5c4;
+    --mint-soft: rgba(98, 245, 196, 0.15);
+    --mint-border: rgba(98, 245, 196, 0.35);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #07090e;
+    color: #f8fafc;
+    overflow-x: hidden;
+    overflow-y: auto;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1, h2, h3, .font-heading {
+    font-family: var(--font-outfit);
+  }
+}
+
+/* Custom Smooth Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  transition: background var(--tempo-fast) var(--ease-out-smooth);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(98, 245, 196, 0.35);
+}
+
+/* Glassmorphism Classes */
+.glass-panel {
+  background: rgba(13, 17, 26, 0.72);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition: transform var(--tempo-fast) var(--ease-spring),
+              background var(--tempo-fast) var(--ease-out-smooth),
+              border-color var(--tempo-fast) var(--ease-out-smooth),
+              box-shadow var(--tempo-fast) var(--ease-out-smooth);
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(98, 245, 196, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+.glass-card:active {
+  transform: scale(0.98);
+}
+
+.glass-pill {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Subtle Cinematic Grain Texture */
+.ambient-grain {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* Dynamic Ambient Glow Blob Animations */
+@keyframes ambientFloat1 {
+  0%, 100% {
+    transform: translate3d(0px, 0px, 0) scale(1) rotate(0deg);
+  }
+  33% {
+    transform: translate3d(45px, -55px, 0) scale(1.1) rotate(2deg);
+  }
+  66% {
+    transform: translate3d(-30px, 35px, 0) scale(0.94) rotate(-2deg);
+  }
+}
+
+@keyframes ambientFloat2 {
+  0%, 100% {
+    transform: translate3d(0px, 0px, 0) scale(1) rotate(0deg);
+  }
+  33% {
+    transform: translate3d(-50px, 45px, 0) scale(1.06) rotate(-3deg);
+  }
+  66% {
+    transform: translate3d(35px, -30px, 0) scale(1.12) rotate(2deg);
+  }
+}
+
+@keyframes pulseGlowRing {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(98, 245, 196, 0.4), 0 10px 25px rgba(98, 245, 196, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(98, 245, 196, 0), 0 14px 35px rgba(98, 245, 196, 0.4);
+  }
+}
+
+.animate-blob-1 {
+  animation: ambientFloat1 var(--tempo-ambient) var(--ease-ambient) infinite alternate;
+  will-change: transform;
+}
+
+.animate-blob-2 {
+  animation: ambientFloat2 var(--tempo-ambient-slow) var(--ease-ambient) infinite alternate;
+  will-change: transform;
+}
+
+.paused-motion {
+  animation-play-state: paused !important;
+}
+
+/* Play button breathing pulse */
+.playing-pulse-glow {
+  animation: pulseGlowRing 2.4s infinite var(--ease-ambient);
+}
+
+/* Interactive Spring Buttons */
+.btn-spring {
+  transition: transform var(--tempo-fast) var(--ease-spring),
+              opacity var(--tempo-fast) var(--ease-out-smooth),
+              filter var(--tempo-fast) var(--ease-out-smooth);
+}
+.btn-spring:active {
+  transform: scale(0.92);
+}
+
+/* Cinematic lyric stage: depth, active-line choreography, and word-level reveal */
+.lyric-line {
+  position: relative;
+  max-width: min(92vw, 1100px);
+  padding: 0.35rem 1rem 0.65rem;
+  transform-origin: center center;
+  transition: opacity 650ms var(--ease-out-smooth),
+              transform 800ms var(--ease-spring),
+              filter 650ms var(--ease-out-smooth),
+              color 450ms var(--ease-out-smooth);
+  will-change: transform, opacity;
+}
+
+.lyric-line-active {
+  animation: lyricRise 820ms var(--ease-spring) both;
+  filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.26));
+}
+
+.lyric-line-neighbor {
+  opacity: 0.42;
+  transform: translate3d(0, 0, 0) scale(0.95);
+  filter: blur(0.15px);
+}
+
+.lyric-line-neighbor:hover {
+  opacity: 0.78;
+  transform: translate3d(0, -2px, 0) scale(0.98);
+}
+
+.lyric-line-distant {
+  opacity: max(0.08, calc(0.22 - (var(--lyric-distance) * 0.035)));
+  transform: translate3d(0, 0, 0) scale(0.9);
+  filter: blur(0.7px);
+}
+
+.lyric-line-progress {
+  position: absolute;
+  left: 50%;
+  bottom: -0.15rem;
+  width: min(7rem, 30%);
+  height: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateX(-50%);
+}
+
+.lyric-line-progress > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #62f5c4, #b6fff0, #818cf8);
+  box-shadow: 0 0 12px rgba(98, 245, 196, 0.8);
+  transform-origin: left center;
+  transition: transform 120ms linear;
+}
+
+@keyframes lyricRise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 1rem, 0) scale(0.91);
+    filter: blur(7px);
+  }
+  55% {
+    opacity: 1;
+    transform: translate3d(0, -0.15rem, 0) scale(1.065);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1.035);
+    filter: blur(0);
+  }
+}
+
+.lyric-word {
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+  transition: transform 260ms var(--ease-spring), color 260ms var(--ease-out-smooth), opacity 260ms var(--ease-out-smooth);
+}
+
+.lyric-word-base,
+.lyric-word-fill {
+  display: block;
+}
+
+.lyric-word-base {
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.lyric-word-fill {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  width: calc(var(--word-progress, 0) * 100%);
+  color: #62f5c4;
+  white-space: nowrap;
+  text-shadow: 0 0 18px rgba(98, 245, 196, 0.65), 0 0 40px rgba(98, 245, 196, 0.3);
+  transition: width 100ms linear;
+}
+
+.lyric-word-current {
+  transform: translateY(-0.1em) scale(1.08);
+}
+
+.lyric-word-past .lyric-word-base {
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.lyric-word-future .lyric-word-base {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.lyric-active-gradient {
+  text-shadow: 0 0 18px rgba(98, 245, 196, 0.65), 0 0 40px rgba(98, 245, 196, 0.3);
+}
+
+/* Three upstream-derived lyric scenes. They share Echora's timing pipeline but deliberately
+   change composition, entry choreography, and the emotional pace of the text. */
+.lyric-stage { isolation: isolate; }
+.lyric-stage::before { content: ''; position: absolute; width: min(72vw, 58rem); height: min(42vw, 32rem); border-radius: 999px; pointer-events: none; opacity: .55; filter: blur(72px); transition: background 800ms ease, transform 900ms var(--ease-spring); }
+.lyric-stage-luminous::before { background: radial-gradient(circle, rgba(98,245,196,.16), transparent 67%); }.lyric-stage-fume::before { background: radial-gradient(circle, rgba(129,140,248,.2), transparent 62%); transform: translate3d(-10%, 6%, 0) scale(1.12); }.lyric-stage-partita::before { background: radial-gradient(circle, rgba(45,212,191,.13), transparent 62%); transform: translate3d(12%, -4%, 0) scale(.92); }
+.lyric-line-luminous { letter-spacing: .025em; }.lyric-line-fume { max-width: min(88vw, 64rem); text-align: left; align-self: stretch; padding-left: clamp(1rem, 12vw, 12rem); transform-origin: left center; }.lyric-line-fume.lyric-line-active { animation-name: fumeLineIn; }.lyric-line-partita { padding: .7rem 1rem; border-left: 2px solid transparent; }.lyric-line-partita.lyric-line-active { border-color: rgba(98,245,196,.72); background: linear-gradient(90deg, rgba(98,245,196,.11), transparent 68%); animation-name: partitaLineIn; }
+.lyric-word-luminous.lyric-word-current { animation: luminousWordPulse .7s var(--ease-spring) both; }.lyric-word-fume .lyric-word-fill { color: #c4b5fd; text-shadow: 0 0 19px rgba(167,139,250,.72), 0 0 48px rgba(129,140,248,.32); }.lyric-word-fume.lyric-word-current { transform: translate3d(.12em,-.08em,0) scale(1.06) rotate(-1.5deg); }.lyric-word-partita { padding: .08em .11em; }.lyric-word-partita .lyric-word-fill { color: #d1fae5; text-shadow: 0 0 16px rgba(45,212,191,.6); }.lyric-word-partita.lyric-word-current { transform: none; background: rgba(98,245,196,.14); border-radius: .18em; }
+@keyframes luminousWordPulse { 0% { transform: translateY(.18em) scale(.72); filter: blur(4px); } 65% { transform: translateY(-.12em) scale(1.15); filter: blur(0); } 100% { transform: translateY(-.1em) scale(1.08); } }
+@keyframes fumeLineIn { 0% { opacity: 0; transform: translate3d(-2.4rem, .7rem, 0) skewX(-5deg); filter: blur(10px); } 100% { opacity: 1; transform: translate3d(0, 0, 0) skewX(0); filter: blur(0); } }
+@keyframes partitaLineIn { 0% { opacity: 0; transform: translate3d(0, 1.4rem, 0) scale(.95); filter: blur(8px); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1.035); filter: blur(0); } }
+
+/* Upstream Folia-style coverflow selector, adapted for the Echora music sources. */
+.coverflow-shell {
+  position: relative;
+  min-height: 27rem;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 2rem;
+  background: radial-gradient(circle at 50% 38%, rgba(98, 245, 196, 0.11), transparent 38%), rgba(255, 255, 255, 0.025);
+  outline: none;
+  perspective: 1100px;
+}
+
+.coverflow-track {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding-bottom: 3.6rem;
+  transform: translateY(-1.2rem);
+  transform-style: preserve-3d;
+}
+
+.coverflow-card {
+  position: absolute;
+  width: clamp(10rem, 25vw, 17rem);
+  aspect-ratio: 1;
+  overflow: visible;
+  border-radius: 1.6rem;
+  background: transparent;
+  opacity: var(--coverflow-opacity);
+  transform: translate3d(var(--coverflow-x), var(--coverflow-y), var(--coverflow-z)) rotateY(var(--coverflow-rotate)) scale(var(--coverflow-scale));
+  transform-style: preserve-3d;
+  transition: transform 620ms cubic-bezier(.16, 1, .3, 1), opacity 460ms ease, filter 460ms ease;
+  filter: blur(var(--coverflow-blur)) saturate(var(--coverflow-saturation));
+  cursor: pointer;
+}
+
+.coverflow-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: inherit;
+  box-shadow: 0 28px 60px rgba(0,0,0,.46), 0 0 0 0 rgba(98,245,196,0);
+  transition: box-shadow 500ms ease, border-color 500ms ease;
+  pointer-events: none;
+}
+
+.coverflow-card-active::after { border-color: rgba(98,245,196,.6); box-shadow: 0 30px 75px rgba(0,0,0,.56), 0 0 46px rgba(98,245,196,.22); }
+.coverflow-artwork { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+.coverflow-reflection { position: absolute; inset: auto 0 -46% 0; height: 42%; border-radius: 0 0 1.6rem 1.6rem; background: linear-gradient(to bottom, rgba(255,255,255,.18), transparent); opacity: .3; transform: scaleY(-1); -webkit-mask-image: linear-gradient(black, transparent); mask-image: linear-gradient(black, transparent); }
+.coverflow-play { position: absolute; inset: 50% auto auto 50%; display: grid; width: 3.4rem; height: 3.4rem; place-items: center; border-radius: 999px; color: #06130f; background: #62f5c4; transform: translate(-50%, -50%) scale(.75); opacity: 0; transition: opacity 350ms ease, transform 420ms var(--ease-spring); }
+.coverflow-card-active .coverflow-play { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.coverflow-label { position: absolute; inset: auto -20% -4.8rem; text-align: center; color: white; opacity: 0; transform: translateY(-.5rem); transition: opacity 350ms ease, transform 420ms var(--ease-spring); }
+.coverflow-label strong, .coverflow-label small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coverflow-label strong { font-size: .95rem; font-weight: 800; }.coverflow-label small { margin-top: .25rem; color: rgba(98,245,196,.82); font-size: .72rem; }.coverflow-card-active .coverflow-label { opacity: 1; transform: translateY(0); }
+.coverflow-controls { position: absolute; bottom: 1.2rem; left: 50%; display: flex; align-items: center; gap: 1rem; color: rgba(255,255,255,.48); font-size: .68rem; font-weight: 800; letter-spacing: .13em; transform: translateX(-50%); }.coverflow-controls button { display: grid; width: 2.25rem; height: 2.25rem; place-items: center; border: 1px solid rgba(255,255,255,.13); border-radius: 999px; color: white; background: rgba(255,255,255,.06); transition: background 180ms ease, transform 180ms var(--ease-spring); }.coverflow-controls button:hover:not(:disabled) { background: rgba(98,245,196,.18); transform: scale(1.08); }.coverflow-controls button:disabled { cursor: not-allowed; opacity: .25; }.coverflow-now-playing { position: absolute; right: 1.25rem; top: 1.1rem; max-width: 40%; overflow: hidden; color: rgba(98,245,196,.82); font-size: .68rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 640px) { .coverflow-shell { min-height: 23rem; }.coverflow-card { width: 10rem; }.coverflow-now-playing { display: none; } }
+
+/* Audio Waveform Equalizer Animation */
+@keyframes barPulse {
+  0%, 100% { height: 4px; }
+  50% { height: 18px; }
+}
+
+.equalizer-bar {
+  width: 3px;
+  background: var(--mint-primary);
+  border-radius: 99px;
+  animation: barPulse 1.2s ease-in-out infinite;
+}
+.equalizer-bar:nth-child(2) { animation-delay: 0.2s; }
+.equalizer-bar:nth-child(3) { animation-delay: 0.4s; }
+.equalizer-bar:nth-child(4) { animation-delay: 0.1s; }
+
+/* Interactive Scrubber Seek Bar */
+.echora-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.echora-slider:focus {
+  outline: none;
+}
+
+.echora-slider::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  transition: height var(--tempo-fast) var(--ease-out-smooth),
+              background var(--tempo-fast) var(--ease-out-smooth);
+}
+
+.echora-slider:hover::-webkit-slider-runnable-track {
+  height: 7px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.echora-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -4.5px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--mint-primary);
+  box-shadow: 0 0 12px var(--mint-glow);
+  transition: transform var(--tempo-fast) var(--ease-spring),
+              box-shadow var(--tempo-fast) var(--ease-spring);
+}
+
+.echora-slider:hover::-webkit-slider-thumb,
+.echora-slider:active::-webkit-slider-thumb {
+  transform: scale(1.4);
+  box-shadow: 0 0 22px var(--mint-primary);
+}
+
+.echora-slider::-moz-range-track {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.echora-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 50%;
+  background: var(--mint-primary);
+  box-shadow: 0 0 12px var(--mint-glow);
+  transition: transform var(--tempo-fast) var(--ease-spring);
+}
+
+/* Modal and Drawer Transitions */
+.modal-backdrop-enter {
+  animation: fadeIn var(--tempo-modal) var(--ease-out-smooth) forwards;
+}
+
+.modal-panel-enter {
+  animation: modalScaleUp var(--tempo-modal) var(--ease-spring) forwards;
+}
+
+.drawer-enter {
+  animation: drawerSlideLeft var(--tempo-modal) var(--ease-out-smooth) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalScaleUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes drawerSlideLeft {
+  from {
+    opacity: 0;
+    transform: translate3d(100%, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-blob-1,
+  .animate-blob-2,
+  .playing-pulse-glow,
+  .equalizer-bar,
+  .lyric-line-active,
+  .lyric-word-current {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .lyric-word-fill { transition: none !important; }
+  .coverflow-card { transition: none !important; }
+}

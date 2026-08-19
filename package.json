@@ -1,0 +1,21 @@
+{
+  "name": "echora-pwa",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter=@echora/web dev",
+    "build": "turbo run build",
+    "lint": "pnpm --filter=@echora/web lint",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

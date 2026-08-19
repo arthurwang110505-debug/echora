@@ -1,0 +1,12 @@
+node_modules
+dist
+.next
+.vercel
+.turbo
+*.tsbuildinfo
+ios
+android
+.env
+.env.local
+
+.vercel

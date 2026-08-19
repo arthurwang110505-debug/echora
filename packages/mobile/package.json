@@ -1,0 +1,35 @@
+{
+  "name": "@echora/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "dev": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "build": "expo prebuild && expo build",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@echora/core": "workspace:*",
+    "expo": "~52.0.0",
+    "expo-av": "~14.0.0",
+    "expo-file-system": "~17.0.0",
+    "expo-media-library": "~17.0.0",
+    "expo-router": "~4.0.0",
+    "expo-status-bar": "~2.0.0",
+    "react": "^18.3.1",
+    "react-native": "0.76.0",
+    "react-native-reanimated": "~3.16.0",
+    "react-native-safe-area-context": "^4.10.1",
+    "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@types/react": "^18.3.3",
+    "typescript": "^5.4.5",
+    "vitest": "^1.3.1"
+  }
+}
