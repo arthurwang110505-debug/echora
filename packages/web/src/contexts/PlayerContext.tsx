@@ -6,7 +6,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const syncSpotifyPlayback = usePlayerStore(state => state.syncSpotifyPlayback);
   const restoreYouTubeSession = usePlayerStore(state => state.restoreYouTubeSession);
   const isPlaying = usePlayerStore(state => state.isPlaying);
-  const spotifyConnected = usePlayerStore(state => state.spotifyConnected);
+  const currentSong = usePlayerStore(state => state.currentSong);
   const tickTime = usePlayerStore(state => state.tickTime);
 
   useEffect(() => {
@@ -16,9 +16,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => window.clearInterval(timer);
   }, [restoreSpotifySession, restoreYouTubeSession, syncSpotifyPlayback]);
 
-  // High precision smooth playback ticker (updates every 100ms when playing without Spotify active sync)
+  // YouTube and Spotify report real time through their own player APIs. Only local playback may use a UI ticker.
   useEffect(() => {
-    if (!isPlaying || spotifyConnected) return;
+    if (!isPlaying || currentSong?.source === 'spotify' || currentSong?.source === 'ytmusic') return;
 
     let lastTime = performance.now();
     const interval = window.setInterval(() => {
@@ -31,7 +31,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }, 100);
 
     return () => window.clearInterval(interval);
-  }, [isPlaying, spotifyConnected, tickTime]);
+  }, [currentSong?.source, isPlaying, tickTime]);
 
   return <>{children}</>;
 }

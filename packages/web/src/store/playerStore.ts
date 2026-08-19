@@ -5,6 +5,7 @@ import {
   fetchLrcLibLyrics,
   SpotifyProvider,
   YouTubeMusicProvider,
+  extractYouTubeVideoId,
   type Playlist,
 } from '@echora/core';
 import {
@@ -16,6 +17,13 @@ import {
 } from '../integrations/spotifyAuth';
 import { beginYouTubeLogin, clearYouTubeSession, finishYouTubeLogin, getStoredYouTubeSession } from '../integrations/youtubeAuth';
 import { DEMO_LYRICS } from './demoLyrics';
+
+const getYouTubeErrorMessage = (error: unknown, prefix = 'YouTube 連線失敗') => {
+  const message = error instanceof Error ? error.message : String(error || '未知錯誤');
+  return message.includes('401')
+    ? 'YouTube 授權已失效，請解除連線後重新使用 Google 登入。'
+    : `${prefix}：${message}`;
+};
 
 export type DisplayMode = 'stage' | 'full';
 
@@ -103,7 +111,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   activeSource: 'spotify',
 
   play: (song, playlist) => {
-    const { spotifyProvider, spotifyToken, youtubeToken, currentSong } = get();
+    const { spotifyProvider, spotifyToken, currentSong } = get();
     const isNew = currentSong?.id !== song.id;
     if (isNew) {
       set({ isChangingTrack: true });
@@ -111,28 +119,32 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
     set({
       currentSong: song,
-      isPlaying: true,
+      // A newly mounted YouTube IFrame no longer inherits the homepage click gesture.
+      // Keep it paused until the visible player control receives a direct user gesture.
+      isPlaying: song.source === 'ytmusic' ? false : true,
       currentTime: 0,
       duration: song.durationMs ? Math.round(song.durationMs / 1000) : 210,
       ...(playlist ? { playlist, currentIndex: 0 } : {}),
     });
     if (song.source === 'spotify' && spotifyToken) void spotifyProvider.play(song.audioUrl || `spotify:track:${song.id}`);
-    if (song.source === 'ytmusic' && youtubeToken) {
+    if (song.source === 'ytmusic') {
       const artist = typeof song.artists[0] === 'string' ? song.artists[0] : song.artists[0]?.name || '';
-      const videoId = song.audioUrl || song.id;
-      if (videoId.length === 11) {
+      const videoId = extractYouTubeVideoId(song.audioUrl || song.id);
+      if (videoId) {
+        if (song.audioUrl !== videoId) set({ currentSong: { ...song, audioUrl: videoId } });
+        set({ youtubeError: null });
         window.dispatchEvent(new CustomEvent('echora:youtube-load', { detail: { videoId, autoplay: true } }));
       } else {
-        // The bundled demo cards are metadata-only. Resolve them to a real
-        // YouTube video before asking the iframe player to load them.
+        set({ isPlaying: false, youtubeError: '正在查找可播放的 YouTube 影片…' });
         void get().ytProvider.searchTracks(`${song.title} ${artist}`).then(results => {
-          const resolved = results[0]?.audioUrl || results[0]?.id;
-          if (resolved && resolved.length === 11) {
+          const resolved = extractYouTubeVideoId(results[0]?.audioUrl || results[0]?.id);
+          if (resolved) {
+            set({ currentSong: { ...song, audioUrl: resolved }, isPlaying: false, youtubeError: null });
             window.dispatchEvent(new CustomEvent('echora:youtube-load', { detail: { videoId: resolved, autoplay: true } }));
           } else {
-            set({ youtubeError: '這首示範歌曲沒有可播放的 YouTube 影片，請改選歌單中的歌曲。' });
+            set({ isPlaying: false, youtubeError: '找不到可嵌入播放的 YouTube 影片。請改選你的私人歌單曲目，或稍後再試。' });
           }
-        });
+        }).catch(error => set({ isPlaying: false, youtubeError: getYouTubeErrorMessage(error, '搜尋 YouTube 影片失敗') }));
       }
     }
     get().fetchLyrics(song);
@@ -151,7 +163,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     else {
       const { spotifyProvider, spotifyToken, currentSong } = get();
       if (spotifyToken) void spotifyProvider.play(currentSong?.audioUrl || (currentSong ? `spotify:track:${currentSong.id}` : undefined));
-      if (currentSong?.source === 'ytmusic') window.dispatchEvent(new CustomEvent('echora:youtube-play'));
+      if (currentSong?.source === 'ytmusic') {
+        window.dispatchEvent(new CustomEvent('echora:youtube-play'));
+        return;
+      }
       set({ isPlaying: true });
     }
   },
@@ -167,9 +182,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
     const nextSong = playlist[nextIndex];
     if (spotifyToken) void spotifyProvider.next();
-    set({ isChangingTrack: true, currentIndex: nextIndex, currentSong: nextSong, currentTime: 0 });
+    set({ isChangingTrack: true, currentIndex: nextIndex, currentTime: 0 });
     setTimeout(() => set({ isChangingTrack: false }), 700);
-    if (nextSong) get().fetchLyrics(nextSong);
+    if (nextSong?.source === 'ytmusic') get().play(nextSong);
+    else if (nextSong) { set({ currentSong: nextSong }); get().fetchLyrics(nextSong); }
   },
 
   prev: () => {
@@ -178,9 +194,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const prevIndex = currentIndex > 0 ? currentIndex - 1 : playlist.length - 1;
     const prevSong = playlist[prevIndex];
     if (spotifyToken) void spotifyProvider.previous();
-    set({ isChangingTrack: true, currentIndex: prevIndex, currentSong: prevSong, currentTime: 0 });
+    set({ isChangingTrack: true, currentIndex: prevIndex, currentTime: 0 });
     setTimeout(() => set({ isChangingTrack: false }), 700);
-    if (prevSong) get().fetchLyrics(prevSong);
+    if (prevSong?.source === 'ytmusic') get().play(prevSong);
+    else if (prevSong) { set({ currentSong: prevSong }); get().fetchLyrics(prevSong); }
   },
 
   seek: (time) => {
@@ -245,17 +262,24 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   restoreYouTubeSession: async () => {
+    const { ytProvider } = get();
     try {
       const session = finishYouTubeLogin() || getStoredYouTubeSession();
-      const { ytProvider } = get();
-      ytProvider.setAccessToken(session?.accessToken || null);
-      set({ youtubeToken: session?.accessToken || null, youtubeConnected: Boolean(session), youtubeError: null });
-      if (session) {
-        const profile = await ytProvider.getProfile();
-        set({ youtubeProfile: profile, activeSource: 'ytmusic' });
-        await get().loadSourcePlaylists();
+      if (!session) {
+        ytProvider.setAccessToken(null);
+        set({ youtubeToken: null, youtubeConnected: false, youtubeError: null, youtubeProfile: null, userPlaylists: [] });
+        return;
       }
-    } catch (error) { set({ youtubeError: error instanceof Error ? error.message : 'YouTube 登入失敗' }); }
+      ytProvider.setAccessToken(session.accessToken);
+      const profile = await ytProvider.getProfile();
+      if (!profile) throw new Error('此帳號沒有可供 YouTube Data API 使用的頻道。');
+      set({ youtubeToken: session.accessToken, youtubeConnected: true, youtubeError: null, youtubeProfile: profile, activeSource: 'ytmusic' });
+      await get().loadSourcePlaylists();
+    } catch (error) {
+      clearYouTubeSession();
+      ytProvider.setAccessToken(null);
+      set({ youtubeToken: null, youtubeConnected: false, youtubeProfile: null, userPlaylists: [], youtubeError: getYouTubeErrorMessage(error) });
+    }
   },
 
   disconnectYouTube: () => { clearYouTubeSession(); get().ytProvider.setAccessToken(null); set({ youtubeToken: null, youtubeConnected: false, youtubeError: null, youtubeProfile: null, userPlaylists: [] }); },
@@ -309,12 +333,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return;
     }
 
+    const artistName = typeof song.artists[0] === 'string'
+      ? (song.artists[0] as unknown as string)
+      : song.artists[0]?.name || 'Unknown';
     set({ isLoadingLyrics: true });
     try {
-      const artistName = typeof song.artists[0] === 'string' 
-        ? (song.artists[0] as unknown as string) 
-        : song.artists[0]?.name || 'Unknown';
-
       const lyrics = await fetchLrcLibLyrics({
         trackName: song.title,
         artistName,
@@ -322,27 +345,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         duration: song.durationMs ? song.durationMs / 1000 : undefined,
       });
 
-      if (lyrics) {
-        set({ currentLyrics: lyrics, isLoadingLyrics: false });
-      } else {
-        // Fallback demo lyrics
-        set({
-          currentLyrics: {
-            title: song.title,
-            artist: artistName,
-            isWordByWord: true,
-            lines: [
-              { fullText: `🎵 [正在播放: ${song.title}]`, startTime: 0, endTime: 5000, words: [{ text: song.title, startTime: 0, endTime: 5000 }] },
-              { fullText: `🎤 演唱者: ${artistName}`, startTime: 5000, endTime: 12000, words: [{ text: artistName, startTime: 5000, endTime: 12000 }] },
-              { fullText: '✨ 沉浸式 Echora 音樂呼吸舞台啟動中', startTime: 12000, endTime: 20000, words: [{ text: '✨', startTime: 12000, endTime: 14000 }, { text: '沉浸式', startTime: 14000, endTime: 16000 }, { text: 'Echora', startTime: 16000, endTime: 18000 }, { text: '音樂呼吸舞台啟動中', startTime: 18000, endTime: 20000 }] },
-              { fullText: '🌟 享受全螢幕 iPad & Mobile 隨身音樂舞台', startTime: 20000, endTime: 30000, words: [{ text: '🌟', startTime: 20000, endTime: 22000 }, { text: '享受全螢幕', startTime: 22000, endTime: 25000 }, { text: 'iPad & Mobile', startTime: 25000, endTime: 28000 }, { text: '隨身音樂舞台', startTime: 28000, endTime: 30000 }] },
-            ],
-          },
-          isLoadingLyrics: false,
-        });
-      }
+      set({ currentLyrics: lyrics || { title: song.title, artist: artistName, isWordByWord: false, lines: [] }, isLoadingLyrics: false });
     } catch {
-      set({ isLoadingLyrics: false });
+      set({ currentLyrics: { title: song.title, artist: artistName, isWordByWord: false, lines: [] }, isLoadingLyrics: false });
     }
   },
 
@@ -359,7 +364,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         set({ userPlaylists: [] });
       }
     } catch (error) {
-      set({ userPlaylists: [], youtubeError: error instanceof Error ? `歌單讀取失敗：${error.message}` : '歌單讀取失敗' });
+      const message = getYouTubeErrorMessage(error, '歌單讀取失敗');
+      if (message.includes('授權已失效')) {
+        clearYouTubeSession();
+        ytProvider.setAccessToken(null);
+        set({ youtubeToken: null, youtubeConnected: false, youtubeProfile: null, userPlaylists: [], youtubeError: message });
+      } else {
+        set({ userPlaylists: [], youtubeError: message });
+      }
     }
   },
 

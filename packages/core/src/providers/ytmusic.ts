@@ -2,6 +2,27 @@
 import type { Song } from '../types';
 import type { Playlist } from './types';
 
+const YOUTUBE_VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
+
+/** Normalizes a raw video ID, a watch URL, a short URL, or an embed URL to a YouTube video ID. */
+export const extractYouTubeVideoId = (value?: string | null): string | null => {
+  const candidate = value?.trim();
+  if (!candidate) return null;
+  if (YOUTUBE_VIDEO_ID.test(candidate)) return candidate;
+
+  try {
+    const url = new URL(candidate);
+    const host = url.hostname.replace(/^www\./, '');
+    const pathSegments = url.pathname.split('/').filter(Boolean);
+    const possibleId = host === 'youtu.be'
+      ? pathSegments[0]
+      : url.searchParams.get('v') || (['embed', 'shorts', 'live'].includes(pathSegments[0]) ? pathSegments[1] : null);
+    return possibleId && YOUTUBE_VIDEO_ID.test(possibleId) ? possibleId : null;
+  } catch {
+    return null;
+  }
+};
+
 export interface YTTrack {
   videoId: string;
   title: string;
@@ -62,7 +83,8 @@ export class YouTubeMusicProvider {
         artists: [{ id: item.snippet.channelId, name: item.snippet.channelTitle || 'YouTube Music' }],
         coverUrl: item.snippet.thumbnails?.high?.url || `https://i.ytimg.com/vi/${item.id.videoId}/hqdefault.jpg`,
         source: 'ytmusic' as const,
-        audioUrl: `https://music.youtube.com/watch?v=${item.id.videoId}`,
+        // IFrame Player requires the 11-character video ID, not a full watch URL.
+        audioUrl: item.id.videoId,
       }));
     } catch (err) {
       console.warn('[YTMusic] Search error:', err);

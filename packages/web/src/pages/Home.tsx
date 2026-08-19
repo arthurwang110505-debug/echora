@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { usePlayer } from '../contexts/PlayerContext';
 import { type Song } from '@echora/core';
 import { Carousel3D } from '../components/Carousel3D';
+import { spotifyClientId } from '../integrations/spotifyAuth';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -23,12 +24,12 @@ const FEATURED_SONGS: Song[] = [
   {
     id: 'yt_1', title: '夜に駆ける', artists: [{ id: '2', name: 'YOASOBI' }],
     album: { id: 'alb_3', name: 'THE BOOK' }, durationMs: 261000,
-    coverUrl: 'https://picsum.photos/seed/yoasobi/700/700', source: 'ytmusic',
+    coverUrl: 'https://picsum.photos/seed/yoasobi/700/700', source: 'ytmusic', audioUrl: 'by4SYYWlhEs',
   },
   {
     id: 'yt_2', title: 'First Love', artists: [{ id: '3', name: 'Utada Hikaru' }],
     album: { id: 'alb_4', name: 'First Love' }, durationMs: 257000,
-    coverUrl: 'https://picsum.photos/seed/firstlove/700/700', source: 'ytmusic',
+    coverUrl: 'https://picsum.photos/seed/firstlove/700/700', source: 'ytmusic', audioUrl: 'o1sUaVJUeB0',
   },
   {
     id: 'sp_3', title: 'Die With A Smile', artists: [{ id: '4', name: 'Lady Gaga, Bruno Mars' }],
@@ -38,7 +39,7 @@ const FEATURED_SONGS: Song[] = [
   {
     id: 'yt_3', title: 'アイドル', artists: [{ id: '2', name: 'YOASOBI' }],
     album: { id: 'alb_6', name: 'Idol' }, durationMs: 213000,
-    coverUrl: 'https://picsum.photos/seed/yoasobiidol/700/700', source: 'ytmusic',
+    coverUrl: 'https://picsum.photos/seed/yoasobiidol/700/700', source: 'ytmusic', audioUrl: 'ZRtdQ81jPUQ',
   },
 ];
 
@@ -63,6 +64,7 @@ export default function Home() {
   const [songViewMode, setSongViewMode] = useState<'3d' | 'grid'>('3d');
   const [focusedSongIndex, setFocusedSongIndex] = useState(0);
   const [connectionNotice, setConnectionNotice] = useState(false);
+  const spotifyAvailable = Boolean(spotifyClientId);
 
   useEffect(() => {
     const handleBeforeInstall = (event: Event) => {
@@ -107,7 +109,7 @@ export default function Home() {
     navigate('/player');
   };
 
-  const connectLabel = activeSource === 'ytmusic' ? (youtubeConnected ? 'YouTube 已連線' : '連接 YouTube Music') : spotifyConnected ? 'Spotify 已連線' : '連接 Spotify';
+  const connectLabel = activeSource === 'ytmusic' ? (youtubeConnected ? 'YouTube 已連線' : '連接 YouTube Music') : spotifyConnected ? 'Spotify 已連線' : spotifyAvailable ? '連接 Spotify' : 'Spotify 尚未啟用';
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#07090e] text-slate-100 selection:bg-[#62f5c4] selection:text-black">
@@ -354,6 +356,7 @@ export default function Home() {
                 {spotifyError}<br />請先在 Spotify Developer Dashboard 設定 Redirect URI。
               </p>
             )}
+            {!spotifyAvailable && <p className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/10 p-3 text-xs leading-5 text-amber-100">Spotify 尚未取得開發者權限或設定 Client ID，因此目前不可登入與測試；這不是播放故障。</p>}
             {youtubeError && <p className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs leading-5 text-rose-200">{youtubeError}</p>}
             {activeSource === 'ytmusic' && youtubeConnected && <p className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-xs text-emerald-100">已連線 {youtubeProfile?.name || 'YouTube'} · 已載入 {userPlaylists.length} 個歌單。到播放器側欄即可開啟。</p>}
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -363,7 +366,7 @@ export default function Home() {
               </button>
               <button type="button" onClick={() => setActiveSource('spotify')} className={`rounded-xl border px-4 py-3 text-left text-xs font-bold transition ${activeSource === 'spotify' ? 'border-[#1ed760]/60 bg-[#1ed760]/10 text-white' : 'border-white/10 bg-white/[0.03] text-slate-400'}`}>
                 <span className="block text-sm text-[#1ed760]">Spotify</span>
-                <span className="mt-1 block font-normal text-slate-500">同步 Spotify 歌單</span>
+                <span className="mt-1 block font-normal text-slate-500">{spotifyAvailable ? '同步 Spotify 歌單' : '尚未取得開發者權限'}</span>
               </button>
             </div>
             <div className="mt-6 flex justify-end gap-2">
@@ -372,7 +375,9 @@ export default function Home() {
                 <button type="button" onClick={() => { disconnectYouTube(); setShowConnectModal(false); }} className="rounded-xl border border-rose-400/25 px-5 py-2.5 text-xs font-extrabold text-rose-200 transition hover:bg-rose-400/10">解除 YouTube</button>
               ) : (
                 <button type="button" onClick={() => void connectYouTube()} className="rounded-xl bg-[#ff3d57] px-5 py-2.5 text-xs font-extrabold text-white transition hover:brightness-110 active:scale-95">使用 Google 登入 YouTube</button>
-              )) : spotifyConnected ? (
+              )) : !spotifyAvailable ? (
+                <button type="button" disabled className="cursor-not-allowed rounded-xl border border-amber-300/20 bg-amber-300/10 px-5 py-2.5 text-xs font-extrabold text-amber-100">Spotify 尚未啟用</button>
+              ) : spotifyConnected ? (
                 <button type="button" onClick={() => { disconnectSpotify(); setShowConnectModal(false); }} className="rounded-xl border border-rose-400/25 px-5 py-2.5 text-xs font-extrabold text-rose-200 transition hover:bg-rose-400/10">解除連線</button>
               ) : (
                 <button type="button" onClick={() => void connectSpotify()} className="rounded-xl bg-[#62f5c4] px-5 py-2.5 text-xs font-extrabold text-black transition hover:brightness-110 active:scale-95">使用 Spotify 登入</button>

@@ -7,6 +7,7 @@ import type { Playlist } from '@echora/core';
 import OriginalFoliaVisualizerStage from '../components/OriginalFoliaVisualizerStage';
 import YouTubePlayer from '../components/YouTubePlayer';
 import OriginalFoliaTuningPanel from '../components/OriginalFoliaTuningPanel';
+import { spotifyClientId } from '../integrations/spotifyAuth';
 
 export default function Player() {
   const navigate = useNavigate();
@@ -38,6 +39,7 @@ export default function Player() {
     disconnectYouTube,
     loadYouTubePlaylist,
     isChangingTrack,
+    isLoadingLyrics,
   } = usePlayer();
   const { currentTheme } = useTheme();
 
@@ -51,6 +53,7 @@ export default function Player() {
   const [showTuning, setShowTuning] = useState(false);
   const [visualizerTunings, setVisualizerTunings] = useState<Record<string, any>>({});
   const stageRootRef = useRef<HTMLDivElement>(null);
+  const spotifyAvailable = Boolean(spotifyClientId);
 
   const enterImmersiveStage = async () => {
     setDisplayMode('stage');
@@ -363,6 +366,19 @@ export default function Player() {
 
           {/* Echora Kinetic Lyrics Animation Stage */}
           <YouTubePlayer />
+          {currentSong.source === 'ytmusic' && !isPlaying && !youtubeError && (
+            <div className="pointer-events-none absolute inset-x-8 bottom-36 z-20 text-center" role="status">
+              <span className="rounded-full border border-[#62f5c4]/25 bg-[#111720]/85 px-4 py-2 text-xs font-semibold text-[#b8ffe2] shadow-xl backdrop-blur-xl">請在右下角 YouTube 播放器按下原生播放鍵以開始有聲播放</span>
+            </div>
+          )}
+          {!isLoadingLyrics && currentLyrics && currentLyrics.lines.length === 0 && (
+            <div className="pointer-events-none absolute inset-x-8 top-1/2 z-20 -translate-y-1/2 text-center" role="status">
+              <div className="mx-auto max-w-sm rounded-2xl border border-white/15 bg-[#111720]/85 px-5 py-4 text-sm text-slate-200 shadow-2xl backdrop-blur-xl">
+                <p className="font-bold text-white">這首歌目前沒有可取得的同步歌詞</p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">Echora 不會把歌曲標題與作者當作歌詞顯示。你仍可使用真實播放時間與視覺舞台。</p>
+              </div>
+            </div>
+          )}
           <OriginalFoliaVisualizerStage
             lines={currentLyrics?.lines || []}
             activeLineIndex={activeLineIndex}
@@ -517,6 +533,7 @@ export default function Player() {
                 {spotifyError}<br />請確認 Spotify App 的 Redirect URI 已正確設定。
               </p>
             )}
+            {!spotifyAvailable && <p className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-3 text-xs leading-5 text-amber-100">Spotify 尚未取得開發者權限或設定 Client ID，因此目前不可登入與測試；這不是播放故障。</p>}
             {youtubeError && (
               <p className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs leading-5 text-rose-200">
                 {youtubeError}
@@ -533,7 +550,9 @@ export default function Player() {
                 <button onClick={() => { disconnectYouTube(); setShowConnectModal(false); }} className="px-5 py-2.5 rounded-xl border border-rose-400/25 text-rose-200 hover:bg-rose-500/20 text-xs font-extrabold transition-all">解除 YouTube</button>
               ) : (
                 <button onClick={() => void connectYouTube()} className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#ff4b5c] to-[#ff1744] text-white text-xs font-extrabold shadow-lg hover:brightness-110 btn-spring">使用 Google 登入 YouTube</button>
-              )) : spotifyConnected ? (
+              )) : !spotifyAvailable ? (
+                <button disabled className="cursor-not-allowed rounded-xl border border-amber-300/20 bg-amber-300/10 px-5 py-2.5 text-xs font-extrabold text-amber-100">Spotify 尚未啟用</button>
+              ) : spotifyConnected ? (
                 <button
                   onClick={() => { disconnectSpotify(); setShowConnectModal(false); }}
                   className="px-5 py-2.5 rounded-xl border border-rose-400/25 text-rose-200 hover:bg-rose-500/20 text-xs font-extrabold transition-all"
