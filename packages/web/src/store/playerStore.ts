@@ -17,6 +17,7 @@ import {
 } from '../integrations/spotifyAuth';
 import { beginYouTubeLogin, clearYouTubeSession, finishYouTubeLogin, getStoredYouTubeSession } from '../integrations/youtubeAuth';
 import { DEMO_LYRICS } from './demoLyrics';
+import { recordDiagnostic } from '../lib/diagnostics';
 
 const RECENT_SONGS_STORAGE_KEY = 'echora.recent-songs';
 const FAVORITE_SONGS_STORAGE_KEY = 'echora.favorite-songs';
@@ -209,6 +210,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     });
     if (song.source === 'spotify' && spotifyToken) void spotifyProvider.play(song.audioUrl || `spotify:track:${song.id}`);
     if (song.source === 'ytmusic') {
+      recordDiagnostic('song_selected', { source: 'ytmusic' });
       const artist = typeof song.artists[0] === 'string' ? song.artists[0] : song.artists[0]?.name || '';
       const videoId = extractYouTubeVideoId(song.audioUrl || song.id);
       if (videoId) {
@@ -233,6 +235,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   pause: () => {
     const { spotifyProvider, spotifyToken, currentSong } = get();
+    recordDiagnostic('pause_requested', { source: currentSong?.source || 'none' });
     if (currentSong?.source === 'spotify' && spotifyToken) void spotifyProvider.pause();
     set({ isPlaying: false, playbackState: 'paused' });
     if (currentSong?.source === 'ytmusic') window.dispatchEvent(new CustomEvent('echora:youtube-pause'));
@@ -245,6 +248,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       const { spotifyProvider, spotifyToken, currentSong } = get();
       if (currentSong?.source === 'spotify' && spotifyToken) void spotifyProvider.play(currentSong.audioUrl || `spotify:track:${currentSong.id}`);
       if (currentSong?.source === 'ytmusic') {
+        recordDiagnostic('play_requested', { source: 'ytmusic' });
         window.dispatchEvent(new CustomEvent('echora:youtube-play'));
         set({ playbackState: 'loading' });
         return;

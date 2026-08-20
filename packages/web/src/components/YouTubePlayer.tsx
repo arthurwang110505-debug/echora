@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { usePlayer } from '../contexts/PlayerContext';
 import { extractYouTubeVideoId } from '@echora/core';
+import { recordDiagnostic } from '../lib/diagnostics';
 
 declare global { interface Window { YT?: any; onYouTubeIframeAPIReady?: () => void; } }
 
@@ -52,6 +53,7 @@ export default function YouTubePlayer({ immersive = false, concealed = false }: 
             if (event.data === window.YT.PlayerState.ENDED) usePlayer.setState({ isPlaying: false, playbackState: 'ended', currentTime, duration });
           },
           onError: (event: any) => {
+            recordDiagnostic('youtube_error', { code: Number(event.data) || 0 });
             const messages: Record<number, string> = {
               2: 'YouTube 拒絕了這支影片的播放參數。',
               5: '此影片無法由 HTML5 播放器播放。',

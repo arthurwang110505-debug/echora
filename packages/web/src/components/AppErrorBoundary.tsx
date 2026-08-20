@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { recordDiagnostic } from '../lib/diagnostics';
 
 interface AppErrorBoundaryProps {
   children: ReactNode;
@@ -17,6 +18,7 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('Echora application render failed', error, info);
+    recordDiagnostic('render_error', { name: error.name || 'Error' });
   }
 
   private recover = async () => {

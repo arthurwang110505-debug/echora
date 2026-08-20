@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeProvider';
 import { generateTheme, type AiProviderConfig } from '@echora/core';
+import { clearDiagnosticEvents, readDiagnosticEvents, type DiagnosticEvent } from '../lib/diagnostics';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -10,10 +11,12 @@ export default function Settings() {
   const [aiProvider, setAiProvider] = useState<'gemini' | 'openai'>('gemini');
   const [isGenerating, setIsGenerating] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [diagnosticEvents, setDiagnosticEvents] = useState<DiagnosticEvent[]>([]);
 
   useEffect(() => {
     const isReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     setReducedMotion(isReduced);
+    setDiagnosticEvents(readDiagnosticEvents());
   }, []);
 
   const handleGenerateTheme = async () => {
@@ -126,6 +129,11 @@ export default function Settings() {
               {isGenerating ? '生成主題中...' : '✨ 依據歌詞生成專屬主題'}
             </button>
           </div>
+        </div>
+
+        <div className="setting-group space-y-3">
+          <div className="flex items-center justify-between gap-4"><h3 className="text-xs font-extrabold text-[#62f5c4] uppercase tracking-widest font-mono">本機診斷紀錄</h3><button type="button" onClick={() => { clearDiagnosticEvents(); setDiagnosticEvents([]); }} disabled={!diagnosticEvents.length} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-bold text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40">清除紀錄</button></div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs text-slate-300 glass-card"><p className="leading-5 text-slate-400">僅保留在這台裝置最近 30 筆播放與錯誤事件；不含帳號、token、歌名或歌詞，不會傳送至外部服務。</p>{diagnosticEvents.length ? <ul className="mt-3 space-y-2">{diagnosticEvents.slice(0, 5).map(event => <li key={event.id} className="flex items-center justify-between gap-3 rounded-xl bg-black/20 px-3 py-2"><span className="font-mono text-[#b8ffe2]">{event.name}</span><time className="text-slate-500">{new Date(event.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time></li>)}</ul> : <p className="mt-3 text-slate-500">目前沒有可顯示的本機診斷紀錄。</p>}</div>
         </div>
 
         <div className="setting-group space-y-3">
