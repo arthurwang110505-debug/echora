@@ -11,6 +11,7 @@ export function getYouTubeSurfaceClass(immersive: boolean) {
 }
 
 export default function YouTubePlayer({ immersive = false, concealed = false }: { immersive?: boolean; concealed?: boolean }) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
   const disposedRef = useRef(false);
@@ -19,6 +20,11 @@ export default function YouTubePlayer({ immersive = false, concealed = false }: 
   useEffect(() => {
     if (currentSong?.source !== 'ytmusic') return;
     disposedRef.current = false;
+    if (!hostRef.current && containerRef.current) {
+      const host = document.createElement('div');
+      hostRef.current = host;
+      containerRef.current.replaceChildren(host);
+    }
     const create = () => {
       if (disposedRef.current || !hostRef.current || !window.YT?.Player || playerRef.current) return;
       playerRef.current = new window.YT.Player(hostRef.current, {
@@ -76,7 +82,8 @@ export default function YouTubePlayer({ immersive = false, concealed = false }: 
       playerRef.current = null;
       try { player?.stopVideo?.(); } catch { /* The player may have been removed by the browser. */ }
       try { player?.destroy?.(); } catch { /* The player may have already disposed itself. */ }
-      if (hostRef.current) hostRef.current.replaceChildren();
+      hostRef.current = null;
+      if (containerRef.current) containerRef.current.replaceChildren();
     };
   }, [currentSong?.source]);
 
@@ -122,6 +129,6 @@ export default function YouTubePlayer({ immersive = false, concealed = false }: 
     ? visibleSurfaceClass
     : 'pointer-events-none fixed -left-[10000px] top-0 h-[200px] w-[356px] overflow-hidden'} aria-hidden={concealed || !awaitingUserGesture} aria-label={concealed ? undefined : 'YouTube 原生播放器'}>
     {awaitingUserGesture && !concealed && <div className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-black/70 px-3 py-2 text-center text-xs font-semibold text-white">請按 YouTube 原生播放鍵以啟動音訊</div>}
-    <div ref={hostRef} />
+    <div ref={containerRef} />
   </div>;
 }
