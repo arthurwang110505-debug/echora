@@ -13,12 +13,14 @@ export function getYouTubeSurfaceClass(immersive: boolean) {
 export default function YouTubePlayer({ immersive = false }: { immersive?: boolean }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
+  const disposedRef = useRef(false);
   const { currentSong, isPlaying, volume } = usePlayer();
 
   useEffect(() => {
     if (currentSong?.source !== 'ytmusic') return;
+    disposedRef.current = false;
     const create = () => {
-      if (!hostRef.current || !window.YT?.Player || playerRef.current) return;
+      if (disposedRef.current || !hostRef.current || !window.YT?.Player || playerRef.current) return;
       playerRef.current = new window.YT.Player(hostRef.current, {
         width: '356',
         height: '200',
@@ -34,11 +36,12 @@ export default function YouTubePlayer({ immersive = false }: { immersive?: boole
             }
           },
           onStateChange: (event: any) => {
+            if (disposedRef.current) return;
             const state = usePlayer.getState();
             const duration = Number(event.target.getDuration?.() || state.duration);
             const currentTime = Number(event.target.getCurrentTime?.() || 0);
-            if (event.data === window.YT.PlayerState.PLAYING) usePlayer.setState({ isPlaying: true, playbackState: 'playing', currentTime, duration, youtubeError: null });
-            if (event.data === window.YT.PlayerState.BUFFERING) usePlayer.setState({ isPlaying: false, playbackState: 'buffering', currentTime, duration });
+            if (event.data === window.YT.PlayerState.PLAYING) usePlayer.setState({ isPlaying: true, playbackState: 'playing', currentTime: Number.isFinite(currentTime) ? currentTime : state.currentTime, duration: Number.isFinite(duration) ? duration : state.duration, youtubeError: null });
+            if (event.data === window.YT.PlayerState.BUFFERING) usePlayer.setState({ isPlaying: false, playbackState: 'buffering', currentTime: Number.isFinite(currentTime) ? currentTime : state.currentTime, duration: Number.isFinite(duration) ? duration : state.duration });
             if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.CUED) usePlayer.setState({ isPlaying: false, playbackState: 'paused', currentTime, duration });
             if (event.data === window.YT.PlayerState.ENDED) usePlayer.setState({ isPlaying: false, playbackState: 'ended', currentTime, duration });
           },
@@ -55,9 +58,26 @@ export default function YouTubePlayer({ immersive = false }: { immersive?: boole
         },
       });
     };
+    const readyHandler = () => create();
     if (window.YT?.Player) create();
-    else { window.onYouTubeIframeAPIReady = create; const script = document.createElement('script'); script.src = 'https://www.youtube.com/iframe_api'; script.async = true; document.head.appendChild(script); }
-    return () => { window.onYouTubeIframeAPIReady = undefined; };
+    else {
+      window.onYouTubeIframeAPIReady = readyHandler;
+      if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+        const script = document.createElement('script');
+        script.src = 'https://www.youtube.com/iframe_api';
+        script.async = true;
+        document.head.appendChild(script);
+      }
+    }
+    return () => {
+      disposedRef.current = true;
+      if (window.onYouTubeIframeAPIReady === readyHandler) window.onYouTubeIframeAPIReady = undefined;
+      const player = playerRef.current;
+      playerRef.current = null;
+      try { player?.stopVideo?.(); } catch { /* The player may have been removed by the browser. */ }
+      try { player?.destroy?.(); } catch { /* The player may have already disposed itself. */ }
+      if (hostRef.current) hostRef.current.replaceChildren();
+    };
   }, [currentSong?.source]);
 
   useEffect(() => {
@@ -67,10 +87,10 @@ export default function YouTubePlayer({ immersive = false }: { immersive?: boole
         usePlayer.setState({ isPlaying: false, playbackState: 'error', youtubeError: '缺少有效的 YouTube video ID。' });
         return;
       }
-      if (typeof playerRef.current?.loadVideoById === 'function') playerRef.current.loadVideoById(videoId);
+      if (!disposedRef.current && typeof playerRef.current?.loadVideoById === 'function') playerRef.current.loadVideoById(videoId);
     };
-    const onPlay = () => { if (typeof playerRef.current?.playVideo === 'function') playerRef.current.playVideo(); };
-    const onPause = () => { if (typeof playerRef.current?.pauseVideo === 'function') playerRef.current.pauseVideo(); };
+    const onPlay = () => { if (!disposedRef.current && typeof playerRef.current?.playVideo === 'function') playerRef.current.playVideo(); };
+    const onPause = () => { if (!disposedRef.current && typeof playerRef.current?.pauseVideo === 'function') playerRef.current.pauseVideo(); };
     const onSeek = (event: Event) => { if (typeof playerRef.current?.seekTo === 'function') playerRef.current.seekTo((event as CustomEvent<number>).detail, true); };
     window.addEventListener('echora:youtube-load', onLoad); window.addEventListener('echora:youtube-play', onPlay); window.addEventListener('echora:youtube-pause', onPause); window.addEventListener('echora:youtube-seek', onSeek);
     return () => { window.removeEventListener('echora:youtube-load', onLoad); window.removeEventListener('echora:youtube-play', onPlay); window.removeEventListener('echora:youtube-pause', onPause); window.removeEventListener('echora:youtube-seek', onSeek); };
@@ -82,13 +102,13 @@ export default function YouTubePlayer({ immersive = false }: { immersive?: boole
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      if (typeof playerRef.current?.getCurrentTime !== 'function' || currentSong?.source !== 'ytmusic') return;
+      if (disposedRef.current || typeof playerRef.current?.getCurrentTime !== 'function' || currentSong?.source !== 'ytmusic') return;
       const state = usePlayer.getState();
       if (!state.isPlaying) return;
       const currentTime = Number(playerRef.current.getCurrentTime() || 0);
       const duration = Number(playerRef.current.getDuration?.() || state.duration);
-      if (Math.abs(currentTime - state.currentTime) > 0.25) usePlayer.setState({ currentTime, duration });
-    }, 250);
+      if (Number.isFinite(currentTime) && Number.isFinite(duration) && Math.abs(currentTime - state.currentTime) > 0.04) usePlayer.setState({ currentTime, duration });
+    }, 100);
     return () => window.clearInterval(timer);
   }, [currentSong]);
 

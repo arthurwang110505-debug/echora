@@ -399,9 +399,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   fetchLyrics: async (song: Song) => {
+    const requestedSongId = song.id;
     // Check bundled demo lyrics first for instant rich experience
     if (DEMO_LYRICS[song.id]) {
-      set({ currentLyrics: { ...DEMO_LYRICS[song.id], availability: 'available' }, isLoadingLyrics: false, lyricsStatus: 'available' });
+      if (get().currentSong?.id === requestedSongId) set({ currentLyrics: { ...DEMO_LYRICS[song.id], availability: 'available' }, isLoadingLyrics: false, lyricsStatus: 'available' });
       return;
     }
 
@@ -418,9 +419,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       });
 
       const resolved = lyrics || { title: song.title, artist: artistName, isWordByWord: false, lines: [], availability: 'unavailable' as const };
-      set({ currentLyrics: resolved, isLoadingLyrics: false, lyricsStatus: resolved.availability || 'available' });
+      if (get().currentSong?.id === requestedSongId) set({ currentLyrics: resolved, isLoadingLyrics: false, lyricsStatus: resolved.availability || 'available' });
     } catch {
-      set({ currentLyrics: { title: song.title, artist: artistName, isWordByWord: false, lines: [], availability: 'error' }, isLoadingLyrics: false, lyricsStatus: 'error' });
+      if (get().currentSong?.id === requestedSongId) set({ currentLyrics: { title: song.title, artist: artistName, isWordByWord: false, lines: [], availability: 'error' }, isLoadingLyrics: false, lyricsStatus: 'error' });
     }
   },
 

@@ -54,6 +54,7 @@ export default function Player() {
   const [backgroundMode, setBackgroundMode] = useState('latent');
   const [showTuning, setShowTuning] = useState(false);
   const [visualizerTunings, setVisualizerTunings] = useState<Record<string, any>>({});
+  const [lyricsOffsetSeconds, setLyricsOffsetSeconds] = useState(0);
   const stageRootRef = useRef<HTMLDivElement>(null);
   const spotifyAvailable = Boolean(spotifyClientId);
 
@@ -106,10 +107,26 @@ export default function Player() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [playPause]);
 
+  useEffect(() => {
+    const recoverVisualizer = () => setActiveVisualizer('classic');
+    window.addEventListener('echora:visualizer-recover', recoverVisualizer);
+    return () => window.removeEventListener('echora:visualizer-recover', recoverVisualizer);
+  }, []);
+
+  useEffect(() => {
+    setLyricsOffsetSeconds(0);
+  }, [currentSong?.id]);
+
+  const returnToPlaylist = async () => {
+    await leaveImmersiveStage();
+    navigate('/');
+  };
+
   // Active line index calculation with natural breath pause tolerance
   const activeLineIndex = useMemo(() => {
     if (!currentLyrics?.lines || currentLyrics.lines.length === 0) return 0;
-    const effectiveTime = (isSeeking && seekPreviewTime !== null) ? seekPreviewTime : currentTime;
+    const playbackTime = (isSeeking && seekPreviewTime !== null) ? seekPreviewTime : currentTime;
+    const effectiveTime = Math.max(0, playbackTime + lyricsOffsetSeconds);
 
     const idx = currentLyrics.lines.findIndex((l: Line, i: number) => {
       const nextLine = currentLyrics.lines[i + 1];
@@ -119,7 +136,7 @@ export default function Player() {
     });
 
     return idx !== -1 ? idx : 0;
-  }, [currentLyrics, currentTime, isSeeking, seekPreviewTime, duration]);
+  }, [currentLyrics, currentTime, isSeeking, seekPreviewTime, duration, lyricsOffsetSeconds]);
 
   if (!currentSong) {
     return (
@@ -156,6 +173,7 @@ export default function Player() {
     : currentSong.artists[0]?.name || 'Unknown Artist';
 
   const displayedTime = (isSeeking && seekPreviewTime !== null) ? seekPreviewTime : currentTime;
+  const displayedLyricsTime = Math.max(0, displayedTime + lyricsOffsetSeconds);
 
   return (
     <div
@@ -394,7 +412,7 @@ export default function Player() {
           <OriginalFoliaVisualizerStage
             lines={currentLyrics?.lines || []}
             activeLineIndex={activeLineIndex}
-            displayedTime={displayedTime}
+            displayedTime={displayedLyricsTime}
             isPlaying={isPlaying}
             theme={currentTheme}
             visualizerMode={activeVisualizer}
@@ -423,7 +441,7 @@ export default function Player() {
             <div className="fixed inset-x-0 bottom-0 z-[70] flex items-center justify-center gap-2 border-t border-white/10 bg-[#07090e]/80 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:inset-x-auto sm:right-4 sm:bottom-4 sm:rounded-2xl sm:border sm:p-2">
               <button
                 type="button"
-                onClick={() => navigate('/')}
+                onClick={() => void returnToPlaylist()}
                 className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20"
                 aria-label="返回歌單選擇頁"
               >
@@ -494,11 +512,16 @@ export default function Player() {
 
             {/* Primary playback controls and secondary stage controls */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-2 md:w-auto">
+              <div className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-2 md:w-auto">
                 <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">目前舞台</p><p className="text-xs font-extrabold text-[#b8ffe2]">{activeVisualizer}</p></div>
-                <button onClick={() => setShowTuning(value => !value)} className={`shrink-0 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${showTuning ? 'border-[#62f5c4]/50 bg-[#62f5c4]/20 text-[#62f5c4]' : 'border-white/10 bg-white/[0.05] text-slate-300 hover:text-white'}`} aria-label="開啟視覺模式與舞台設定">
-                  視覺與舞台設定
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button type="button" onClick={() => setLyricsOffsetSeconds(value => Math.max(-10, Number((value - 0.25).toFixed(2))))} className="rounded-lg border border-white/10 bg-white/[0.05] px-2 py-1.5 text-[11px] font-bold text-slate-300 hover:text-white" aria-label="讓歌詞延後 0.25 秒">歌詞 −</button>
+                  <button type="button" onClick={() => setLyricsOffsetSeconds(0)} className="rounded-lg border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-2 py-1.5 text-[11px] font-bold text-[#b8ffe2]" aria-label="重設歌詞同步偏移">{lyricsOffsetSeconds === 0 ? '同步' : `${lyricsOffsetSeconds > 0 ? '+' : ''}${lyricsOffsetSeconds.toFixed(2)}s`}</button>
+                  <button type="button" onClick={() => setLyricsOffsetSeconds(value => Math.min(10, Number((value + 0.25).toFixed(2))))} className="rounded-lg border border-white/10 bg-white/[0.05] px-2 py-1.5 text-[11px] font-bold text-slate-300 hover:text-white" aria-label="讓歌詞提前 0.25 秒">歌詞 ＋</button>
+                  <button onClick={() => setShowTuning(value => !value)} className={`shrink-0 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${showTuning ? 'border-[#62f5c4]/50 bg-[#62f5c4]/20 text-[#62f5c4]' : 'border-white/10 bg-white/[0.05] text-slate-300 hover:text-white'}`} aria-label="開啟視覺模式與舞台設定">
+                    視覺與舞台設定
+                  </button>
+                </div>
               </div>
 
               {/* Media Controls */}
