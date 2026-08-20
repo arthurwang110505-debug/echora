@@ -13,12 +13,14 @@ export default function Library() {
     youtubeProfile,
     userPlaylists,
     recentSongs,
+    favoriteSongs,
     isSyncingLibrary,
     libraryError,
     lastLibrarySyncAt,
     loadSourcePlaylists,
     loadYouTubePlaylist,
     play,
+    toggleFavoriteSong,
   } = usePlayer();
 
   useEffect(() => {
@@ -77,6 +79,7 @@ export default function Library() {
         </section>
 
         {recentSongs.length ? <section><div className="mb-4"><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#F9F871]">Continue listening</p><h2 className="mt-1 text-2xl font-extrabold text-white">最近播放</h2></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{recentSongs.map(song => <button key={`${song.source}-${song.id}`} type="button" onClick={() => { play(song, recentSongs); navigate('/player'); }} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3 text-left transition hover:border-[#62f5c4]/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F9F871]"><img src={song.coverUrl || createCoverPlaceholder(song.title, 'artist')} alt="" className="h-12 w-12 rounded-xl object-cover" /><span className="min-w-0"><span className="block truncate text-sm font-bold text-white">{song.title}</span><span className="block truncate text-xs text-slate-500">{song.artists[0]?.name || 'Unknown artist'}</span></span></button>)}</div></section> : null}
+        {favoriteSongs.length ? <section><div className="mb-4"><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#F9F871]">Your collection</p><h2 className="mt-1 text-2xl font-extrabold text-white">收藏曲目</h2></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{favoriteSongs.map(song => <div key={`favorite-${song.source}-${song.id}`} className="flex items-center gap-3 rounded-2xl border border-[#F9F871]/15 bg-[#F9F871]/[0.035] p-3"><button type="button" onClick={() => { play(song, favoriteSongs); navigate('/player'); }} className="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F9F871]"><img src={song.coverUrl || createCoverPlaceholder(song.title, 'artist')} alt="" className="h-12 w-12 rounded-xl object-cover" /><span className="min-w-0"><span className="block truncate text-sm font-bold text-white">{song.title}</span><span className="block truncate text-xs text-slate-500">{typeof song.artists[0] === 'string' ? song.artists[0] : song.artists[0]?.name || 'Unknown artist'}</span></span></button><button type="button" onClick={() => toggleFavoriteSong(song)} className="rounded-xl px-2 py-2 text-lg text-[#F9F871] transition hover:bg-white/10" aria-label={`取消收藏 ${song.title}`}>★</button></div>)}</div></section> : null}
       </main>
     </div>
   );

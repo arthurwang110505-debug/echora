@@ -19,6 +19,7 @@ import { beginYouTubeLogin, clearYouTubeSession, finishYouTubeLogin, getStoredYo
 import { DEMO_LYRICS } from './demoLyrics';
 
 const RECENT_SONGS_STORAGE_KEY = 'echora.recent-songs';
+const FAVORITE_SONGS_STORAGE_KEY = 'echora.favorite-songs';
 const PLAYBACK_SNAPSHOT_STORAGE_KEY = 'echora.playback-snapshot';
 const MAX_RECENT_SONGS = 12;
 
@@ -39,6 +40,20 @@ const rememberRecentSong = (song: Song, recentSongs: Song[]) => {
   const next = [song, ...recentSongs.filter(item => item.id !== song.id)].slice(0, MAX_RECENT_SONGS);
   if (typeof window !== 'undefined') window.localStorage.setItem(RECENT_SONGS_STORAGE_KEY, JSON.stringify(next));
   return next;
+};
+
+const readFavoriteSongs = (): Song[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(FAVORITE_SONGS_STORAGE_KEY) || '[]');
+    return Array.isArray(stored) ? stored.slice(0, MAX_RECENT_SONGS) : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeFavoriteSongs = (songs: Song[]) => {
+  if (typeof window !== 'undefined') window.localStorage.setItem(FAVORITE_SONGS_STORAGE_KEY, JSON.stringify(songs));
 };
 
 const readPlaybackSnapshot = (): Pick<PlayerState, 'currentSong' | 'playlist' | 'currentIndex' | 'currentTime' | 'duration' | 'volume'> | null => {
@@ -102,6 +117,7 @@ interface PlayerState {
   ytProvider: YouTubeMusicProvider;
   userPlaylists: Playlist[];
   recentSongs: Song[];
+  favoriteSongs: Song[];
   isSyncingLibrary: boolean;
   libraryError: string | null;
   lastLibrarySyncAt: number | null;
@@ -121,6 +137,7 @@ interface PlayerState {
   setLoopMode: (mode: 'off' | 'list' | 'single') => void;
   setDisplayMode: (mode: DisplayMode) => void;
   setActiveSource: (source: 'spotify' | 'ytmusic' | 'local') => void;
+  toggleFavoriteSong: (song: Song) => void;
   restorePlaybackSnapshot: () => void;
   setSpotifyToken: (token: string | null) => void;
   connectSpotify: () => Promise<void>;
@@ -165,6 +182,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   ytProvider: new YouTubeMusicProvider(),
   userPlaylists: [],
   recentSongs: readRecentSongs(),
+  favoriteSongs: readFavoriteSongs(),
   isSyncingLibrary: false,
   libraryError: null,
   lastLibrarySyncAt: null,
@@ -302,6 +320,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setActiveSource: (activeSource) => {
     set({ activeSource });
     get().loadSourcePlaylists();
+  },
+
+  toggleFavoriteSong: (song) => {
+    const current = get().favoriteSongs;
+    const exists = current.some(item => item.source === song.source && item.id === song.id);
+    const next = exists
+      ? current.filter(item => !(item.source === song.source && item.id === song.id))
+      : [song, ...current.filter(item => !(item.source === song.source && item.id === song.id))].slice(0, MAX_RECENT_SONGS);
+    writeFavoriteSongs(next);
+    set({ favoriteSongs: next });
   },
 
   restorePlaybackSnapshot: () => {

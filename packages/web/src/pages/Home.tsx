@@ -55,7 +55,7 @@ export default function Home() {
   const navigate = useNavigate();
   const location = useLocation();
   const {
-    currentSong, isPlaying, play, playPause, next, prev, setPlaylist,
+    currentSong, isPlaying, play, playPause, next, prev, setPlaylist, favoriteSongs, toggleFavoriteSong,
     activeSource, setActiveSource, spotifyConnected, spotifyError, connectSpotify, disconnectSpotify,
     youtubeConnected, youtubeError, youtubeConnectionState, youtubeProfile, userPlaylists, isSyncingLibrary, libraryError, lastLibrarySyncAt, loadSourcePlaylists, connectYouTube, disconnectYouTube,
   } = usePlayer();
@@ -316,6 +316,15 @@ export default function Home() {
             ))}
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => toggleFavoriteSong(currentSong)}
+              aria-label={favoriteSongs.some(song => song.source === currentSong.source && song.id === currentSong.id) ? '取消收藏目前歌曲' : '收藏目前歌曲'}
+              aria-pressed={favoriteSongs.some(song => song.source === currentSong.source && song.id === currentSong.id)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-lg text-[#F9F871] transition hover:bg-white/10 active:scale-90"
+            >
+              {favoriteSongs.some(song => song.source === currentSong.source && song.id === currentSong.id) ? '★' : '☆'}
+            </button>
             <button
               type="button"
               onClick={prev}
