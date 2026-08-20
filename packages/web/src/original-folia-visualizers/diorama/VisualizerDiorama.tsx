@@ -260,6 +260,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
     const hasEverActiveRef = useRef(false);
     const lastActiveKeyRef = useRef<string | null>(null);
     const transitionEpochRef = useRef(0);
+    const pendingTransitionRef = useRef<DioramaTransitionState | null>(null);
     const [transition, setTransition] = useState<DioramaTransitionState | null>(null);
 
     const seq = seqRef.current;
@@ -324,7 +325,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
     const startingTransition = (keyChanged && hadPrevious) || isLoopRestart;
     if (startingTransition) {
         transitionEpochRef.current += 1;
-        setTransition({ epoch: transitionEpochRef.current, outgoingIndex: outgoingGlobal });
+        pendingTransitionRef.current = { epoch: transitionEpochRef.current, outgoingIndex: outgoingGlobal };
     }
     if (effectiveLineIndex >= 0) {
         lastLocalIndexRef.current = effectiveLineIndex;
@@ -348,6 +349,15 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
         : transition ? transition.outgoingIndex : null;
     const pruneFrom = activeOutgoingIndex != null ? Math.min(globalIndex, activeOutgoingIndex) : globalIndex;
     pruneSegments(seq, pruneFrom - PRUNE_MARGIN_BEHIND);
+
+    // State transitions must be scheduled after render. Updating React state while this branch is
+    // rendering makes strict-mode pause and scene switches re-enter the renderer recursively.
+    useEffect(() => {
+        const pending = pendingTransitionRef.current;
+        if (!pending) return;
+        pendingTransitionRef.current = null;
+        setTransition(pending);
+    });
 
     // End the flight after its duration: clears the outgoing window (the camera has arrived, the old
     // scene is far behind in the fog) and lets the stale segment prune on the next line.
