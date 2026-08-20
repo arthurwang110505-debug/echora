@@ -1,5 +1,13 @@
 export type DiagnosticEventName = 'song_selected' | 'play_requested' | 'pause_requested' | 'youtube_error' | 'render_error';
 
+const diagnosticLabels: Record<DiagnosticEventName, string> = {
+  song_selected: '已選取歌曲',
+  play_requested: '已要求播放',
+  pause_requested: '已要求暫停',
+  youtube_error: 'YouTube 播放器錯誤',
+  render_error: '畫面載入錯誤',
+};
+
 export interface DiagnosticEvent {
   id: number;
   name: DiagnosticEventName;
@@ -32,4 +40,15 @@ export function recordDiagnostic(name: DiagnosticEventName, details: DiagnosticE
 
 export function clearDiagnosticEvents() {
   if (typeof window !== 'undefined') window.localStorage.removeItem(STORAGE_KEY);
+}
+
+export function getDiagnosticLabel(name: DiagnosticEventName) {
+  return diagnosticLabels[name];
+}
+
+export function createDiagnosticSummary(events: DiagnosticEvent[]) {
+  if (!events.length) return '';
+  const formatter = new Intl.DateTimeFormat('zh-TW', { dateStyle: 'short', timeStyle: 'medium' });
+  const lines = events.slice(0, MAX_EVENTS).map(event => `- ${formatter.format(event.createdAt)}：${getDiagnosticLabel(event.name)}`);
+  return ['Echora 本機診斷摘要', '僅包含時間與事件類型；不含帳號、token、歌名或歌詞。', ...lines].join('\n');
 }

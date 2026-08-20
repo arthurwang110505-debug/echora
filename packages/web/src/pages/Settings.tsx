@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeProvider';
 import { generateTheme, type AiProviderConfig } from '@echora/core';
-import { clearDiagnosticEvents, readDiagnosticEvents, type DiagnosticEvent } from '../lib/diagnostics';
+import { clearDiagnosticEvents, createDiagnosticSummary, getDiagnosticLabel, readDiagnosticEvents, type DiagnosticEvent } from '../lib/diagnostics';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -12,6 +12,7 @@ export default function Settings() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [diagnosticEvents, setDiagnosticEvents] = useState<DiagnosticEvent[]>([]);
+  const [copyFeedback, setCopyFeedback] = useState('');
 
   useEffect(() => {
     const isReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -44,6 +45,18 @@ export default function Settings() {
     }
   };
 
+  const handleCopyDiagnostics = async () => {
+    const summary = createDiagnosticSummary(diagnosticEvents);
+    if (!summary) return;
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(summary);
+      setCopyFeedback('已複製不含敏感資料的診斷摘要。');
+    } catch {
+      setCopyFeedback('這個瀏覽器無法直接複製；請在支援剪貼簿權限的瀏覽器重試。');
+    }
+  };
+
   return (
     <div className="settings-page min-h-screen bg-[#07090e] text-white pb-24 font-sans selection:bg-[#62f5c4] selection:text-black">
       <header className="flex items-center py-4 px-6 border-b border-white/10 bg-[#0d111a]/80 backdrop-blur-2xl sticky top-0 z-30">
@@ -60,7 +73,7 @@ export default function Settings() {
 
       <div className="p-6 max-w-2xl mx-auto space-y-8">
         <div className="setting-group space-y-3">
-          <h3 className="text-xs font-extrabold text-[#62f5c4] uppercase tracking-widest font-mono">外觀與舞台主題</h3>
+          <h3 className="text-xs font-extrabold text-[#62f5c4] uppercase tracking-widest font-mono">播放與外觀</h3>
           <div className="flex justify-between items-center p-4 bg-white/[0.04] rounded-2xl border border-white/10 glass-card">
             <div>
               <p className="text-sm font-bold text-white">當前色彩風格</p>
@@ -73,7 +86,7 @@ export default function Settings() {
         </div>
 
         <div className="setting-group space-y-3">
-          <h3 className="text-xs font-extrabold text-[#62f5c4] uppercase tracking-widest font-mono">動態與無障礙 (Accessibility)</h3>
+          <h4 className="text-xs font-extrabold text-slate-300 tracking-wide">動態與無障礙</h4>
           <div className="flex justify-between items-center p-4 bg-white/[0.04] rounded-2xl border border-white/10 glass-card">
             <div>
               <p className="text-sm font-bold text-white">系統減少動態效果 (Reduced Motion)</p>
@@ -86,11 +99,11 @@ export default function Settings() {
         </div>
 
         <div className="setting-group space-y-3">
-          <h3 className="text-xs font-extrabold text-[#62f5c4] uppercase tracking-widest font-mono">AI 主題自動生成</h3>
+          <h3 className="text-xs font-extrabold text-[#F9F871] uppercase tracking-widest font-mono">進階實驗功能</h3>
           <div className="flex justify-between items-center p-4 bg-white/[0.04] rounded-2xl border border-white/10 glass-card">
             <div>
               <p className="text-sm font-bold text-white">啟用 AI 動態生成主題</p>
-              <p className="text-xs text-slate-400 mt-0.5">根據歌曲歌詞意境與情緒，即時客製化專屬調色盤</p>
+              <p className="text-xs text-slate-400 mt-0.5">這是選用實驗功能；一般播放與外觀設定不需要啟用。</p>
             </div>
             <input
               type="checkbox"
@@ -109,6 +122,7 @@ export default function Settings() {
                 placeholder="輸入您的 API 金鑰..."
                 className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 focus:border-[#62f5c4] outline-none text-xs text-white"
               />
+              <p className="mt-2 text-[11px] leading-5 text-slate-500">金鑰只保留在目前頁面的記憶體中，不會由 Echora 寫入本機儲存空間；按下生成時才會提供給你選擇的服務商。</p>
             </div>
             <div>
               <label className="text-xs text-slate-300 mb-2 block font-medium">AI 模型服務商</label>
@@ -132,8 +146,8 @@ export default function Settings() {
         </div>
 
         <div className="setting-group space-y-3">
-          <div className="flex items-center justify-between gap-4"><h3 className="text-xs font-extrabold text-[#62f5c4] uppercase tracking-widest font-mono">本機診斷紀錄</h3><button type="button" onClick={() => { clearDiagnosticEvents(); setDiagnosticEvents([]); }} disabled={!diagnosticEvents.length} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-bold text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40">清除紀錄</button></div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs text-slate-300 glass-card"><p className="leading-5 text-slate-400">僅保留在這台裝置最近 30 筆播放與錯誤事件；不含帳號、token、歌名或歌詞，不會傳送至外部服務。</p>{diagnosticEvents.length ? <ul className="mt-3 space-y-2">{diagnosticEvents.slice(0, 5).map(event => <li key={event.id} className="flex items-center justify-between gap-3 rounded-xl bg-black/20 px-3 py-2"><span className="font-mono text-[#b8ffe2]">{event.name}</span><time className="text-slate-500">{new Date(event.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time></li>)}</ul> : <p className="mt-3 text-slate-500">目前沒有可顯示的本機診斷紀錄。</p>}</div>
+          <div className="flex items-center justify-between gap-4"><h3 className="text-xs font-extrabold text-[#62f5c4] uppercase tracking-widest font-mono">連線與隱私</h3><button type="button" onClick={() => { clearDiagnosticEvents(); setDiagnosticEvents([]); setCopyFeedback(''); }} disabled={!diagnosticEvents.length} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-bold text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40">清除紀錄</button></div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs text-slate-300 glass-card"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold text-white">本機診斷紀錄</p><p className="mt-1 leading-5 text-slate-400">僅保留在這台裝置最近 30 筆播放與錯誤事件；不含帳號、token、歌名或歌詞，不會傳送至外部服務。</p></div>{diagnosticEvents.length ? <button type="button" onClick={() => void handleCopyDiagnostics()} className="rounded-lg border border-[#62f5c4]/30 bg-[#62f5c4]/10 px-3 py-1.5 text-[11px] font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/20">複製診斷摘要</button> : null}</div>{copyFeedback ? <p className="mt-3 text-[11px] text-[#b8ffe2]" role="status">{copyFeedback}</p> : null}{diagnosticEvents.length ? <ul className="mt-3 space-y-2">{diagnosticEvents.slice(0, 5).map(event => <li key={event.id} className="flex items-center justify-between gap-3 rounded-xl bg-black/20 px-3 py-2"><span className="text-[#b8ffe2]">{getDiagnosticLabel(event.name)}</span><time className="text-slate-500">{new Date(event.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time></li>)}</ul> : <p className="mt-3 text-slate-500">目前沒有可顯示的本機診斷紀錄。</p>}</div>
         </div>
 
         <div className="setting-group space-y-3">

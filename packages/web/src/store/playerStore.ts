@@ -441,7 +441,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const artistName = typeof song.artists[0] === 'string'
       ? (song.artists[0] as unknown as string)
       : song.artists[0]?.name || 'Unknown';
-    set({ isLoadingLyrics: true, lyricsStatus: 'loading' });
+    // Never leave the previous song's lines on screen while a new request is pending.
+    set({ currentLyrics: null, isLoadingLyrics: true, lyricsStatus: 'loading' });
     try {
       const lyrics = await fetchLrcLibLyrics({
         trackName: song.title,
