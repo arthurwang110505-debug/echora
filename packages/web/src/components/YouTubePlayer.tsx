@@ -30,15 +30,17 @@ export default function YouTubePlayer({ immersive = false }: { immersive?: boole
             if (typeof event.target.setVolume === 'function') event.target.setVolume(Math.round(state.volume * 100));
             if (videoId) {
               event.target.cueVideoById(videoId);
-              usePlayer.setState({ isPlaying: false, currentTime: 0, youtubeError: null });
+              usePlayer.setState({ isPlaying: false, playbackState: 'paused', currentTime: 0, youtubeError: null });
             }
           },
           onStateChange: (event: any) => {
             const state = usePlayer.getState();
             const duration = Number(event.target.getDuration?.() || state.duration);
             const currentTime = Number(event.target.getCurrentTime?.() || 0);
-            if (event.data === window.YT.PlayerState.PLAYING) usePlayer.setState({ isPlaying: true, currentTime, duration, youtubeError: null });
-            if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.CUED || event.data === window.YT.PlayerState.ENDED) usePlayer.setState({ isPlaying: false, currentTime, duration });
+            if (event.data === window.YT.PlayerState.PLAYING) usePlayer.setState({ isPlaying: true, playbackState: 'playing', currentTime, duration, youtubeError: null });
+            if (event.data === window.YT.PlayerState.BUFFERING) usePlayer.setState({ isPlaying: false, playbackState: 'buffering', currentTime, duration });
+            if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.CUED) usePlayer.setState({ isPlaying: false, playbackState: 'paused', currentTime, duration });
+            if (event.data === window.YT.PlayerState.ENDED) usePlayer.setState({ isPlaying: false, playbackState: 'ended', currentTime, duration });
           },
           onError: (event: any) => {
             const messages: Record<number, string> = {
@@ -48,7 +50,7 @@ export default function YouTubePlayer({ immersive = false }: { immersive?: boole
               101: '影片擁有者禁止在其他網站嵌入播放。',
               150: '影片擁有者禁止在其他網站嵌入播放。',
             };
-            usePlayer.setState({ isPlaying: false, youtubeError: messages[event.data] || 'YouTube 無法播放此影片。' });
+            usePlayer.setState({ isPlaying: false, playbackState: 'error', youtubeError: messages[event.data] || 'YouTube 無法播放此影片。' });
           },
         },
       });
@@ -62,7 +64,7 @@ export default function YouTubePlayer({ immersive = false }: { immersive?: boole
     const onLoad = (event: Event) => {
       const videoId = extractYouTubeVideoId((event as CustomEvent).detail.videoId);
       if (!videoId) {
-        usePlayer.setState({ isPlaying: false, youtubeError: '缺少有效的 YouTube video ID。' });
+        usePlayer.setState({ isPlaying: false, playbackState: 'error', youtubeError: '缺少有效的 YouTube video ID。' });
         return;
       }
       if (typeof playerRef.current?.loadVideoById === 'function') playerRef.current.loadVideoById(videoId);

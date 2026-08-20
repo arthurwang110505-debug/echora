@@ -1,12 +1,18 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { PlayerProvider } from './contexts/PlayerContext';
 import { ThemeProvider } from './contexts/ThemeProvider';
 import Home from './pages/Home';
-import Player from './pages/Player';
-import Settings from './pages/Settings';
-import Library from './pages/Library';
-import YouTubeCallback from './pages/YouTubeCallback';
 import './App.css';
+
+const Player = lazy(() => import('./pages/Player'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Library = lazy(() => import('./pages/Library'));
+const YouTubeCallback = lazy(() => import('./pages/YouTubeCallback'));
+
+function RouteLoader() {
+  return <div className="flex min-h-screen items-center justify-center bg-[#07090e] text-sm font-bold text-[#b8ffe2]" role="status">正在載入 Echora 舞台…</div>;
+}
 
 const router = createBrowserRouter([
   { path: '/', element: <Home /> },
@@ -20,7 +26,7 @@ function App() {
   return (
     <ThemeProvider>
       <PlayerProvider>
-        <RouterProvider router={router} />
+        <Suspense fallback={<RouteLoader />}><RouterProvider router={router} /></Suspense>
       </PlayerProvider>
     </ThemeProvider>
   );

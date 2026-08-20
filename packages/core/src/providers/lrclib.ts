@@ -54,24 +54,25 @@ export async function fetchLrcLibLyrics(params: {
   }
 }
 
-function processLrcLibTrack(track: LrcLibTrack): LyricData | null {
+export function processLrcLibTrack(track: LrcLibTrack): LyricData | null {
   if (track.instrumental) {
     return {
-      lines: [
-        {
-          fullText: '🎵 [純音樂 / Instrumental]',
-          startTime: 0,
-          endTime: 999000,
-          words: [{ text: '🎵 [純音樂 / Instrumental]', startTime: 0, endTime: 999000 }],
-        },
-      ],
+      lines: [],
       title: track.name,
       artist: track.artistName,
+      availability: 'instrumental',
     };
   }
 
   const rawLrc = track.syncedLyrics || track.plainLyrics;
-  if (!rawLrc) return null;
+  if (!rawLrc) {
+    return {
+      lines: [],
+      title: track.name,
+      artist: track.artistName,
+      availability: 'unavailable',
+    };
+  }
 
   const parsedLines = parseLRC(rawLrc);
   const formattedLines: Line[] = parsedLines.map((line, idx) => {
@@ -96,5 +97,6 @@ function processLrcLibTrack(track: LrcLibTrack): LyricData | null {
     title: track.name,
     artist: track.artistName,
     isWordByWord: false,
+    availability: formattedLines.length ? 'available' : 'unavailable',
   };
 }

@@ -4,6 +4,7 @@ import { usePlayer } from '../contexts/PlayerContext';
 import { type Song } from '@echora/core';
 import { Carousel3D } from '../components/Carousel3D';
 import { spotifyClientId } from '../integrations/spotifyAuth';
+import { createCoverPlaceholder } from '../utils/coverPlaceholders';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -14,32 +15,32 @@ const FEATURED_SONGS: Song[] = [
   {
     id: 'sp_1', title: 'Starboy', artists: [{ id: '1', name: 'The Weeknd, Daft Punk' }],
     album: { id: 'alb_1', name: 'Starboy' }, durationMs: 230000,
-    coverUrl: 'https://picsum.photos/seed/starboy/700/700', source: 'spotify',
+    coverUrl: createCoverPlaceholder('Starboy', 'artist'), source: 'spotify',
   },
   {
     id: 'sp_2', title: 'Blinding Lights', artists: [{ id: '1', name: 'The Weeknd' }],
     album: { id: 'alb_2', name: 'After Hours' }, durationMs: 200000,
-    coverUrl: 'https://picsum.photos/seed/blinding/700/700', source: 'spotify',
+    coverUrl: createCoverPlaceholder('Blinding Lights', 'artist'), source: 'spotify',
   },
   {
     id: 'yt_1', title: '夜に駆ける', artists: [{ id: '2', name: 'YOASOBI' }],
     album: { id: 'alb_3', name: 'THE BOOK' }, durationMs: 261000,
-    coverUrl: 'https://picsum.photos/seed/yoasobi/700/700', source: 'ytmusic', audioUrl: 'by4SYYWlhEs',
+    coverUrl: createCoverPlaceholder('夜に駆ける', 'artist'), source: 'ytmusic', audioUrl: 'by4SYYWlhEs',
   },
   {
     id: 'yt_2', title: 'First Love', artists: [{ id: '3', name: 'Utada Hikaru' }],
     album: { id: 'alb_4', name: 'First Love' }, durationMs: 257000,
-    coverUrl: 'https://picsum.photos/seed/firstlove/700/700', source: 'ytmusic', audioUrl: 'o1sUaVJUeB0',
+    coverUrl: createCoverPlaceholder('First Love', 'artist'), source: 'ytmusic', audioUrl: 'o1sUaVJUeB0',
   },
   {
     id: 'sp_3', title: 'Die With A Smile', artists: [{ id: '4', name: 'Lady Gaga, Bruno Mars' }],
     album: { id: 'alb_5', name: 'Die With A Smile' }, durationMs: 251000,
-    coverUrl: 'https://picsum.photos/seed/diewithasmile/700/700', source: 'spotify',
+    coverUrl: createCoverPlaceholder('Die With A Smile', 'artist'), source: 'spotify',
   },
   {
     id: 'yt_3', title: 'アイドル', artists: [{ id: '2', name: 'YOASOBI' }],
     album: { id: 'alb_6', name: 'Idol' }, durationMs: 213000,
-    coverUrl: 'https://picsum.photos/seed/yoasobiidol/700/700', source: 'ytmusic', audioUrl: 'ZRtdQ81jPUQ',
+    coverUrl: createCoverPlaceholder('アイドル', 'artist'), source: 'ytmusic', audioUrl: 'ZRtdQ81jPUQ',
   },
 ];
 
@@ -55,7 +56,7 @@ export default function Home() {
   const {
     currentSong, isPlaying, play, playPause, next, prev, setPlaylist,
     activeSource, setActiveSource, spotifyConnected, spotifyError, connectSpotify, disconnectSpotify,
-    youtubeConnected, youtubeError, youtubeProfile, userPlaylists, connectYouTube, disconnectYouTube,
+    youtubeConnected, youtubeError, youtubeConnectionState, youtubeProfile, userPlaylists, isSyncingLibrary, libraryError, lastLibrarySyncAt, loadSourcePlaylists, connectYouTube, disconnectYouTube,
   } = usePlayer();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -110,6 +111,13 @@ export default function Home() {
   };
 
   const connectLabel = activeSource === 'ytmusic' ? (youtubeConnected ? 'YouTube 已連線' : '連接 YouTube Music') : spotifyConnected ? 'Spotify 已連線' : spotifyAvailable ? '連接 Spotify' : 'Spotify 尚未啟用';
+  const syncCopy = youtubeConnectionState === 'syncing' || isSyncingLibrary
+    ? '歌單同步中…'
+    : youtubeConnectionState === 'expired'
+      ? '授權已過期，請重新登入'
+      : lastLibrarySyncAt
+        ? `已同步 ${userPlaylists.length} 個歌單`
+        : '尚未同步歌單';
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#07090e] text-slate-100 selection:bg-[#62f5c4] selection:text-black">
@@ -190,6 +198,7 @@ export default function Home() {
                     type="button"
                     key={source.id}
                     onClick={() => setActiveSource(source.id)}
+                    aria-label={`切換來源至 ${source.label}`}
                     className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all duration-200 btn-spring ${
                       activeSource === source.id
                         ? 'bg-white/[0.12] text-white shadow-lg border border-white/15'
@@ -235,6 +244,7 @@ export default function Home() {
                   onChange={event => setSearchQuery(event.target.value)}
                   className="w-full bg-transparent text-xs text-white outline-none placeholder:text-slate-500"
                   placeholder="搜尋歌曲、歌手..."
+                  aria-label="搜尋歌曲、歌手或專輯"
                 />
               </label>
             </div>
@@ -275,8 +285,9 @@ export default function Home() {
             )
           ) : (
             <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.025] px-6 py-16 text-center">
-              <p className="text-sm font-bold text-slate-300">這個來源目前還沒有歌曲</p>
-              <p className="mt-2 text-xs text-slate-500">連接音樂服務或匯入本地檔案後，內容會出現在這裡。</p>
+              <p className="text-sm font-bold text-slate-300">{searchQuery ? '找不到符合的歌曲' : '這個來源目前還沒有歌曲'}</p>
+              <p className="mt-2 text-xs text-slate-500">{searchQuery ? '可清除篩選、改用其他關鍵字，或從你的音樂庫選取已同步歌單。' : '連接音樂服務或匯入本地檔案後，內容會出現在這裡。'}</p>
+              {youtubeConnected && <button type="button" onClick={() => navigate('/library')} className="mt-4 rounded-xl border border-[#62f5c4]/25 px-4 py-2 text-xs font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/10">前往我的音樂庫</button>}
             </div>
           )}
         </section>
@@ -358,7 +369,7 @@ export default function Home() {
             )}
             {!spotifyAvailable && <p className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/10 p-3 text-xs leading-5 text-amber-100">Spotify 尚未取得開發者權限或設定 Client ID，因此目前不可登入與測試；這不是播放故障。</p>}
             {youtubeError && <p className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs leading-5 text-rose-200">{youtubeError}</p>}
-            {activeSource === 'ytmusic' && youtubeConnected && <p className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-xs text-emerald-100">已連線 {youtubeProfile?.name || 'YouTube'} · 已載入 {userPlaylists.length} 個歌單。到播放器側欄即可開啟。</p>}
+            {activeSource === 'ytmusic' && youtubeConnected && <div className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-xs text-emerald-100"><p className="font-bold">已連線 {youtubeProfile?.name || 'YouTube'} · {syncCopy}</p><p className="mt-1 text-emerald-100/75">歌單會與「我的音樂庫」及播放器共用。</p>{libraryError ? <p className="mt-2 text-rose-200">{libraryError}</p> : null}<div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => void loadSourcePlaylists()} disabled={isSyncingLibrary} className="rounded-lg border border-emerald-200/25 px-3 py-1.5 font-bold transition hover:bg-emerald-300/10 disabled:opacity-60">{isSyncingLibrary ? '同步中…' : '重新同步'}</button><button type="button" onClick={() => { setShowConnectModal(false); navigate('/library'); }} className="rounded-lg border border-emerald-200/25 px-3 py-1.5 font-bold transition hover:bg-emerald-300/10">開啟我的音樂庫</button></div></div>}
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => setActiveSource('ytmusic')} className={`rounded-xl border px-4 py-3 text-left text-xs font-bold transition ${activeSource === 'ytmusic' ? 'border-[#ff3d57]/60 bg-[#ff3d57]/10 text-white' : 'border-white/10 bg-white/[0.03] text-slate-400'}`}>
                 <span className="block text-sm text-[#ff7180]">YouTube Music</span>

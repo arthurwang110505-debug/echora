@@ -47,8 +47,19 @@ export class YouTubeMusicProvider {
   }
 
   async getUserPlaylists(): Promise<Playlist[]> {
-    const data = await this.authorized<{ items?: Array<{ id: string; snippet: { title: string; thumbnails?: { medium?: { url: string } } }; contentDetails?: { itemCount: number } }> }>('https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&mine=true&maxResults=50');
-    return (data.items || []).map(item => ({ id: item.id, name: item.snippet.title, coverUrl: item.snippet.thumbnails?.medium?.url, trackCount: item.contentDetails?.itemCount, source: 'ytmusic' as const }));
+    type PlaylistResponse = { nextPageToken?: string; items?: Array<{ id: string; snippet: { title: string; thumbnails?: { medium?: { url: string } } }; contentDetails?: { itemCount: number } }> };
+    const items: NonNullable<PlaylistResponse['items']> = [];
+    let pageToken: string | undefined;
+
+    for (let page = 0; page < 4; page += 1) {
+      const token = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '';
+      const data = await this.authorized<PlaylistResponse>(`https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&mine=true&maxResults=50${token}`);
+      items.push(...(data.items || []));
+      pageToken = data.nextPageToken;
+      if (!pageToken) break;
+    }
+
+    return items.map(item => ({ id: item.id, name: item.snippet.title, coverUrl: item.snippet.thumbnails?.medium?.url, trackCount: item.contentDetails?.itemCount, source: 'ytmusic' as const }));
   }
 
   async getProfile(): Promise<YouTubeProfile | null> {
@@ -58,8 +69,19 @@ export class YouTubeMusicProvider {
   }
 
   async getPlaylistTracks(playlistId: string): Promise<Song[]> {
-    const data = await this.authorized<{ items?: Array<{ snippet: { title: string; channelTitle?: string; thumbnails?: { high?: { url: string }; medium?: { url: string } }; resourceId: { videoId: string } } }> }>(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${encodeURIComponent(playlistId)}&maxResults=50`);
-    return (data.items || []).filter(item => item.snippet.resourceId?.videoId).map(item => ({
+    type PlaylistItemsResponse = { nextPageToken?: string; items?: Array<{ snippet: { title: string; channelTitle?: string; thumbnails?: { high?: { url: string }; medium?: { url: string } }; resourceId: { videoId: string } } }> };
+    const items: NonNullable<PlaylistItemsResponse['items']> = [];
+    let pageToken: string | undefined;
+
+    for (let page = 0; page < 4; page += 1) {
+      const token = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '';
+      const data = await this.authorized<PlaylistItemsResponse>(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${encodeURIComponent(playlistId)}&maxResults=50${token}`);
+      items.push(...(data.items || []));
+      pageToken = data.nextPageToken;
+      if (!pageToken) break;
+    }
+
+    return items.filter(item => item.snippet.resourceId?.videoId).map(item => ({
       id: item.snippet.resourceId.videoId,
       title: item.snippet.title,
       artists: [{ id: item.snippet.channelTitle || 'youtube', name: item.snippet.channelTitle || 'YouTube Music' }],
@@ -73,9 +95,9 @@ export class YouTubeMusicProvider {
   async searchTracks(query: string): Promise<Song[]> {
     try {
       const apiKey = (import.meta as any).env?.VITE_YOUTUBE_API_KEY as string | undefined;
-      if (!apiKey) return this.getMockYTTracks(query);
+      if (!apiKey) throw new Error('尚未設定 YouTube 搜尋 API，請改從已同步的私人歌單選取曲目。');
       const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=20&q=${encodeURIComponent(query)}&key=${apiKey}`);
-      if (!res.ok) return this.getMockYTTracks(query);
+      if (!res.ok) throw new Error(`YouTube 搜尋失敗：${res.status}`);
       const data = await res.json();
       return (data.items || []).map((item: any) => ({
         id: item.id.videoId,
@@ -88,7 +110,7 @@ export class YouTubeMusicProvider {
       }));
     } catch (err) {
       console.warn('[YTMusic] Search error:', err);
-      return this.getMockYTTracks(query);
+      throw err;
     }
   }
 
@@ -98,35 +120,7 @@ export class YouTubeMusicProvider {
 
   // Get Popular YT Music Playlists
   async getFeaturedPlaylists(): Promise<Playlist[]> {
-    return [
-      {
-        id: 'RDCLAK5uy_kL8wQ9d20c5_yytm1',
-        name: '🔥 YouTube Music Top Hits 2026',
-        coverUrl: 'https://picsum.photos/seed/yttop/400/400',
-        trackCount: 50,
-        source: 'ytmusic',
-      },
-      {
-        id: 'RDCLAK5uy_l0r8z5y4u9i0',
-        name: '🎧 Chill & Lo-Fi Beats',
-        coverUrl: 'https://picsum.photos/seed/ytchill/400/400',
-        trackCount: 30,
-        source: 'ytmusic',
-      },
-    ];
+    return [];
   }
 
-  private getMockYTTracks(query: string): Song[] {
-    return [
-      {
-        id: 'yt_mock_1',
-        title: `${query} (YouTube Music Remaster)`,
-        artists: [{ id: 'yt1', name: 'YT Music Artist' }],
-        album: { id: 'alb1', name: 'YouTube Trending' },
-        durationMs: 215000,
-        coverUrl: 'https://picsum.photos/seed/yt1/300/300',
-        source: 'ytmusic',
-      },
-    ];
-  }
 }

@@ -35,12 +35,22 @@
     color: #f8fafc;
     overflow-x: hidden;
     overflow-y: auto;
-    user-select: none;
+    user-select: text;
     -webkit-tap-highlight-color: transparent;
   }
 
   h1, h2, h3, .font-heading {
     font-family: var(--font-outfit);
+  }
+
+  :focus-visible {
+    outline: 2px solid #F9F871;
+    outline-offset: 3px;
+  }
+
+  button, input[type='range'], input[type='checkbox'], select {
+    -webkit-user-select: none;
+    user-select: none;
   }
 }
 

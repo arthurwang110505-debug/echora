@@ -40,6 +40,8 @@ export default function Player() {
     loadYouTubePlaylist,
     isChangingTrack,
     isLoadingLyrics,
+    lyricsStatus,
+    playbackState,
   } = usePlayer();
   const { currentTheme } = useTheme();
 
@@ -129,12 +131,22 @@ export default function Player() {
           <h2 className="text-2xl font-bold font-heading text-white">尚未選擇播放歌曲</h2>
           <p className="text-sm text-slate-400">挑選一首喜愛的曲目，開啟 Echora 音樂呼吸舞台</p>
         </div>
-        <button
-          onClick={() => navigate('/')}
-          className="mt-2 px-7 py-3.5 rounded-2xl bg-gradient-to-r from-[#62f5c4] via-teal-300 to-emerald-400 text-black font-extrabold text-sm shadow-[0_10px_30px_rgba(98,245,196,0.25)] hover:brightness-110 btn-spring"
-        >
-          返回主頁探索歌曲 →
-        </button>
+        <div className="mt-2 flex flex-wrap justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="px-7 py-3.5 rounded-2xl bg-gradient-to-r from-[#62f5c4] via-teal-300 to-emerald-400 text-black font-extrabold text-sm shadow-[0_10px_30px_rgba(98,245,196,0.25)] hover:brightness-110 btn-spring"
+          >
+            返回主頁探索歌曲 →
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/library')}
+            className="rounded-2xl border border-white/15 bg-white/[0.06] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-white/[0.12]"
+          >
+            前往我的音樂庫
+          </button>
+        </div>
       </div>
     );
   }
@@ -368,14 +380,14 @@ export default function Player() {
           <YouTubePlayer immersive={displayMode === 'stage'} />
           {currentSong.source === 'ytmusic' && !isPlaying && !youtubeError && (
             <div className="pointer-events-none absolute inset-x-8 bottom-36 z-20 text-center" role="status">
-              <span className="rounded-full border border-[#62f5c4]/25 bg-[#111720]/85 px-4 py-2 text-xs font-semibold text-[#b8ffe2] shadow-xl backdrop-blur-xl">請在下方 YouTube 播放器按下原生播放鍵以開始有聲播放</span>
+              <span className="rounded-full border border-[#62f5c4]/25 bg-[#111720]/85 px-4 py-2 text-xs font-semibold text-[#b8ffe2] shadow-xl backdrop-blur-xl">{playbackState === 'buffering' || playbackState === 'loading' ? 'YouTube 正在準備播放…' : '請在下方 YouTube 播放器按下原生播放鍵以開始有聲播放'}</span>
             </div>
           )}
           {!isLoadingLyrics && currentLyrics && currentLyrics.lines.length === 0 && (
             <div className="pointer-events-none absolute inset-x-8 top-1/2 z-20 -translate-y-1/2 text-center" role="status">
               <div className="mx-auto max-w-sm rounded-2xl border border-white/15 bg-[#111720]/85 px-5 py-4 text-sm text-slate-200 shadow-2xl backdrop-blur-xl">
-                <p className="font-bold text-white">這首歌目前沒有可取得的同步歌詞</p>
-                <p className="mt-1 text-xs leading-5 text-slate-400">Echora 不會把歌曲標題與作者當作歌詞顯示。你仍可使用真實播放時間與視覺舞台。</p>
+                <p className="font-bold text-white">{lyricsStatus === 'instrumental' ? '這是一首純音樂內容' : lyricsStatus === 'error' ? '歌詞暫時無法載入' : '這首歌目前沒有可取得的同步歌詞'}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">{lyricsStatus === 'instrumental' ? '你仍可使用真實播放時間、視覺舞台與曲目控制。' : lyricsStatus === 'error' ? '請稍後重試或繼續使用真實播放時間與視覺舞台。' : 'Echora 不會把歌曲標題與作者當作歌詞顯示。你仍可使用真實播放時間與視覺舞台。'}</p>
               </div>
             </div>
           )}
@@ -456,6 +468,7 @@ export default function Player() {
                 max={duration || 100}
                 step={0.1}
                 value={displayedTime}
+                aria-label={`播放進度，目前 ${formatTime(displayedTime)}，全長 ${formatTime(duration)}`}
                 onMouseDown={() => setIsSeeking(true)}
                 onTouchStart={() => setIsSeeking(true)}
                 onChange={e => setSeekPreviewTime(Number(e.target.value))}
@@ -479,40 +492,14 @@ export default function Player() {
               </div>
             </div>
 
-            {/* Controls & Visualizer Chips */}
+            {/* Primary playback controls and secondary stage controls */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              {/* Visualizer Mode Chips */}
-              <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
-                {[
-                  { id: 'classic', nameZh: '浮名 (Classic)' },
-                  { id: 'cadenza', nameZh: '流光 (Cadenza)' },
-                  { id: 'partita', nameZh: '群唱 (Partita)' },
-                  { id: 'fume', nameZh: '傾訴 (Fume)' },
-                  { id: 'monet', nameZh: '鏡台 (Monet)' },
-                  { id: 'cappella', nameZh: '心象 (Cappella)' },
-                  { id: 'pendolo', nameZh: '云階 (Pendolo)' },
-                  { id: 'sonnet', nameZh: '詩篇 (Sonnet)' },
-                  { id: 'claddagh', nameZh: '齒輪 (Claddagh)' },
-                  { id: 'diorama', nameZh: '舞台 (Diorama)' },
-                  { id: 'tilt', nameZh: '傾斜 (Tilt)' },
-                ].map(v => (
-                  <button
-                    key={v.id}
-                    onClick={() => setActiveVisualizer(v.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap btn-spring ${
-                      activeVisualizer === v.id
-                        ? 'bg-gradient-to-r from-[#62f5c4] to-teal-400 text-black shadow-lg shadow-[#62f5c4]/20'
-                        : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-400'
-                    }`}
-                  >
-                    {v.nameZh}
-                  </button>
-                ))}
+              <div className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-2 md:w-auto">
+                <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">目前舞台</p><p className="text-xs font-extrabold text-[#b8ffe2]">{activeVisualizer}</p></div>
+                <button onClick={() => setShowTuning(value => !value)} className={`shrink-0 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${showTuning ? 'border-[#62f5c4]/50 bg-[#62f5c4]/20 text-[#62f5c4]' : 'border-white/10 bg-white/[0.05] text-slate-300 hover:text-white'}`} aria-label="開啟視覺模式與舞台設定">
+                  視覺與舞台設定
+                </button>
               </div>
-
-              <button onClick={() => setShowTuning(value => !value)} className={`shrink-0 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all ${showTuning ? 'border-[#62f5c4]/50 bg-[#62f5c4]/20 text-[#62f5c4]' : 'border-white/10 bg-white/[0.05] text-slate-400 hover:text-white'}`}>
-                ⚙ Tuning
-              </button>
 
               {/* Media Controls */}
               <div className="flex items-center gap-5 sm:gap-6">

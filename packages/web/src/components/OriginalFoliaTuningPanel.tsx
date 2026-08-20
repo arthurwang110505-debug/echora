@@ -33,7 +33,7 @@ export default function OriginalFoliaTuningPanel({ mode, autoMode, onAutoModeCha
   };
 
   return (
-    <aside className="fixed right-3 bottom-3 z-40 w-56 max-h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl border border-white/15 bg-slate-950/85 p-3 text-white shadow-2xl backdrop-blur-2xl">
+    <aside className="fixed right-3 bottom-3 z-[80] w-56 max-h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl border border-white/15 bg-slate-950/85 p-3 text-white shadow-2xl backdrop-blur-2xl" aria-label="視覺模式與舞台設定">
       <div className="mb-4 flex items-center justify-between">
         <div><p className="text-sm font-extrabold">Echora Tuning</p><p className="text-[11px] text-slate-400">動畫與背景</p></div>
         <button type="button" onClick={onClose} aria-label="關閉 Tuning" className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-white/10 hover:text-white">×</button>

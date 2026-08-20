@@ -139,6 +139,7 @@ export interface LyricData {
   title?: string;
   artist?: string;
   isWordByWord?: boolean;
+  availability?: 'available' | 'instrumental' | 'unavailable' | 'error';
 }
 
 export type LyricParseFormat = 'lrc' | 'enhanced-lrc' | 'yrc' | 'qrc' | 'krc' | 'vtt' | 'ttml';

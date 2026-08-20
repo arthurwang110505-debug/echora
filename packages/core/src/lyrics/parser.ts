@@ -1,5 +1,16 @@
 import type { LyricLine, LyricWord } from './types';
 
+const normalizeRepeatedToken = (value: string) => {
+  const trimmed = value.replace(/\s+/g, ' ').trim();
+  const half = trimmed.length / 2;
+  if (Number.isInteger(half) && half > 0) {
+    const first = trimmed.slice(0, half);
+    const second = trimmed.slice(half);
+    if (first === second && /^[A-Za-zÀ-ÿ'’\-]+$/.test(first)) return first;
+  }
+  return trimmed;
+};
+
 // LRC parser - standard [mm:ss.xx] format
 export function parseLRC(raw: string): LyricLine[] {
   const lines: LyricLine[] = [];
@@ -11,7 +22,7 @@ export function parseLRC(raw: string): LyricLine[] {
     const seconds = parseInt(match[2], 10);
     const msStr = match[3].padEnd(3, '0');
     const ms = parseInt(msStr, 10);
-    const text = match[4].trim();
+    const text = normalizeRepeatedToken(match[4]);
 
     if (text) {
       lines.push({
@@ -21,7 +32,9 @@ export function parseLRC(raw: string): LyricLine[] {
     }
   }
 
-  return lines.sort((a, b) => a.time - b.time);
+  return lines
+    .sort((a, b) => a.time - b.time)
+    .filter((line, index, sorted) => index === 0 || line.time !== sorted[index - 1].time || line.text !== sorted[index - 1].text);
 }
 
 // YRC parser - word-level timing with enhanced LRC format

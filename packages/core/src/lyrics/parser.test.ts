@@ -17,6 +17,15 @@ describe('LRC Parser', () => {
     expect(result).toHaveLength(1);
     expect(result[0].time).toBeCloseTo(1.23, 1);
   });
+
+  it('normalizes accidentally duplicated latin tokens and duplicate timestamps', () => {
+    const result = parseLRC('[00:01.00]I\'mI\'m\n[00:01.00]I\'mI\'m\n[00:02.00]trynatryna');
+
+    expect(result).toEqual([
+      { time: 1, text: "I'm" },
+      { time: 2, text: 'tryna' },
+    ]);
+  });
 });
 
 describe('YRC Parser', () => {
