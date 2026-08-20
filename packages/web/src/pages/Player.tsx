@@ -365,10 +365,10 @@ export default function Player() {
           </div>
 
           {/* Echora Kinetic Lyrics Animation Stage */}
-          <YouTubePlayer />
+          <YouTubePlayer immersive={displayMode === 'stage'} />
           {currentSong.source === 'ytmusic' && !isPlaying && !youtubeError && (
             <div className="pointer-events-none absolute inset-x-8 bottom-36 z-20 text-center" role="status">
-              <span className="rounded-full border border-[#62f5c4]/25 bg-[#111720]/85 px-4 py-2 text-xs font-semibold text-[#b8ffe2] shadow-xl backdrop-blur-xl">請在右下角 YouTube 播放器按下原生播放鍵以開始有聲播放</span>
+              <span className="rounded-full border border-[#62f5c4]/25 bg-[#111720]/85 px-4 py-2 text-xs font-semibold text-[#b8ffe2] shadow-xl backdrop-blur-xl">請在下方 YouTube 播放器按下原生播放鍵以開始有聲播放</span>
             </div>
           )}
           {!isLoadingLyrics && currentLyrics && currentLyrics.lines.length === 0 && (
@@ -408,9 +408,42 @@ export default function Player() {
             />
           )}
           {displayMode === 'stage' && !showTuning && (
-            <button type="button" onClick={() => setShowTuning(true)} className="fixed right-3 bottom-3 z-40 rounded-full border border-white/15 bg-black/45 px-3 py-2 text-[11px] text-white/70 backdrop-blur-xl hover:text-white">
-              ⚙ Tuning
-            </button>
+            <div className="fixed inset-x-0 bottom-0 z-[70] flex items-center justify-center gap-2 border-t border-white/10 bg-[#07090e]/80 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:inset-x-auto sm:right-4 sm:bottom-4 sm:rounded-2xl sm:border sm:p-2">
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20"
+                aria-label="返回歌單選擇頁"
+              >
+                ← 歌單
+              </button>
+              <button
+                type="button"
+                onClick={() => void leaveImmersiveStage()}
+                className="rounded-xl border border-[#62f5c4]/35 bg-[#62f5c4]/15 px-3 py-2 text-xs font-bold text-[#b8ffe2] hover:bg-[#62f5c4]/25"
+                aria-label="退出沉浸舞台"
+              >
+                退出全螢幕
+              </button>
+              {currentSong.source === 'ytmusic' && (
+                <button
+                  type="button"
+                  onClick={playPause}
+                  className="rounded-xl bg-gradient-to-r from-[#62f5c4] to-teal-400 px-3 py-2 text-xs font-extrabold text-black shadow-lg"
+                  aria-label={isPlaying ? '暫停 YouTube 音訊' : '播放 YouTube 音訊'}
+                >
+                  {isPlaying ? '暫停' : '播放音訊'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowTuning(true)}
+                className="rounded-xl border border-white/15 bg-black/35 px-3 py-2 text-xs font-bold text-white/80 hover:text-white"
+                aria-label="開啟舞台設定"
+              >
+                ⚙
+              </button>
+            </div>
           )}
 
           {/* Bottom controls are intentionally absent in immersive mode. */}

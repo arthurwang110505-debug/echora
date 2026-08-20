@@ -4,7 +4,13 @@ import { extractYouTubeVideoId } from '@echora/core';
 
 declare global { interface Window { YT?: any; onYouTubeIframeAPIReady?: () => void; } }
 
-export default function YouTubePlayer() {
+export function getYouTubeSurfaceClass(immersive: boolean) {
+  return immersive
+    ? 'fixed bottom-[max(6rem,env(safe-area-inset-bottom))] left-1/2 z-[60] w-[min(356px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-2xl border border-[#62f5c4]/45 bg-black shadow-2xl md:bottom-20 md:left-auto md:right-5 md:translate-x-0'
+    : 'fixed bottom-5 right-5 z-[60] w-[min(356px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[#62f5c4]/45 bg-black shadow-2xl';
+}
+
+export default function YouTubePlayer({ immersive = false }: { immersive?: boolean }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
   const { currentSong, isPlaying, volume } = usePlayer();
@@ -87,10 +93,11 @@ export default function YouTubePlayer() {
   // The official IFrame Player API requires a rendered viewport of at least 200×200px.
   // Keep its native play surface visible until the user starts audio so browsers can preserve the gesture.
   const awaitingUserGesture = currentSong?.source === 'ytmusic' && !isPlaying;
+  const visibleSurfaceClass = getYouTubeSurfaceClass(immersive);
   return <div className={awaitingUserGesture
-    ? 'fixed bottom-5 right-5 z-50 w-[356px] overflow-hidden rounded-2xl border border-[#62f5c4]/45 bg-black shadow-2xl'
-    : 'pointer-events-none fixed -left-[10000px] top-0 h-[200px] w-[356px] overflow-hidden'} aria-label="YouTube 播放器">
-    {awaitingUserGesture && <div className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-black/70 px-3 py-2 text-center text-xs font-semibold text-white">請在這個 YouTube 播放器按下原生播放鍵以啟動音訊</div>}
+    ? visibleSurfaceClass
+    : 'pointer-events-none fixed -left-[10000px] top-0 h-[200px] w-[356px] overflow-hidden'} aria-label="YouTube 原生播放器">
+    {awaitingUserGesture && <div className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-black/70 px-3 py-2 text-center text-xs font-semibold text-white">請按 YouTube 原生播放鍵以啟動音訊</div>}
     <div ref={hostRef} />
   </div>;
 }
