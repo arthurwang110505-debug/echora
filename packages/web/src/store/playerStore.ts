@@ -191,6 +191,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   play: (song, playlist) => {
     const { spotifyProvider, spotifyToken, currentSong } = get();
+    const isSpotifyUnavailable = song.source === 'spotify' && !spotifyToken;
     const isNew = currentSong?.id !== song.id;
     if (isNew) {
       set({ isChangingTrack: true });
@@ -201,13 +202,19 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       currentSong: song,
       // A newly mounted YouTube IFrame no longer inherits the homepage click gesture.
       // Keep it paused until the visible player control receives a direct user gesture.
-      isPlaying: song.source === 'ytmusic' ? false : true,
-      playbackState: song.source === 'ytmusic' ? 'loading' : 'playing',
+      isPlaying: song.source === 'ytmusic' || isSpotifyUnavailable ? false : true,
+      playbackState: song.source === 'ytmusic' ? 'loading' : isSpotifyUnavailable ? 'error' : 'playing',
       currentTime: 0,
       duration: song.durationMs ? Math.round(song.durationMs / 1000) : 210,
       recentSongs,
       ...(playlist ? { playlist, currentIndex: 0 } : {}),
     });
+    if (isSpotifyUnavailable) {
+      set({ spotifyError: 'Spotify 尚未連線，這首示範歌曲目前不可播放。請先設定 Spotify Client ID，或改用 YouTube Music。' });
+      recordDiagnostic('play_requested', { source: 'spotify' });
+      void get().fetchLyrics(song);
+      return;
+    }
     if (song.source === 'spotify' && spotifyToken) void spotifyProvider.play(song.audioUrl || `spotify:track:${song.id}`);
     if (song.source === 'ytmusic') {
       recordDiagnostic('song_selected', { source: 'ytmusic' });
@@ -246,6 +253,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (isPlaying) get().pause();
     else {
       const { spotifyProvider, spotifyToken, currentSong } = get();
+      if (currentSong?.source === 'spotify' && !spotifyToken) {
+        set({ isPlaying: false, playbackState: 'error', spotifyError: 'Spotify 尚未連線，請改用 YouTube Music 或先完成 Spotify 設定。' });
+        return;
+      }
       if (currentSong?.source === 'spotify' && spotifyToken) void spotifyProvider.play(currentSong.audioUrl || `spotify:track:${currentSong.id}`);
       if (currentSong?.source === 'ytmusic') {
         recordDiagnostic('play_requested', { source: 'ytmusic' });

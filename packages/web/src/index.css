@@ -486,25 +486,47 @@
 
 /* Accessibility: Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  :root:not([data-motion="full"]) *,
+  :root:not([data-motion="full"]) *::before,
+  :root:not([data-motion="full"]) *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
 
-  .animate-blob-1,
-  .animate-blob-2,
-  .playing-pulse-glow,
-  .equalizer-bar,
-  .lyric-line-active,
-  .lyric-word-current {
+  :root:not([data-motion="full"]) .animate-blob-1,
+  :root:not([data-motion="full"]) .animate-blob-2,
+  :root:not([data-motion="full"]) .playing-pulse-glow,
+  :root:not([data-motion="full"]) .equalizer-bar,
+  :root:not([data-motion="full"]) .lyric-line-active,
+  :root:not([data-motion="full"]) .lyric-word-current {
     animation: none !important;
     transform: none !important;
   }
 
-  .lyric-word-fill { transition: none !important; }
-  .coverflow-card { transition: none !important; }
+  :root:not([data-motion="full"]) .lyric-word-fill { transition: none !important; }
+  :root:not([data-motion="full"]) .coverflow-card { transition: none !important; }
 }
+
+:root[data-motion="reduced"] *,
+:root[data-motion="reduced"] *::before,
+:root[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+:root[data-motion="reduced"] .animate-blob-1,
+:root[data-motion="reduced"] .animate-blob-2,
+:root[data-motion="reduced"] .playing-pulse-glow,
+:root[data-motion="reduced"] .equalizer-bar,
+:root[data-motion="reduced"] .lyric-line-active,
+:root[data-motion="reduced"] .lyric-word-current {
+  animation: none !important;
+  transform: none !important;
+}
+
+:root[data-motion="reduced"] .lyric-word-fill,
+:root[data-motion="reduced"] .coverflow-card { transition: none !important; }

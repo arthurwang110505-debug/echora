@@ -11,7 +11,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      includeAssets: ['echora-icon.svg'],
+      includeAssets: ['echora-icon.svg', 'echora-icon-192.png', 'echora-icon-512.png', 'echora-icon-maskable.png'],
       manifest: {
         name: 'Echora — 沉浸式歌詞舞台',
         short_name: 'Echora',
@@ -25,20 +25,20 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'echora-icon.svg',
+            src: 'echora-icon-192.png',
             sizes: '192x192',
-            type: 'image/svg+xml',
+            type: 'image/png',
           },
           {
-            src: 'echora-icon.svg',
+            src: 'echora-icon-512.png',
             sizes: '512x512',
-            type: 'image/svg+xml',
+            type: 'image/png',
           },
           {
-            src: 'echora-icon.svg',
+            src: 'echora-icon-maskable.png',
             sizes: '512x512',
-            type: 'image/svg+xml',
-            purpose: 'any maskable',
+            type: 'image/png',
+            purpose: 'maskable',
           }
         ]
       },
@@ -56,6 +56,9 @@ export default defineConfig({
           'index.html',
           'registerSW.js',
           'echora-icon.svg',
+          'echora-icon-192.png',
+          'echora-icon-512.png',
+          'echora-icon-maskable.png',
           'assets/index-*.{js,css}',
           'assets/Home-*.js',
           'assets/coverPlaceholders-*.js',

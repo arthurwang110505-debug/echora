@@ -1,9 +1,10 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { usePlayer } from '../contexts/PlayerContext';
 import { type Song } from '@echora/core';
 import { spotifyClientId } from '../integrations/spotifyAuth';
 import { createCoverPlaceholder } from '../utils/coverPlaceholders';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 const Carousel3D = lazy(() => import('../components/Carousel3D').then(module => ({ default: module.Carousel3D })));
 
@@ -71,7 +72,14 @@ export default function Home() {
   const [focusedSongIndex, setFocusedSongIndex] = useState(0);
   const [connectionNotice, setConnectionNotice] = useState(false);
   const [showPerformanceHint, setShowPerformanceHint] = useState(false);
+  const connectModalRef = useRef<HTMLDivElement>(null);
+  const performanceModalRef = useRef<HTMLDivElement>(null);
+  const closeConnectModal = useCallback(() => setShowConnectModal(false), []);
+  const closePerformanceHint = useCallback(() => setShowPerformanceHint(false), []);
   const spotifyAvailable = Boolean(spotifyClientId);
+
+  useDialogFocus(showConnectModal, connectModalRef, closeConnectModal);
+  useDialogFocus(showPerformanceHint, performanceModalRef, closePerformanceHint);
 
   useEffect(() => {
     const handleBeforeInstall = (event: Event) => {
@@ -348,7 +356,7 @@ export default function Home() {
         </section>
       </main>
 
-      {showPerformanceHint && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="performance-hint-title"><div className="w-full max-w-sm rounded-3xl border border-[#F9F871]/30 bg-[#111720] p-6 shadow-2xl"><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#F9F871]">效能提示</p><h2 id="performance-hint-title" className="mt-2 text-xl font-extrabold text-white">3D 輪播較耗裝置效能</h2><p className="mt-3 text-sm leading-6 text-slate-300">長歌單或較舊的手機可能較不流暢。Echora 會記住你的選擇；若系統偏好減少動態效果，會先使用網格列表。</p><div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setShowPerformanceHint(false)} className="rounded-xl px-4 py-2 text-xs font-bold text-slate-300 hover:bg-white/10">維持網格</button><button type="button" onClick={confirm3DMode} className="rounded-xl bg-[#62f5c4] px-4 py-2 text-xs font-extrabold text-black">仍要開啟 3D</button></div></div></div>}
+      {showPerformanceHint && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="performance-hint-title" aria-describedby="performance-hint-copy"><div ref={performanceModalRef} tabIndex={-1} className="w-full max-w-sm rounded-3xl border border-[#F9F871]/30 bg-[#111720] p-6 shadow-2xl"><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#F9F871]">效能提示</p><h2 id="performance-hint-title" className="mt-2 text-xl font-extrabold text-white">3D 輪播較耗裝置效能</h2><p id="performance-hint-copy" className="mt-3 text-sm leading-6 text-slate-300">長歌單或較舊的手機可能較不流暢。Echora 會記住你的選擇；若系統偏好減少動態效果，會先使用網格列表。</p><div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setShowPerformanceHint(false)} className="rounded-xl px-4 py-2 text-xs font-bold text-slate-300 hover:bg-white/10">維持網格</button><button type="button" onClick={confirm3DMode} className="rounded-xl bg-[#62f5c4] px-4 py-2 text-xs font-extrabold text-black">仍要開啟 3D</button></div></div></div>}
 
       {/* Floating Mini Player */}
       {currentSong && (
@@ -418,8 +426,8 @@ export default function Home() {
 
       {/* Spotify Connect Modal */}
       {showConnectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xl modal-backdrop-enter" role="dialog" aria-modal="true" aria-labelledby="connect-title">
-          <div className="w-full max-w-md rounded-3xl border border-white/15 bg-[#111720] p-6 shadow-2xl sm:p-8 modal-panel-enter">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xl modal-backdrop-enter" role="dialog" aria-modal="true" aria-labelledby="connect-title" aria-describedby="connect-description">
+          <div ref={connectModalRef} tabIndex={-1} className="w-full max-w-md rounded-3xl border border-white/15 bg-[#111720] p-6 shadow-2xl sm:p-8 modal-panel-enter">
             <div className="mb-6 flex items-start justify-between">
               <div>
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#62f5c4]">Music connection</p>
@@ -427,7 +435,7 @@ export default function Home() {
               </div>
               <button type="button" onClick={() => setShowConnectModal(false)} className="text-slate-400 transition hover:text-white" aria-label="關閉">✕</button>
             </div>
-            <p className="text-sm leading-6 text-slate-300">選擇音樂來源後，使用官方 OAuth 登入；Echora 不會看到你的密碼。</p>
+            <p id="connect-description" className="text-sm leading-6 text-slate-300">選擇音樂來源後，使用官方 OAuth 登入；Echora 不會看到你的密碼。按 Escape 可關閉此視窗。</p>
             {spotifyError && (
               <p className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs leading-5 text-rose-200">
                 {spotifyError}<br />請先在 Spotify Developer Dashboard 設定 Redirect URI。

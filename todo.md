@@ -37,3 +37,18 @@
 - [x] REC-P2-03：為 3D 模式提供效能提示、偏好記憶與 reduced-motion 下的網格預設。
 - [x] 補齊 REC-P0-01 至 REC-P2-03 的單元測試、型別檢查、桌面／手機視覺驗證與關鍵回歸流程。
 - [x] 檢視完整差異、提交並推送核准範圍至 GitHub `master`，建立發布前檢查點與 Vercel 發布交接。
+
+## Final website quality scan implementation follow-up
+- [x] REC-P0-01：重新驗證來源、示範內容與 playability 狀態的一致性，避免未連線曲目呈現假性播放。
+- [x] REC-P0-02：重新驗證播放器跨頁恢復、provider 狀態與第三方播放器等待／阻擋提示的一致性。
+- [x] REC-P1-01：明確標示本機最近播放／收藏與雲端私人歌單的資料邊界。
+- [x] REC-P1-02：補強佇列與 3D 輪播的原生鍵盤語意、焦點與局部快捷鍵。
+- [x] REC-P1-03：提供可保存的 Reduced Motion「依系統／開啟／關閉」設定。
+- [x] REC-P1-04：補齊對話框初始焦點、Escape、focus trap 與關閉後焦點還原。
+- [x] REC-P1-05：補強行動版沉浸模式與 safe-area 的可驗收狀態（沉浸控制列與播放器 surface 已使用 safe-area inset；本輪未以真機驗證）。
+- [x] REC-P1-06：將 BYOK 資料流向與費用風險說明清楚，避免 Gemini key 暴露於 query string。
+- [x] REC-P2-01：確認本機診斷摘要與清除流程不含敏感資料。
+- [x] REC-P2-02：確認 Spotify 未啟用時為鎖定狀態且不會被誤認為可播放來源。
+- [x] REC-P2-03：確認 3D 效能提示、偏好記憶、PWA 與 bundle budget（stage runtime 已延後載入，Player 初始 chunk 約 29KB；stage chunk 約 1.45MB 的 build warning 保留為後續優化）。
+- [x] Final verification：lint、test、typecheck、build 與桌面瀏覽器 smoke check 已通過；手機以 safe-area／responsive code review 驗收，尚未使用真機。
+- [ ] Delivery：檢查差異、建立 commit、推送 master，並驗證 Vercel preview 或明確回報部署阻擋。

@@ -57,10 +57,11 @@ export async function generateThemeGemini(
     .replace('{{title}}', request.songTitle || '')
     .replace('{{isPureMusic}}', String(request.isPureMusic));
 
-  const response = await fetch(`${config.apiUrl || 'https://generativelanguage.googleapis.com/v1beta'}/models/gemini-2.0-flash:generateContent?key=${config.apiKey}`, {
+  const response = await fetch(`${config.apiUrl || 'https://generativelanguage.googleapis.com/v1beta'}/models/gemini-2.0-flash:generateContent`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'x-goog-api-key': config.apiKey,
     },
     body: JSON.stringify({
       contents: [{

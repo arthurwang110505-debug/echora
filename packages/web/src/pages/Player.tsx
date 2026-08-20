@@ -1,13 +1,15 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePlayer } from '../contexts/PlayerContext';
 import { useTheme } from '../contexts/ThemeProvider';
 import { type Song, type Line } from '@echora/core';
 import type { Playlist } from '@echora/core';
-import OriginalFoliaVisualizerStage from '../components/OriginalFoliaVisualizerStage';
 import YouTubePlayer from '../components/YouTubePlayer';
-import OriginalFoliaTuningPanel from '../components/OriginalFoliaTuningPanel';
 import { spotifyClientId } from '../integrations/spotifyAuth';
+import { useDialogFocus } from '../hooks/useDialogFocus';
+
+const OriginalFoliaVisualizerStage = lazy(() => import('../components/OriginalFoliaVisualizerStage'));
+const OriginalFoliaTuningPanel = lazy(() => import('../components/OriginalFoliaTuningPanel'));
 
 export default function Player() {
   const navigate = useNavigate();
@@ -49,6 +51,9 @@ export default function Player() {
   const [autoVisualizer, setAutoVisualizer] = useState(false);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showPlaylistDrawer, setShowPlaylistDrawer] = useState(true);
+  const connectModalRef = useRef<HTMLDivElement>(null);
+  const closeConnectModal = useCallback(() => setShowConnectModal(false), []);
+  useDialogFocus(showConnectModal, connectModalRef, closeConnectModal);
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekPreviewTime, setSeekPreviewTime] = useState<number | null>(null);
   const [backgroundMode, setBackgroundMode] = useState('latent');
@@ -333,10 +338,13 @@ export default function Player() {
                   {playlist.map((songItem: Song) => {
                     const isItemActive = currentSong.id === songItem.id;
                     return (
-                      <div
+                      <button
+                        type="button"
                         key={songItem.id}
                         onClick={() => { play(songItem, playlist); setShowPlaylistDrawer(false); }}
-                        className={`flex items-center gap-3.5 p-2.5 rounded-2xl cursor-pointer transition-all duration-200 btn-spring ${
+                        aria-current={isItemActive ? 'true' : undefined}
+                        aria-label={`${songItem.title}，${getSourceLabel(songItem.source)}${isItemActive ? '，目前播放' : ''}`}
+                        className={`flex w-full items-center gap-3.5 p-2.5 rounded-2xl cursor-pointer text-left transition-all duration-200 btn-spring ${
                           isItemActive
                             ? 'bg-[#62f5c4]/15 border border-[#62f5c4]/40 text-[#62f5c4] shadow-md'
                             : 'hover:bg-white/[0.06] text-slate-200 border border-transparent'
@@ -351,13 +359,13 @@ export default function Player() {
                           <span className="mt-1 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-bold text-slate-400">{getSourceLabel(songItem.source)}</span>
                         </div>
                         {isItemActive && isPlaying && (
-                          <div className="flex items-end gap-0.5 h-3.5 pr-1">
+                          <div className="flex items-end gap-0.5 h-3.5 pr-1" aria-label="播放中">
                             <span className="equalizer-bar" />
                             <span className="equalizer-bar" />
                             <span className="equalizer-bar" />
                           </div>
                         )}
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -426,33 +434,37 @@ export default function Player() {
           <div className={`${displayMode === 'stage' ? 'top-6' : 'top-32'} pointer-events-none absolute inset-x-8 z-20 text-center`} role="status" aria-live="polite">
             <div className="mx-auto max-w-sm rounded-2xl border border-white/15 bg-[#111720]/85 px-5 py-3 text-sm text-slate-200 shadow-2xl backdrop-blur-xl"><p className="font-bold text-white">{lyricsStageStatus.title}</p><p className="mt-1 text-xs leading-5 text-slate-400">{lyricsStageStatus.copy}</p></div>
           </div>
-          <OriginalFoliaVisualizerStage
-            lines={currentLyrics?.lines || []}
-            activeLineIndex={activeLineIndex}
-            displayedTime={displayedLyricsTime}
-            isPlaying={isPlaying}
-            theme={currentTheme}
-            visualizerMode={activeVisualizer}
-            coverUrl={currentSong.coverUrl}
-            songTitle={currentSong.title}
-            songArtist={activeArtist}
-            onSeekLine={seek}
-            backgroundMode={backgroundMode}
-            visualizerTunings={visualizerTunings}
-          />
+          <Suspense fallback={<div className="flex min-h-[18rem] items-center justify-center rounded-3xl border border-white/10 bg-black/20 text-xs font-semibold text-slate-400">正在載入沉浸舞台…</div>}>
+            <OriginalFoliaVisualizerStage
+              lines={currentLyrics?.lines || []}
+              activeLineIndex={activeLineIndex}
+              displayedTime={displayedLyricsTime}
+              isPlaying={isPlaying}
+              theme={currentTheme}
+              visualizerMode={activeVisualizer}
+              coverUrl={currentSong.coverUrl}
+              songTitle={currentSong.title}
+              songArtist={activeArtist}
+              onSeekLine={seek}
+              backgroundMode={backgroundMode}
+              visualizerTunings={visualizerTunings}
+            />
+          </Suspense>
 
           {showTuning && (
-            <OriginalFoliaTuningPanel
-              mode={activeVisualizer}
-              autoMode={autoVisualizer}
-              onAutoModeChange={setAutoVisualizer}
-              onModeChange={setActiveVisualizer}
-              onClose={() => setShowTuning(false)}
-              backgroundMode={backgroundMode}
-              onBackgroundModeChange={setBackgroundMode}
-              tunings={visualizerTunings}
-              onTuningsChange={setVisualizerTunings}
-            />
+            <Suspense fallback={<div className="pointer-events-none absolute inset-x-8 top-1/2 z-20 -translate-y-1/2 rounded-2xl border border-white/10 bg-[#111720]/80 p-4 text-center text-xs font-semibold text-slate-300">正在載入舞台設定…</div>}>
+              <OriginalFoliaTuningPanel
+                mode={activeVisualizer}
+                autoMode={autoVisualizer}
+                onAutoModeChange={setAutoVisualizer}
+                onModeChange={setActiveVisualizer}
+                onClose={() => setShowTuning(false)}
+                backgroundMode={backgroundMode}
+                onBackgroundModeChange={setBackgroundMode}
+                tunings={visualizerTunings}
+                onTuningsChange={setVisualizerTunings}
+              />
+            </Suspense>
           )}
           {displayMode === 'stage' && !showTuning && (
             <div className="fixed inset-x-0 bottom-0 z-[70] flex items-center justify-center gap-2 border-t border-white/10 bg-[#07090e]/80 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:inset-x-auto sm:right-4 sm:bottom-4 sm:rounded-2xl sm:border sm:p-2">
@@ -564,19 +576,21 @@ export default function Player() {
 
       {/* Spotify OAuth Connection Modal */}
       {showConnectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 modal-backdrop-enter">
-          <div className="glass-panel p-6 md:p-8 rounded-3xl w-full max-w-md space-y-5 text-white shadow-2xl border border-white/15 modal-panel-enter">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 modal-backdrop-enter" role="dialog" aria-modal="true" aria-labelledby="player-connect-title" aria-describedby="player-connect-copy">
+          <div ref={connectModalRef} tabIndex={-1} className="glass-panel p-6 md:p-8 rounded-3xl w-full max-w-md space-y-5 text-white shadow-2xl border border-white/15 modal-panel-enter">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-bold font-heading">連線 Spotify / YouTube Music</h3>
+              <h3 id="player-connect-title" className="text-xl font-bold font-heading">連線 Spotify / YouTube Music</h3>
               <button
-                onClick={() => setShowConnectModal(false)}
+                type="button"
+                onClick={closeConnectModal}
+                aria-label="關閉連線視窗"
                 className="text-slate-400 hover:text-white text-lg p-1 rounded-lg hover:bg-white/10 transition-colors"
               >
                 ✕
               </button>
             </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              使用 Spotify 官方 OAuth 登入後，Echora 會即時同步播放狀態、播放控制與你的個人歌單。你的密碼永遠不會經過 Echora。
+            <p id="player-connect-copy" className="text-xs text-slate-300 leading-relaxed">
+              使用官方 OAuth 登入後，Echora 會同步可用的播放狀態、播放控制與個人歌單；你的密碼永遠不會經過 Echora。按 Escape 可關閉此視窗。
             </p>
             {spotifyError && (
               <p className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs leading-5 text-rose-200">
@@ -591,7 +605,8 @@ export default function Player() {
             )}
             <div className="flex justify-end gap-3 pt-2">
               <button
-                onClick={() => setShowConnectModal(false)}
+                type="button"
+                onClick={closeConnectModal}
                 className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs text-slate-300 transition-colors"
               >
                 取消

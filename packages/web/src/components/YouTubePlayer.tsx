@@ -16,7 +16,7 @@ export default function YouTubePlayer({ immersive = false, concealed = false }: 
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
   const disposedRef = useRef(false);
-  const { currentSong, isPlaying, volume } = usePlayer();
+  const { currentSong, isPlaying, volume, youtubeError, playbackState } = usePlayer();
 
   useEffect(() => {
     if (currentSong?.source !== 'ytmusic') return;
@@ -124,13 +124,15 @@ export default function YouTubePlayer({ immersive = false, concealed = false }: 
   // The official IFrame Player API requires a rendered viewport of at least 200×200px.
   // Keep its native play surface visible until the user starts audio so browsers can preserve the gesture.
   const awaitingUserGesture = currentSong?.source === 'ytmusic' && !isPlaying;
+  const playerMessage = youtubeError
+    || (playbackState === 'buffering' ? 'YouTube 正在緩衝，請稍候。' : '請按 YouTube 原生播放鍵以啟動音訊；若瀏覽器要求驗證，請在 YouTube 播放器內完成。');
   const visibleSurfaceClass = getYouTubeSurfaceClass(immersive);
   return <div className={concealed
     ? `${visibleSurfaceClass} pointer-events-none opacity-0`
     : awaitingUserGesture
     ? visibleSurfaceClass
     : 'pointer-events-none fixed -left-[10000px] top-0 h-[200px] w-[356px] overflow-hidden'} aria-hidden={concealed || !awaitingUserGesture} aria-label={concealed ? undefined : 'YouTube 原生播放器'}>
-    {awaitingUserGesture && !concealed && <div className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-black/70 px-3 py-2 text-center text-xs font-semibold text-white">請按 YouTube 原生播放鍵以啟動音訊</div>}
+    {awaitingUserGesture && !concealed && <div role={youtubeError ? 'alert' : 'status'} className={`pointer-events-none absolute inset-x-0 top-0 z-10 px-3 py-2 text-center text-xs font-semibold ${youtubeError ? 'bg-rose-950/90 text-rose-100' : 'bg-black/70 text-white'}`}>{playerMessage}</div>}
     <div ref={containerRef} />
   </div>;
 }

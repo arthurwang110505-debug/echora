@@ -2,28 +2,37 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeProvider';
 import { generateTheme, type AiProviderConfig } from '@echora/core';
+import type { MotionPreference } from '../store/themeStore';
 import { clearDiagnosticEvents, createDiagnosticSummary, getDiagnosticLabel, readDiagnosticEvents, type DiagnosticEvent } from '../lib/diagnostics';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { currentTheme, setTheme, toggleTheme, enableAiTheme, aiThemeEnabled } = useTheme();
+  const { currentTheme, setTheme, toggleTheme, enableAiTheme, aiThemeEnabled, motionPreference, setMotionPreference } = useTheme();
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiProvider, setAiProvider] = useState<'gemini' | 'openai'>('gemini');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [systemReducedMotion, setSystemReducedMotion] = useState(false);
   const [diagnosticEvents, setDiagnosticEvents] = useState<DiagnosticEvent[]>([]);
   const [copyFeedback, setCopyFeedback] = useState('');
+  const [generationError, setGenerationError] = useState('');
 
   useEffect(() => {
-    const isReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    setReducedMotion(isReduced);
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updateSystemPreference = () => setSystemReducedMotion(mediaQuery.matches);
+    updateSystemPreference();
+    mediaQuery.addEventListener?.('change', updateSystemPreference);
     setDiagnosticEvents(readDiagnosticEvents());
+    return () => mediaQuery.removeEventListener?.('change', updateSystemPreference);
   }, []);
+
+  const effectiveReducedMotion = motionPreference === 'on' || (motionPreference === 'system' && systemReducedMotion);
+  const motionLabel: Record<MotionPreference, string> = { system: '依系統', on: '強制開啟', off: '允許動態' };
 
   const handleGenerateTheme = async () => {
     if (!aiApiKey) return;
 
     setIsGenerating(true);
+    setGenerationError('');
     try {
       const config: AiProviderConfig = {
         provider: aiProvider,
@@ -40,6 +49,7 @@ export default function Settings() {
       }
     } catch (error) {
       console.error('Failed to generate theme:', error);
+      setGenerationError(error instanceof Error ? error.message : '主題生成失敗，請稍後再試。');
     } finally {
       setIsGenerating(false);
     }
@@ -87,14 +97,25 @@ export default function Settings() {
 
         <div className="setting-group space-y-3">
           <h4 className="text-xs font-extrabold text-slate-300 tracking-wide">動態與無障礙</h4>
-          <div className="flex justify-between items-center p-4 bg-white/[0.04] rounded-2xl border border-white/10 glass-card">
+          <div className="flex flex-col gap-4 p-4 bg-white/[0.04] rounded-2xl border border-white/10 glass-card sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-bold text-white">系統減少動態效果 (Reduced Motion)</p>
-              <p className="text-xs text-slate-400 mt-0.5">保持歌詞關鍵提示，並自動淡化背景漂移與循環光暈</p>
+              <p className="text-sm font-bold text-white">減少動態效果 (Reduced Motion)</p>
+              <p className="text-xs text-slate-400 mt-0.5">保持歌詞關鍵提示，並淡化背景漂移、輪播與循環光暈；目前實際狀態：{effectiveReducedMotion ? '已降低動態' : '保留動態'}</p>
             </div>
-            <span className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono border ${reducedMotion ? 'bg-[#62f5c4]/15 border-[#62f5c4]/30 text-[#62f5c4]' : 'bg-white/5 border-white/10 text-slate-400'}`}>
-              {reducedMotion ? '已啟用' : '依系統預設'}
-            </span>
+            <label className="flex items-center gap-2 text-xs font-bold text-[#b8ffe2]">
+              <span className="sr-only">Reduced Motion 偏好</span>
+              <select
+                value={motionPreference}
+                onChange={(event) => setMotionPreference(event.target.value as MotionPreference)}
+                aria-label="Reduced Motion 偏好"
+                className="rounded-xl border border-white/10 bg-[#111720] px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#62f5c4]"
+              >
+                <option value="system">依系統</option>
+                <option value="on">強制開啟</option>
+                <option value="off">允許動態</option>
+              </select>
+              <span className="sr-only">目前選擇：{motionLabel[motionPreference]}</span>
+            </label>
           </div>
         </div>
 
@@ -116,13 +137,17 @@ export default function Settings() {
             <div>
               <label className="text-xs text-slate-300 mb-2 block font-medium">AI API Key (Gemini / OpenAI)</label>
               <input
+                id="ai-api-key"
                 type="password"
                 value={aiApiKey}
-                onChange={(e) => setAiApiKey(e.target.value)}
+                onChange={(e) => { setAiApiKey(e.target.value); setGenerationError(''); }}
                 placeholder="輸入您的 API 金鑰..."
+                autoComplete="off"
+                aria-describedby="ai-key-privacy"
                 className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 focus:border-[#62f5c4] outline-none text-xs text-white"
               />
-              <p className="mt-2 text-[11px] leading-5 text-slate-500">金鑰只保留在目前頁面的記憶體中，不會由 Echora 寫入本機儲存空間；按下生成時才會提供給你選擇的服務商。</p>
+              <p id="ai-key-privacy" className="mt-2 text-[11px] leading-5 text-slate-500">這是自備 API 金鑰（BYOK）：金鑰只保留在目前頁面的記憶體中，按下生成時會直接送給你選擇的服務商；Echora 不會代管金鑰，但第三方可能依其政策收費或記錄請求。不要把金鑰貼到診斷摘要、URL 或公開畫面。</p>
+              {aiApiKey ? <button type="button" onClick={() => setAiApiKey('')} className="mt-2 rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-bold text-slate-300 transition hover:bg-white/10">清除目前金鑰</button> : null}
             </div>
             <div>
               <label className="text-xs text-slate-300 mb-2 block font-medium">AI 模型服務商</label>
@@ -136,12 +161,14 @@ export default function Settings() {
               </select>
             </div>
             <button
+              type="button"
               onClick={handleGenerateTheme}
               disabled={isGenerating || !aiApiKey}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-[#62f5c4] to-teal-400 hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-extrabold text-black text-xs shadow-lg active:scale-95"
             >
               {isGenerating ? '生成主題中...' : '✨ 依據歌詞生成專屬主題'}
             </button>
+            {generationError ? <p className="rounded-xl border border-rose-300/25 bg-rose-300/10 p-3 text-xs leading-5 text-rose-200" role="alert">{generationError}</p> : null}
           </div>
         </div>
 

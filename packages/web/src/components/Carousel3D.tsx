@@ -50,6 +50,17 @@ const CarouselItem: React.FC<CarouselItemProps> = ({
     <motion.div
       className="absolute cursor-pointer select-none"
       initial={false}
+      role="button"
+      tabIndex={isActive ? 0 : -1}
+      aria-label={`${item.title}，${isActive ? '目前選取，按 Enter 播放' : '按 Enter 選取'}`}
+      aria-current={isActive ? 'true' : undefined}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          if (isActive) onSelect();
+          else onFocus();
+        }
+      }}
       animate={{
         x: xOffset,
         scale: scale,
@@ -93,17 +104,12 @@ const CarouselItem: React.FC<CarouselItemProps> = ({
         </span>
 
         {isActive && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect();
-            }}
-            className="absolute bottom-4 right-4 w-12 h-12 rounded-full bg-[#62f5c4] text-black flex items-center justify-center shadow-[0_0_25px_rgba(98,245,196,0.6)] hover:scale-110 active:scale-95 transition-all duration-200"
-            aria-label="播放此歌曲"
+          <span
+            className="absolute bottom-4 right-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#62f5c4] text-black shadow-[0_0_25px_rgba(98,245,196,0.6)] transition-all duration-200"
+            aria-hidden="true"
           >
-            <Play size={20} className="fill-black ml-0.5" />
-          </button>
+            <Play size={20} className="ml-0.5 fill-black" />
+          </span>
         )}
       </div>
     </motion.div>
@@ -155,16 +161,23 @@ export const Carousel3D: React.FC<Carousel3DProps> = ({
     handleFocus(focusedIndex + 1);
   }, [focusedIndex, handleFocus]);
 
-  // Keyboard arrow keys navigation
+  // Keyboard navigation stays inside the carousel instead of hijacking search fields or other controls.
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') prevCover();
-      else if (e.key === 'ArrowRight') nextCover();
-      else if (e.key === 'Enter' && items[focusedIndex]) onSelect(items[focusedIndex]);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.matches('input, textarea, select, button, [contenteditable="true"]')) return;
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        prevCover();
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        nextCover();
+      }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [prevCover, nextCover, onSelect, items, focusedIndex]);
+    const node = containerRef.current;
+    node?.addEventListener('keydown', handleKeyDown);
+    return () => node?.removeEventListener('keydown', handleKeyDown);
+  }, [prevCover, nextCover]);
 
   // Responsive cover size and spacing
   const isMobile = containerWidth < 640;
@@ -184,6 +197,8 @@ export const Carousel3D: React.FC<Carousel3DProps> = ({
       ref={containerRef}
       className="relative w-full flex flex-col items-center justify-center py-6 select-none overflow-hidden"
       style={{ perspective: 1100 }}
+      role="group"
+      aria-label="3D 歌曲輪播"
     >
       {/* Navigation Arrows */}
       <div className="absolute inset-y-0 left-2 right-2 flex items-center justify-between pointer-events-none z-30">
