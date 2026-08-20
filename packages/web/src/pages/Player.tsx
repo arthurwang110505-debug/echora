@@ -58,6 +58,15 @@ export default function Player() {
   const stageRootRef = useRef<HTMLDivElement>(null);
   const spotifyAvailable = Boolean(spotifyClientId);
 
+  const handlePlayPause = () => {
+    if (isPlaying && currentSong?.source === 'ytmusic' && activeVisualizer !== 'classic') {
+      setAutoVisualizer(false);
+      setShowTuning(false);
+      setActiveVisualizer('classic');
+    }
+    playPause();
+  };
+
   const enterImmersiveStage = async () => {
     setDisplayMode('stage');
     const element = stageRootRef.current;
@@ -100,12 +109,12 @@ export default function Player() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'Space' && !event.repeat && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) {
         event.preventDefault();
-        playPause();
+        handlePlayPause();
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [playPause]);
+  }, [handlePlayPause]);
 
   useEffect(() => {
     const recoverVisualizer = () => setActiveVisualizer('classic');
@@ -312,7 +321,7 @@ export default function Player() {
                     return (
                       <div
                         key={songItem.id}
-                        onClick={() => play(songItem, playlist)}
+                        onClick={() => { play(songItem, playlist); setShowPlaylistDrawer(false); }}
                         className={`flex items-center gap-3.5 p-2.5 rounded-2xl cursor-pointer transition-all duration-200 btn-spring ${
                           isItemActive
                             ? 'bg-[#62f5c4]/15 border border-[#62f5c4]/40 text-[#62f5c4] shadow-md'
@@ -349,7 +358,7 @@ export default function Player() {
                       <button
                         type="button"
                         key={pl.id}
-                        onClick={() => pl.source === 'spotify' ? void loadSpotifyPlaylist(pl.id) : void loadYouTubePlaylist(pl.id)}
+                        onClick={() => { pl.source === 'spotify' ? void loadSpotifyPlaylist(pl.id) : void loadYouTubePlaylist(pl.id); setShowPlaylistDrawer(false); }}
                         className="flex w-full items-center gap-3.5 p-2.5 rounded-2xl hover:bg-white/[0.06] cursor-pointer text-left text-slate-200 transition-all btn-spring"
                       >
                         <img src={pl.coverUrl} alt={pl.name} className="w-11 h-11 rounded-xl object-cover shadow-sm" />
@@ -395,7 +404,10 @@ export default function Player() {
           </div>
 
           {/* Echora Kinetic Lyrics Animation Stage */}
-          <YouTubePlayer immersive={displayMode === 'stage'} />
+          <YouTubePlayer immersive={displayMode === 'stage'} concealed={displayMode === 'full' && showPlaylistDrawer} />
+          {displayMode === 'full' && showPlaylistDrawer && currentSong.source === 'ytmusic' && (
+            <p className="pointer-events-none absolute bottom-6 right-6 z-20 rounded-xl border border-white/10 bg-[#07090e]/80 px-3 py-2 text-[11px] font-semibold text-slate-300 backdrop-blur">選歌時已隱藏 YouTube 播放器；關閉歌單側欄後即可操作。</p>
+          )}
           {currentSong.source === 'ytmusic' && !isPlaying && !youtubeError && (
             <div className="pointer-events-none absolute inset-x-8 bottom-36 z-20 text-center" role="status">
               <span className="rounded-full border border-[#62f5c4]/25 bg-[#111720]/85 px-4 py-2 text-xs font-semibold text-[#b8ffe2] shadow-xl backdrop-blur-xl">{playbackState === 'buffering' || playbackState === 'loading' ? 'YouTube 正在準備播放…' : '請在下方 YouTube 播放器按下原生播放鍵以開始有聲播放'}</span>
@@ -458,13 +470,15 @@ export default function Player() {
               {currentSong.source === 'ytmusic' && (
                 <button
                   type="button"
-                  onClick={playPause}
+                  onClick={handlePlayPause}
                   className="rounded-xl bg-gradient-to-r from-[#62f5c4] to-teal-400 px-3 py-2 text-xs font-extrabold text-black shadow-lg"
                   aria-label={isPlaying ? '暫停 YouTube 音訊' : '播放 YouTube 音訊'}
                 >
                   {isPlaying ? '暫停' : '播放音訊'}
                 </button>
               )}
+              <button type="button" onClick={() => setLyricsOffsetSeconds(value => Math.max(-10, Number((value - 0.25).toFixed(2))))} className="rounded-xl border border-white/15 bg-white/10 px-2.5 py-2 text-xs font-bold text-white hover:bg-white/20" aria-label="讓歌詞延後 0.25 秒">歌詞 −</button>
+              <button type="button" onClick={() => setLyricsOffsetSeconds(value => Math.min(10, Number((value + 0.25).toFixed(2))))} className="rounded-xl border border-white/15 bg-white/10 px-2.5 py-2 text-xs font-bold text-white hover:bg-white/20" aria-label="讓歌詞提前 0.25 秒">歌詞 ＋</button>
               <button
                 type="button"
                 onClick={() => setShowTuning(true)}
@@ -534,7 +548,7 @@ export default function Player() {
                   ⏮
                 </button>
                 <button
-                  onClick={playPause}
+                  onClick={handlePlayPause}
                   className={`p-4 rounded-full bg-gradient-to-r from-[#62f5c4] to-teal-400 text-black shadow-xl hover:scale-105 btn-spring text-xl font-bold ${
                     isPlaying ? 'playing-pulse-glow' : ''
                   }`}

@@ -215,9 +215,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   pause: () => {
     const { spotifyProvider, spotifyToken, currentSong } = get();
-    if (spotifyToken) void spotifyProvider.pause();
-    if (currentSong?.source === 'ytmusic') window.dispatchEvent(new CustomEvent('echora:youtube-pause'));
+    if (currentSong?.source === 'spotify' && spotifyToken) void spotifyProvider.pause();
     set({ isPlaying: false, playbackState: 'paused' });
+    if (currentSong?.source === 'ytmusic') window.dispatchEvent(new CustomEvent('echora:youtube-pause'));
   },
 
   playPause: () => {
@@ -225,7 +225,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (isPlaying) get().pause();
     else {
       const { spotifyProvider, spotifyToken, currentSong } = get();
-      if (spotifyToken) void spotifyProvider.play(currentSong?.audioUrl || (currentSong ? `spotify:track:${currentSong.id}` : undefined));
+      if (currentSong?.source === 'spotify' && spotifyToken) void spotifyProvider.play(currentSong.audioUrl || `spotify:track:${currentSong.id}`);
       if (currentSong?.source === 'ytmusic') {
         window.dispatchEvent(new CustomEvent('echora:youtube-play'));
         set({ playbackState: 'loading' });

@@ -10,7 +10,7 @@ export function getYouTubeSurfaceClass(immersive: boolean) {
     : 'fixed bottom-5 right-5 z-[60] w-[min(356px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[#62f5c4]/45 bg-black shadow-2xl';
 }
 
-export default function YouTubePlayer({ immersive = false }: { immersive?: boolean }) {
+export default function YouTubePlayer({ immersive = false, concealed = false }: { immersive?: boolean; concealed?: boolean }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
   const disposedRef = useRef(false);
@@ -116,10 +116,12 @@ export default function YouTubePlayer({ immersive = false }: { immersive?: boole
   // Keep its native play surface visible until the user starts audio so browsers can preserve the gesture.
   const awaitingUserGesture = currentSong?.source === 'ytmusic' && !isPlaying;
   const visibleSurfaceClass = getYouTubeSurfaceClass(immersive);
-  return <div className={awaitingUserGesture
+  return <div className={concealed
+    ? `${visibleSurfaceClass} pointer-events-none opacity-0`
+    : awaitingUserGesture
     ? visibleSurfaceClass
-    : 'pointer-events-none fixed -left-[10000px] top-0 h-[200px] w-[356px] overflow-hidden'} aria-label="YouTube 原生播放器">
-    {awaitingUserGesture && <div className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-black/70 px-3 py-2 text-center text-xs font-semibold text-white">請按 YouTube 原生播放鍵以啟動音訊</div>}
+    : 'pointer-events-none fixed -left-[10000px] top-0 h-[200px] w-[356px] overflow-hidden'} aria-hidden={concealed || !awaitingUserGesture} aria-label={concealed ? undefined : 'YouTube 原生播放器'}>
+    {awaitingUserGesture && !concealed && <div className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-black/70 px-3 py-2 text-center text-xs font-semibold text-white">請按 YouTube 原生播放鍵以啟動音訊</div>}
     <div ref={hostRef} />
   </div>;
 }
