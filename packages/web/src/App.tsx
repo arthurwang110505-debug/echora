@@ -2,9 +2,10 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { PlayerProvider } from './contexts/PlayerContext';
 import { ThemeProvider } from './contexts/ThemeProvider';
-import Home from './pages/Home';
+import { AppErrorBoundary } from './components/AppErrorBoundary';
 import './App.css';
 
+const Home = lazy(() => import('./pages/Home'));
 const Player = lazy(() => import('./pages/Player'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Library = lazy(() => import('./pages/Library'));
@@ -26,7 +27,9 @@ function App() {
   return (
     <ThemeProvider>
       <PlayerProvider>
-        <Suspense fallback={<RouteLoader />}><RouterProvider router={router} /></Suspense>
+        <AppErrorBoundary>
+          <Suspense fallback={<RouteLoader />}><RouterProvider router={router} /></Suspense>
+        </AppErrorBoundary>
       </PlayerProvider>
     </ThemeProvider>
   );

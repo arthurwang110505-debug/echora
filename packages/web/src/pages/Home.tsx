@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { usePlayer } from '../contexts/PlayerContext';
 import { type Song } from '@echora/core';
-import { Carousel3D } from '../components/Carousel3D';
 import { spotifyClientId } from '../integrations/spotifyAuth';
 import { createCoverPlaceholder } from '../utils/coverPlaceholders';
+
+const Carousel3D = lazy(() => import('../components/Carousel3D').then(module => ({ default: module.Carousel3D })));
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -62,7 +63,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showConnectModal, setShowConnectModal] = useState(false);
-  const [songViewMode, setSongViewMode] = useState<'3d' | 'grid'>('3d');
+  const [songViewMode, setSongViewMode] = useState<'3d' | 'grid'>('grid');
   const [focusedSongIndex, setFocusedSongIndex] = useState(0);
   const [connectionNotice, setConnectionNotice] = useState(false);
   const spotifyAvailable = Boolean(spotifyClientId);
@@ -264,12 +265,14 @@ export default function Home() {
           {filteredSongs.length > 0 ? (
             songViewMode === '3d' ? (
               <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-4 sm:p-6 backdrop-blur-xl shadow-2xl">
-                <Carousel3D
-                  items={filteredSongs}
-                  initialFocusedIndex={focusedSongIndex}
-                  onFocusedIndexChange={setFocusedSongIndex}
-                  onSelect={handlePlaySong}
-                />
+                <Suspense fallback={<div className="flex min-h-72 items-center justify-center text-sm font-bold text-[#b8ffe2]" role="status">正在載入 3D 輪播…</div>}>
+                  <Carousel3D
+                    items={filteredSongs}
+                    initialFocusedIndex={focusedSongIndex}
+                    onFocusedIndexChange={setFocusedSongIndex}
+                    onSelect={handlePlaySong}
+                  />
+                </Suspense>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">

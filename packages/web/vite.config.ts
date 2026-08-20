@@ -10,6 +10,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'auto',
       includeAssets: ['echora-icon.svg'],
       manifest: {
         name: 'Echora — 沉浸式歌詞舞台',
@@ -42,10 +43,23 @@ export default defineConfig({
         ]
       },
       workbox: {
-        // The original Folia visualizer bundle is intentionally large; let Workbox
-        // generate the service worker while keeping that bundle network-loaded.
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
+        // Do not precache the HTML shell. A stale precached index.html can reference
+        // deleted hashed chunks after a Vercel release and leave the app blank.
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,wav,mp3}'],
+        // Keep the install path small. Stage-only visualizer chunks and image packs
+        // stay network-loaded until the user enters the player, so a homepage refresh
+        // does not download the whole application before first paint.
+        globPatterns: [
+          'index.html',
+          'registerSW.js',
+          'echora-icon.svg',
+          'assets/index-*.{js,css}',
+          'assets/Home-*.js',
+          'assets/coverPlaceholders-*.js',
+        ],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\.echora\.example\.com\/.*/i,
@@ -81,6 +95,17 @@ export default defineConfig({
   resolve: {
     alias: {
       '@echora/core': resolve(__dirname, '../core/src/index.ts')
+    }
+  },
+  build: {
+    cssCodeSplit: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('@react-three') || id.includes('/three/') || id.includes('/three@')) return 'three-runtime';
+          if (id.includes('pixi.js') || id.includes('@paper-design') || id.includes('framer-motion')) return 'stage-runtime';
+        }
+      }
     }
   },
   server: {
