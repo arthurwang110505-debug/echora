@@ -100,7 +100,7 @@ const CarouselItem: React.FC<CarouselItemProps> = ({
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/20 opacity-60 group-hover:opacity-40 transition-opacity" />
 
         <span className="absolute top-3 left-3 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-black/40 backdrop-blur-md text-white border border-white/10">
-          {item.source === 'ytmusic' ? 'YT MUSIC' : 'SPOTIFY'}
+          {item.source === 'ytmusic' ? 'YT MUSIC' : item.source === 'local' ? '本機音檔' : 'SPOTIFY'}
         </span>
 
         {isActive && (
