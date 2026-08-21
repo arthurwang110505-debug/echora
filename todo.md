@@ -77,3 +77,6 @@
 - [x] UX-MOBILE-001：以 390px 行動視窗驗證首頁、3D 輪播、CTA、播放器與 Soundscape，不出現水平溢出或主要內容遮擋。
 - [x] UX-MOBILE-002：將首頁未登入與本機展示 CTA 改為品牌化、精簡且仍可理解的行動語言；保留已登入與來源連線狀態的語意。
 - [x] UX-MOBILE-003：完成桌面／行動瀏覽器驗證、測試、typecheck、lint、build，提交 GitHub `master` 並驗證 Vercel production deployment。
+
+## Homepage headline refinement
+- [x] UX-HOME-001：將首頁未登入／本機展示 Hero 主標題改為品牌化語句，完成 desktop／mobile smoke check、測試、typecheck、lint、build 與 Vercel production 驗證。

@@ -149,10 +149,10 @@ export default function Home() {
   const heroContent = activeSource === 'ytmusic'
     ? youtubeConnected
       ? { eyebrow: '你的 YouTube Music', title: '從你的歌單，', accent: '開啟自己的光。', description: '你的私人歌單已可與音樂庫及播放器共用。選一首歌後，使用 YouTube 原生播放與同步歌詞舞台。', primary: currentSong ? '返回播放舞台' : '開啟我的音樂庫', secondary: '同步我的音樂庫' }
-      : { eyebrow: '先體驗 Echora 舞台', title: '先看歌詞舞台，', accent: '喜歡再連接你的音樂。', description: '先用展示曲目體驗動態歌詞、視覺舞台與播放控制；喜歡後再連接 YouTube Music 讀取私人歌單。', primary: '探索 Echora 舞台', secondary: '同步你的音樂庫' }
+      : { eyebrow: '先體驗 Echora 舞台', title: '讓每一首歌，', accent: '都成為一座舞台。', description: '先用展示曲目體驗動態歌詞、視覺舞台與播放控制；喜歡後再連接 YouTube Music 讀取私人歌單。', primary: '探索 Echora 舞台', secondary: '同步你的音樂庫' }
     : activeSource === 'spotify'
       ? { eyebrow: 'Spotify 尚未啟用', title: 'Spotify 正在準備中，', accent: '請先選擇可用來源。', description: '目前尚未設定 Spotify 開發者權限，因此不能登入或播放；這不是播放故障。', primary: '探索可用來源', secondary: '查看連線方式' }
-      : { eyebrow: 'Echora 本機展示', title: '先看歌詞舞台，', accent: '喜歡再連接你的音樂。', description: '五首免版稅本機音檔已準備好；不需登入或依賴 YouTube Music，就能先體驗真實播放、舞台視覺與播放控制。', primary: '探索 Echora 舞台', secondary: '同步你的音樂庫' };
+      : { eyebrow: 'Echora 本機展示', title: '讓每一首歌，', accent: '都成為一座舞台。', description: '五首免版稅本機音檔已準備好；不需登入或依賴 YouTube Music，就能先體驗真實播放、舞台視覺與播放控制。', primary: '探索 Echora 舞台', secondary: '同步你的音樂庫' };
 
   const handleHeroPrimary = () => {
     if (currentSong) { navigate('/player'); return; }
