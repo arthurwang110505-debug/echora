@@ -148,11 +148,11 @@ export default function Home() {
         : undefined;
   const heroContent = activeSource === 'ytmusic'
     ? youtubeConnected
-      ? { eyebrow: '你的 YouTube Music', title: '從你的歌單，', accent: '開啟自己的光。', description: '你的私人歌單已可與音樂庫及播放器共用。選一首歌後，使用 YouTube 原生播放與同步歌詞舞台。', primary: currentSong ? '回到正在播放' : '開啟我的音樂庫', secondary: '重新同步歌單' }
-      : { eyebrow: '先體驗 Echora 舞台', title: '先看歌詞舞台，', accent: '喜歡再連接你的音樂。', description: '先用展示曲目體驗動態歌詞、視覺舞台與播放控制；喜歡後再連接 YouTube Music 讀取私人歌單。', primary: '先體驗歌詞舞台', secondary: '連接 YouTube Music' }
+      ? { eyebrow: '你的 YouTube Music', title: '從你的歌單，', accent: '開啟自己的光。', description: '你的私人歌單已可與音樂庫及播放器共用。選一首歌後，使用 YouTube 原生播放與同步歌詞舞台。', primary: currentSong ? '返回播放舞台' : '開啟我的音樂庫', secondary: '同步我的音樂庫' }
+      : { eyebrow: '先體驗 Echora 舞台', title: '先看歌詞舞台，', accent: '喜歡再連接你的音樂。', description: '先用展示曲目體驗動態歌詞、視覺舞台與播放控制；喜歡後再連接 YouTube Music 讀取私人歌單。', primary: '探索 Echora 舞台', secondary: '同步你的音樂庫' }
     : activeSource === 'spotify'
-      ? { eyebrow: 'Spotify 尚未啟用', title: 'Spotify 正在準備中，', accent: '請先選擇可用來源。', description: '目前尚未設定 Spotify 開發者權限，因此不能登入或播放；這不是播放故障。', primary: '改用 YouTube Music', secondary: '了解可用來源' }
-      : { eyebrow: 'Echora 本機展示', title: '先看歌詞舞台，', accent: '喜歡再連接你的音樂。', description: '五首免版稅本機音檔已準備好；不需登入或依賴 YouTube Music，就能先體驗真實播放、舞台視覺與播放控制。', primary: '先體驗歌詞舞台', secondary: '連接 YouTube Music' };
+      ? { eyebrow: 'Spotify 尚未啟用', title: 'Spotify 正在準備中，', accent: '請先選擇可用來源。', description: '目前尚未設定 Spotify 開發者權限，因此不能登入或播放；這不是播放故障。', primary: '探索可用來源', secondary: '查看連線方式' }
+      : { eyebrow: 'Echora 本機展示', title: '先看歌詞舞台，', accent: '喜歡再連接你的音樂。', description: '五首免版稅本機音檔已準備好；不需登入或依賴 YouTube Music，就能先體驗真實播放、舞台視覺與播放控制。', primary: '探索 Echora 舞台', secondary: '同步你的音樂庫' };
 
   const handleHeroPrimary = () => {
     if (currentSong) { navigate('/player'); return; }
@@ -218,7 +218,7 @@ export default function Home() {
             {deferredPrompt && (youtubeConnected || spotifyConnected) && <button type="button" onClick={handleInstall} className="hidden rounded-xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-3 py-2 text-xs font-bold text-[#62f5c4] transition hover:bg-[#62f5c4]/20 sm:block">安裝 Echora</button>}
             <button type="button" onClick={() => setShowConnectModal(true)} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-slate-200 transition hover:border-[#62f5c4]/40 hover:bg-[#62f5c4]/10 hover:text-[#62f5c4] sm:px-4 active:scale-95">
               <span className={`h-2 w-2 rounded-full ${sourceIsConnected ? 'bg-emerald-400 shadow-[0_0_9px_#34d399]' : 'bg-slate-500'}`} />
-              <span className="hidden sm:inline">{connectLabel}</span><span className="sm:hidden">連接</span>
+              <span className="hidden sm:inline">{connectLabel}</span><span className="sm:hidden">接入</span>
             </button>
             <button type="button" onClick={() => navigate('/settings')} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-slate-400 transition hover:border-white/20 hover:text-white active:scale-90" aria-label="設定">⚙</button>
           </div>
