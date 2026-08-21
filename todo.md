@@ -51,4 +51,4 @@
 - [x] REC-P2-02：確認 Spotify 未啟用時為鎖定狀態且不會被誤認為可播放來源。
 - [x] REC-P2-03：確認 3D 效能提示、偏好記憶、PWA 與 bundle budget（stage runtime 已延後載入，Player 初始 chunk 約 29KB；stage chunk 約 1.45MB 的 build warning 保留為後續優化）。
 - [x] Final verification：lint、test、typecheck、build 與桌面瀏覽器 smoke check 已通過；手機以 safe-area／responsive code review 驗收，尚未使用真機。
-- [ ] Delivery：檢查差異、建立 commit、推送 master，並驗證 Vercel preview 或明確回報部署阻擋。
+- [x] Delivery：已建立 `aa7454c`、推送 `master`，並確認 Vercel production deployment `dpl_2fQMennV8dZPhdzHqNMbBojDPQqY` 為 READY；production domain 已完成首頁與設定頁 smoke check。
