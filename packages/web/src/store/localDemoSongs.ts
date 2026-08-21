@@ -1,5 +1,4 @@
 import type { LyricData, Song } from '@echora/core';
-import { createCoverPlaceholder } from '../utils/coverPlaceholders';
 
 export interface LocalDemoAttribution {
   creator: string;
@@ -21,7 +20,7 @@ export const LOCAL_DEMO_SONGS: LocalDemoSong[] = [
     artists: [{ id: 'freesoundserver', name: 'Free Sound Server' }],
     album: showcaseAlbum,
     durationMs: 118440,
-    coverUrl: createCoverPlaceholder('Dancing in the Stardust', 'artist'),
+    coverUrl: '/covers/dancing-in-the-stardust.webp',
     audioUrl: 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663524799294/tDiAzOyrXMtgfJhq.mp3',
     source: 'local',
     isPureMusic: false,
@@ -37,7 +36,7 @@ export const LOCAL_DEMO_SONGS: LocalDemoSong[] = [
     artists: [{ id: 'yoshiyuki_tatsuya', name: 'Yoshiyuki Tatsuya' }],
     album: showcaseAlbum,
     durationMs: 175032,
-    coverUrl: createCoverPlaceholder('Blue Knot', 'artist'),
+    coverUrl: '/covers/blue-knot.webp',
     audioUrl: 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663524799294/cgebEptTCRfxgpKp.mp3',
     source: 'local',
     isPureMusic: false,
@@ -53,7 +52,7 @@ export const LOCAL_DEMO_SONGS: LocalDemoSong[] = [
     artists: [{ id: 'suryanatta', name: 'Suryanatta' }],
     album: showcaseAlbum,
     durationMs: 205536,
-    coverUrl: createCoverPlaceholder('Sun Beneath a Song', 'artist'),
+    coverUrl: '/covers/sun-beneath-a-song.webp',
     audioUrl: 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663524799294/LtNbhIIjpeGNszlP.mp3',
     source: 'local',
     isPureMusic: false,
@@ -69,7 +68,7 @@ export const LOCAL_DEMO_SONGS: LocalDemoSong[] = [
     artists: [{ id: 'kaazoom', name: 'Kaazoom' }],
     album: showcaseAlbum,
     durationMs: 251184,
-    coverUrl: createCoverPlaceholder('Stardust Pop Idol', 'artist'),
+    coverUrl: '/covers/stardust-pop-idol.webp',
     audioUrl: 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663524799294/TxNMTIzdSSWKkbMY.mp3',
     source: 'local',
     isPureMusic: false,
@@ -85,7 +84,7 @@ export const LOCAL_DEMO_SONGS: LocalDemoSong[] = [
     artists: [{ id: 'tideblue', name: 'tideblue' }],
     album: showcaseAlbum,
     durationMs: 188832,
-    coverUrl: createCoverPlaceholder('Ocean Morning', 'artist'),
+    coverUrl: '/covers/ocean-morning.webp',
     audioUrl: 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663524799294/DIrpYlnunrVgXDna.mp3',
     source: 'local',
     isPureMusic: false,

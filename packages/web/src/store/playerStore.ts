@@ -17,13 +17,20 @@ import {
 } from '../integrations/spotifyAuth';
 import { beginYouTubeLogin, clearYouTubeSession, finishYouTubeLogin, getStoredYouTubeSession } from '../integrations/youtubeAuth';
 import { DEMO_LYRICS } from './demoLyrics';
-import { LOCAL_DEMO_LYRICS } from './localDemoSongs';
+import { LOCAL_DEMO_LYRICS, LOCAL_DEMO_SONGS } from './localDemoSongs';
 import { recordDiagnostic } from '../lib/diagnostics';
 
 const RECENT_SONGS_STORAGE_KEY = 'echora.recent-songs';
 const FAVORITE_SONGS_STORAGE_KEY = 'echora.favorite-songs';
 const PLAYBACK_SNAPSHOT_STORAGE_KEY = 'echora.playback-snapshot';
 const MAX_RECENT_SONGS = 12;
+const LOCAL_DEMO_SONG_BY_ID = new Map(LOCAL_DEMO_SONGS.map(song => [song.id, song]));
+
+const refreshLocalDemoArtwork = (song: Song): Song => (
+  song.source === 'local' ? LOCAL_DEMO_SONG_BY_ID.get(song.id) || song : song
+);
+
+const refreshLocalDemoArtworkList = (songs: Song[]): Song[] => songs.map(refreshLocalDemoArtwork);
 
 type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'buffering' | 'ended' | 'error';
 type YouTubeConnectionState = 'disconnected' | 'authorizing' | 'syncing' | 'synced' | 'expired' | 'error';
@@ -32,7 +39,7 @@ const readRecentSongs = (): Song[] => {
   if (typeof window === 'undefined') return [];
   try {
     const stored = JSON.parse(window.localStorage.getItem(RECENT_SONGS_STORAGE_KEY) || '[]');
-    return Array.isArray(stored) ? stored.slice(0, MAX_RECENT_SONGS) : [];
+    return Array.isArray(stored) ? refreshLocalDemoArtworkList(stored).slice(0, MAX_RECENT_SONGS) : [];
   } catch {
     return [];
   }
@@ -48,7 +55,7 @@ const readFavoriteSongs = (): Song[] => {
   if (typeof window === 'undefined') return [];
   try {
     const stored = JSON.parse(window.localStorage.getItem(FAVORITE_SONGS_STORAGE_KEY) || '[]');
-    return Array.isArray(stored) ? stored.slice(0, MAX_RECENT_SONGS) : [];
+    return Array.isArray(stored) ? refreshLocalDemoArtworkList(stored).slice(0, MAX_RECENT_SONGS) : [];
   } catch {
     return [];
   }
@@ -62,7 +69,12 @@ const readPlaybackSnapshot = (): Pick<PlayerState, 'currentSong' | 'playlist' | 
   if (typeof window === 'undefined') return null;
   try {
     const snapshot = JSON.parse(window.localStorage.getItem(PLAYBACK_SNAPSHOT_STORAGE_KEY) || 'null');
-    return snapshot?.currentSong ? snapshot : null;
+    if (!snapshot?.currentSong) return null;
+    return {
+      ...snapshot,
+      currentSong: refreshLocalDemoArtwork(snapshot.currentSong),
+      playlist: Array.isArray(snapshot.playlist) ? refreshLocalDemoArtworkList(snapshot.playlist) : [],
+    };
   } catch {
     return null;
   }

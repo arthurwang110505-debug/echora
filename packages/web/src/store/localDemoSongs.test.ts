@@ -7,6 +7,7 @@ describe('local demo showcase songs', () => {
     expect(LOCAL_DEMO_SONGS.every(song => song.source === 'local')).toBe(true);
     expect(LOCAL_DEMO_SONGS.every(song => song.audioUrl?.startsWith('https://files.manuscdn.com/'))).toBe(true);
     expect(LOCAL_DEMO_SONGS.every(song => (song.durationMs || 0) > 0)).toBe(true);
+    expect(LOCAL_DEMO_SONGS.every(song => song.coverUrl?.startsWith('/covers/') && song.coverUrl?.endsWith('.webp'))).toBe(true);
   });
 
   it('keeps attribution metadata attached to every track', () => {
