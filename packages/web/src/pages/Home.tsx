@@ -3,8 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { usePlayer } from '../contexts/PlayerContext';
 import { type Song } from '@echora/core';
 import { spotifyClientId } from '../integrations/spotifyAuth';
-import { createCoverPlaceholder } from '../utils/coverPlaceholders';
 import { useDialogFocus } from '../hooks/useDialogFocus';
+import { LOCAL_DEMO_SONGS } from '../store/localDemoSongs';
 
 const Carousel3D = lazy(() => import('../components/Carousel3D').then(module => ({ default: module.Carousel3D })));
 
@@ -17,33 +17,34 @@ const FEATURED_SONGS: Song[] = [
   {
     id: 'sp_1', title: 'Starboy', artists: [{ id: '1', name: 'The Weeknd, Daft Punk' }],
     album: { id: 'alb_1', name: 'Starboy' }, durationMs: 230000,
-    coverUrl: createCoverPlaceholder('Starboy', 'artist'), source: 'spotify',
+    source: 'spotify',
   },
   {
     id: 'sp_2', title: 'Blinding Lights', artists: [{ id: '1', name: 'The Weeknd' }],
     album: { id: 'alb_2', name: 'After Hours' }, durationMs: 200000,
-    coverUrl: createCoverPlaceholder('Blinding Lights', 'artist'), source: 'spotify',
+    source: 'spotify',
   },
   {
     id: 'yt_1', title: '夜に駆ける', artists: [{ id: '2', name: 'YOASOBI' }],
     album: { id: 'alb_3', name: 'THE BOOK' }, durationMs: 261000,
-    coverUrl: createCoverPlaceholder('夜に駆ける', 'artist'), source: 'ytmusic', audioUrl: 'by4SYYWlhEs',
+    source: 'ytmusic', audioUrl: 'by4SYYWlhEs',
   },
   {
     id: 'yt_2', title: 'First Love', artists: [{ id: '3', name: 'Utada Hikaru' }],
     album: { id: 'alb_4', name: 'First Love' }, durationMs: 257000,
-    coverUrl: createCoverPlaceholder('First Love', 'artist'), source: 'ytmusic', audioUrl: 'o1sUaVJUeB0',
+    source: 'ytmusic', audioUrl: 'o1sUaVJUeB0',
   },
   {
     id: 'sp_3', title: 'Die With A Smile', artists: [{ id: '4', name: 'Lady Gaga, Bruno Mars' }],
     album: { id: 'alb_5', name: 'Die With A Smile' }, durationMs: 251000,
-    coverUrl: createCoverPlaceholder('Die With A Smile', 'artist'), source: 'spotify',
+    source: 'spotify',
   },
   {
     id: 'yt_3', title: 'アイドル', artists: [{ id: '2', name: 'YOASOBI' }],
     album: { id: 'alb_6', name: 'Idol' }, durationMs: 213000,
-    coverUrl: createCoverPlaceholder('アイドル', 'artist'), source: 'ytmusic', audioUrl: 'ZRtdQ81jPUQ',
+    source: 'ytmusic', audioUrl: 'ZRtdQ81jPUQ',
   },
+  ...LOCAL_DEMO_SONGS,
 ];
 
 const sources = [
@@ -130,7 +131,7 @@ export default function Home() {
     const sourcePlaylist = FEATURED_SONGS.filter(item => item.source === song.source);
     setPlaylist(sourcePlaylist);
     play(song, sourcePlaylist);
-    navigate('/player');
+    navigate(song.source === 'local' ? '/player?demo=1' : '/player', song.source === 'local' ? { state: { demo: true } } : undefined);
   };
 
   const sourceIsConnected = activeSource === 'ytmusic' ? youtubeConnected : activeSource === 'spotify' ? spotifyConnected : false;
@@ -142,14 +143,20 @@ export default function Home() {
       : lastLibrarySyncAt
         ? `已同步 ${userPlaylists.length} 個歌單`
         : '尚未同步歌單';
-  const heroSong = activeSource === 'ytmusic' ? FEATURED_SONGS.find(song => song.source === 'ytmusic') : activeSource === 'spotify' && spotifyAvailable ? FEATURED_SONGS.find(song => song.source === 'spotify') : undefined;
+  const heroSong = activeSource === 'ytmusic'
+    ? FEATURED_SONGS.find(song => song.source === 'ytmusic')
+    : activeSource === 'spotify' && spotifyAvailable
+      ? FEATURED_SONGS.find(song => song.source === 'spotify')
+      : activeSource === 'local'
+        ? LOCAL_DEMO_SONGS[0]
+        : undefined;
   const heroContent = activeSource === 'ytmusic'
     ? youtubeConnected
       ? { eyebrow: '你的 YouTube Music', title: '從你的歌單，', accent: '開啟自己的光。', description: '你的私人歌單已可與音樂庫及播放器共用。選一首歌後，使用 YouTube 原生播放與同步歌詞舞台。', primary: currentSong ? '回到正在播放' : '開啟我的音樂庫', secondary: '重新同步歌單' }
       : { eyebrow: '先體驗 Echora 舞台', title: '先看歌詞舞台，', accent: '喜歡再連接你的音樂。', description: '先用展示曲目體驗動態歌詞、視覺舞台與播放控制；喜歡後再連接 YouTube Music 讀取私人歌單。', primary: '先體驗歌詞舞台', secondary: '連接 YouTube Music' }
     : activeSource === 'spotify'
       ? { eyebrow: 'Spotify 尚未啟用', title: 'Spotify 正在準備中，', accent: '請先選擇可用來源。', description: '目前尚未設定 Spotify 開發者權限，因此不能登入或播放；這不是播放故障。', primary: '改用 YouTube Music', secondary: '了解可用來源' }
-      : { eyebrow: '本地音樂', title: '本地音樂仍在準備，', accent: '先選擇可用來源。', description: '尚未匯入檔案時，Echora 不會混入其他服務的示範歌曲。你可以連接 YouTube Music 瀏覽歌單。', primary: '連接 YouTube Music', secondary: '查看我的音樂庫' };
+      : { eyebrow: 'Echora 本機展示', title: '先看歌詞舞台，', accent: '喜歡再連接你的音樂。', description: '五首免版稅本機音檔已準備好；不需登入或依賴 YouTube Music，就能先體驗真實播放、舞台視覺與播放控制。', primary: '先體驗歌詞舞台', secondary: '連接 YouTube Music' };
 
   const handleHeroPrimary = () => {
     if (currentSong) { navigate('/player'); return; }
@@ -164,13 +171,22 @@ export default function Home() {
         return;
       }
     }
+    if (activeSource === 'local') {
+      const demoSong = LOCAL_DEMO_SONGS[0];
+      if (demoSong) {
+        setPlaylist(LOCAL_DEMO_SONGS);
+        play(demoSong, LOCAL_DEMO_SONGS);
+        navigate('/player?demo=1', { state: { demo: true } });
+        return;
+      }
+    }
     setActiveSource('ytmusic');
   };
 
   const handleHeroSecondary = () => {
     if (activeSource === 'ytmusic' && youtubeConnected) { void loadSourcePlaylists(); return; }
     if (activeSource === 'ytmusic') { setShowConnectModal(true); return; }
-    if (activeSource === 'local') { navigate('/library'); return; }
+    if (activeSource === 'local') { setShowConnectModal(true); return; }
     setActiveSource('ytmusic');
   };
 
@@ -239,7 +255,7 @@ export default function Home() {
           <div className="relative hidden min-h-[380px] overflow-hidden lg:block">
             <div className="absolute right-[-8%] top-[12%] h-[430px] w-[430px] rounded-full bg-[#62f5c4]/20 blur-[90px]" />
             <div className="absolute right-[13%] top-[12%] h-[310px] w-[310px] rotate-12 rounded-[42px] border border-white/20 bg-white/10 p-3 shadow-2xl backdrop-blur-xl">
-              {heroSong ? <><img src={heroSong.coverUrl} alt={`${heroSong.title} 專輯封面`} className="h-full w-full rounded-[32px] object-cover opacity-90" /><div className="absolute inset-x-7 bottom-7 rounded-2xl border border-white/15 bg-[#07090e]/75 p-3 backdrop-blur-xl"><p className="text-xs font-bold text-white">{heroSong.title}</p><p className="mt-1 text-[10px] text-[#62f5c4]">{typeof heroSong.artists[0] === 'string' ? heroSong.artists[0] : heroSong.artists[0]?.name} · {activeSource === 'ytmusic' ? 'YouTube Music 示範' : 'Spotify 示範'}</p></div></> : <div className="flex h-full flex-col items-center justify-center rounded-[32px] border border-dashed border-white/20 bg-[#07090e]/40 p-8 text-center"><span className="text-4xl">✦</span><p className="mt-4 text-sm font-extrabold text-white">{heroContent.eyebrow}</p><p className="mt-2 text-xs leading-5 text-slate-400">選擇可用來源後才會顯示對應內容。</p></div>}
+              {heroSong ? <><img src={heroSong.coverUrl} alt={`${heroSong.title} 專輯封面`} className="h-full w-full rounded-[32px] object-cover opacity-90" /><div className="absolute inset-x-7 bottom-7 rounded-2xl border border-white/15 bg-[#07090e]/75 p-3 backdrop-blur-xl"><p className="text-xs font-bold text-white">{heroSong.title}</p><p className="mt-1 text-[10px] text-[#62f5c4]">{typeof heroSong.artists[0] === 'string' ? heroSong.artists[0] : heroSong.artists[0]?.name} · {activeSource === 'ytmusic' ? 'YouTube Music 示範' : activeSource === 'local' ? '本機音檔展示' : 'Spotify 示範'}</p></div></> : <div className="flex h-full flex-col items-center justify-center rounded-[32px] border border-dashed border-white/20 bg-[#07090e]/40 p-8 text-center"><span className="text-4xl">✦</span><p className="mt-4 text-sm font-extrabold text-white">{heroContent.eyebrow}</p><p className="mt-2 text-xs leading-5 text-slate-400">選擇可用來源後才會顯示對應內容。</p></div>}
             </div>
             <div className="absolute bottom-[13%] left-[10%] flex items-end gap-1 opacity-70">{[30, 60, 42, 82, 55, 95, 45, 72, 35].map((height, index) => <span key={index} className="w-1.5 rounded-full bg-[#62f5c4]" style={{ height }} />)}</div>
           </div>
@@ -322,7 +338,7 @@ export default function Home() {
 
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-slate-300">
-              {activeSource === 'ytmusic' ? 'YouTube Music 示範歌曲' : activeSource === 'local' ? '本地音樂庫' : 'Spotify 歌曲'} <span className="ml-1 text-slate-500">{filteredSongs.length.toString().padStart(2, '0')}</span>
+              {activeSource === 'ytmusic' ? 'YouTube Music 示範歌曲' : activeSource === 'local' ? 'Echora 本機展示曲目' : 'Spotify 歌曲'} <span className="ml-1 text-slate-500">{filteredSongs.length.toString().padStart(2, '0')}</span>
             </p>
             {searchQuery && (
               <button type="button" onClick={() => setSearchQuery('')} className="text-xs font-bold text-slate-400 transition hover:text-[#62f5c4]">
@@ -357,8 +373,8 @@ export default function Home() {
             )
           ) : (
             <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.025] px-6 py-16 text-center">
-              <p className="text-sm font-bold text-slate-300">{searchQuery ? '找不到符合的歌曲' : activeSource === 'local' ? '尚未匯入本地音樂' : '這個來源目前還沒有歌曲'}</p>
-              <p className="mt-2 text-xs text-slate-500">{searchQuery ? '可清除篩選、改用其他關鍵字，或從你的音樂庫選取已同步歌單。' : activeSource === 'local' ? 'Echora 不會以其他服務的歌曲填補本地音樂庫。請連接音樂服務或日後匯入檔案。' : '連接音樂服務後，內容會出現在這裡。'}</p>
+              <p className="text-sm font-bold text-slate-300">{searchQuery ? '找不到符合的歌曲' : activeSource === 'local' ? '展示音檔暫時無法載入' : '這個來源目前還沒有歌曲'}</p>
+              <p className="mt-2 text-xs text-slate-500">{searchQuery ? '可清除篩選、改用其他關鍵字，或從你的音樂庫選取已同步歌單。' : activeSource === 'local' ? '請重新整理頁面；若問題持續，稍後再試或連接 YouTube Music。' : '連接音樂服務後，內容會出現在這裡。'}</p>
               {youtubeConnected && <button type="button" onClick={() => navigate('/library')} className="mt-4 rounded-xl border border-[#62f5c4]/25 px-4 py-2 text-xs font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/10">前往我的音樂庫</button>}
             </div>
           )}
@@ -506,7 +522,7 @@ function SongCard({ song, selected, onPlay }: { song: Song; selected: boolean; o
         <img src={song.coverUrl} alt={`${song.title} 封面`} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-black/10 opacity-70" />
         <span className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/35 px-2 py-1 text-[8px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
-          {song.source === 'ytmusic' ? 'YT MUSIC' : 'SPOTIFY'}
+          {song.source === 'ytmusic' ? 'YT MUSIC' : song.source === 'local' ? '本機音檔' : 'SPOTIFY'}
         </span>
         <span className="absolute bottom-3 right-3 flex h-10 w-10 translate-y-2 items-center justify-center rounded-full bg-[#62f5c4] text-black opacity-0 shadow-lg transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
           ▶

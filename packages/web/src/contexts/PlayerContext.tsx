@@ -1,5 +1,6 @@
 import { ReactNode, useEffect } from 'react';
 import { usePlayerStore } from '../store/playerStore';
+import LocalAudioController from '../components/LocalAudioController';
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const restoreSpotifySession = usePlayerStore(state => state.restoreSpotifySession);
@@ -22,7 +23,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   // YouTube and Spotify report real time through their own player APIs. Only local playback may use a UI ticker.
   useEffect(() => {
-    if (!isPlaying || currentSong?.source === 'spotify' || currentSong?.source === 'ytmusic') return;
+    if (!isPlaying || currentSong?.source === 'spotify' || currentSong?.source === 'ytmusic' || currentSong?.source === 'local') return;
 
     let lastTime = performance.now();
     const interval = window.setInterval(() => {
@@ -73,7 +74,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [currentSong, currentTime, duration, isPlaying]);
 
-  return <>{children}</>;
+  return <><LocalAudioController />{children}</>;
 }
 
 export const usePlayer = usePlayerStore;

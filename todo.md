@@ -58,3 +58,10 @@
 - [x] DEMO-002：主 CTA 以現有內建示範曲目進入播放器，不要求 OAuth；播放器顯示展示模式提示，為後續本機音檔與同步歌詞接入保留入口。
 - [x] DEMO-003：已連線狀態維持回到正在播放／重新同步歌單的 CTA，不破壞已登入流程。
 - [x] DEMO-004：完成首頁、播放器的 typecheck、test、lint、build 與本地 production-like smoke check；正式 Vercel 部署待本輪 commit push 後驗證。
+
+## Local audio showcase tracks
+- [x] AUDIO-001：將五首使用者提供的 MP3 以不進 Git 的 CDN 媒體 URL 建立本機展示曲目 metadata。
+- [x] AUDIO-002：未登入展示 CTA 與首頁展示來源改用五首 `local` 音檔，保留 YouTube Music 連線 CTA 與已登入流程。
+- [x] AUDIO-003：為本機展示曲目接入持久 HTML5 Audio 播放、播放／暫停、進度、seek、上一首／下一首、音量與 ended 狀態，同步 Zustand 播放狀態與 Media Session。
+- [x] AUDIO-004：為五首音檔提供內建、免網路 lyrics fallback，並在播放器清楚標示本機展示來源與歌詞狀態。
+- [ ] AUDIO-005：完成本機音檔播放的單元／整合測試、typecheck、lint、build、瀏覽器 smoke check，提交 GitHub `master` 並驗證 Vercel production deployment。

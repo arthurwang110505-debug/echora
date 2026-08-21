@@ -17,6 +17,7 @@ import {
 } from '../integrations/spotifyAuth';
 import { beginYouTubeLogin, clearYouTubeSession, finishYouTubeLogin, getStoredYouTubeSession } from '../integrations/youtubeAuth';
 import { DEMO_LYRICS } from './demoLyrics';
+import { LOCAL_DEMO_LYRICS } from './localDemoSongs';
 import { recordDiagnostic } from '../lib/diagnostics';
 
 const RECENT_SONGS_STORAGE_KEY = 'echora.recent-songs';
@@ -123,6 +124,7 @@ interface PlayerState {
   libraryError: string | null;
   lastLibrarySyncAt: number | null;
   activeSource: 'spotify' | 'ytmusic' | 'local';
+  localError: string | null;
 
   // Actions
   play: (song: Song, playlist?: Song[]) => void;
@@ -138,6 +140,9 @@ interface PlayerState {
   setLoopMode: (mode: 'off' | 'list' | 'single') => void;
   setDisplayMode: (mode: DisplayMode) => void;
   setActiveSource: (source: 'spotify' | 'ytmusic' | 'local') => void;
+  setLocalPlaybackState: (playbackState: PlaybackState, isPlaying: boolean) => void;
+  setLocalTime: (currentTime: number, duration?: number) => void;
+  setLocalPlaybackError: (message: string) => void;
   toggleFavoriteSong: (song: Song) => void;
   restorePlaybackSnapshot: () => void;
   setSpotifyToken: (token: string | null) => void;
@@ -187,7 +192,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   isSyncingLibrary: false,
   libraryError: null,
   lastLibrarySyncAt: null,
-  activeSource: 'spotify',
+  activeSource: 'local',
+  localError: null,
 
   play: (song, playlist) => {
     const { spotifyProvider, spotifyToken, currentSong } = get();
@@ -201,11 +207,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({
       currentSong: song,
       // A newly mounted YouTube IFrame no longer inherits the homepage click gesture.
-      // Keep it paused until the visible player control receives a direct user gesture.
+      // Local audio waits for the HTML5 Audio element to emit `play`, so blocked autoplay is visible.
       isPlaying: song.source === 'ytmusic' || isSpotifyUnavailable ? false : true,
       playbackState: song.source === 'ytmusic' ? 'loading' : isSpotifyUnavailable ? 'error' : 'playing',
       currentTime: 0,
       duration: song.durationMs ? Math.round(song.durationMs / 1000) : 210,
+      localError: null,
       recentSongs,
       ...(playlist ? { playlist, currentIndex: 0 } : {}),
     });
@@ -216,6 +223,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return;
     }
     if (song.source === 'spotify' && spotifyToken) void spotifyProvider.play(song.audioUrl || `spotify:track:${song.id}`);
+    if (song.source === 'local') {
+      recordDiagnostic('song_selected', { source: 'local' });
+      window.dispatchEvent(new CustomEvent('echora:local-load', { detail: { audioUrl: song.audioUrl, autoplay: true } }));
+      void get().fetchLyrics(song);
+      return;
+    }
     if (song.source === 'ytmusic') {
       recordDiagnostic('song_selected', { source: 'ytmusic' });
       const artist = typeof song.artists[0] === 'string' ? song.artists[0] : song.artists[0]?.name || '';
@@ -246,6 +259,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (currentSong?.source === 'spotify' && spotifyToken) void spotifyProvider.pause();
     set({ isPlaying: false, playbackState: 'paused' });
     if (currentSong?.source === 'ytmusic') window.dispatchEvent(new CustomEvent('echora:youtube-pause'));
+    if (currentSong?.source === 'local') window.dispatchEvent(new CustomEvent('echora:local-pause'));
   },
 
   playPause: () => {
@@ -262,6 +276,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         recordDiagnostic('play_requested', { source: 'ytmusic' });
         window.dispatchEvent(new CustomEvent('echora:youtube-play'));
         set({ playbackState: 'loading' });
+        return;
+      }
+      if (currentSong?.source === 'local') {
+        recordDiagnostic('play_requested', { source: 'local' });
+        window.dispatchEvent(new CustomEvent('echora:local-play'));
+        set({ playbackState: 'loading', localError: null });
         return;
       }
       set({ isPlaying: true, playbackState: 'playing' });
@@ -281,7 +301,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (spotifyToken) void spotifyProvider.next();
     set({ isChangingTrack: true, currentIndex: nextIndex, currentTime: 0 });
     setTimeout(() => set({ isChangingTrack: false }), 700);
-    if (nextSong?.source === 'ytmusic') get().play(nextSong);
+    if (nextSong?.source === 'ytmusic' || nextSong?.source === 'local') get().play(nextSong);
     else if (nextSong) { set({ currentSong: nextSong }); get().fetchLyrics(nextSong); }
   },
 
@@ -293,7 +313,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (spotifyToken) void spotifyProvider.previous();
     set({ isChangingTrack: true, currentIndex: prevIndex, currentTime: 0 });
     setTimeout(() => set({ isChangingTrack: false }), 700);
-    if (prevSong?.source === 'ytmusic') get().play(prevSong);
+    if (prevSong?.source === 'ytmusic' || prevSong?.source === 'local') get().play(prevSong);
     else if (prevSong) { set({ currentSong: prevSong }); get().fetchLyrics(prevSong); }
   },
 
@@ -301,6 +321,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { spotifyProvider, spotifyToken, currentSong } = get();
     if (spotifyToken) void spotifyProvider.seek(time * 1000);
     if (currentSong?.source === 'ytmusic') window.dispatchEvent(new CustomEvent('echora:youtube-seek', { detail: time }));
+    if (currentSong?.source === 'local') window.dispatchEvent(new CustomEvent('echora:local-seek', { detail: { time } }));
     set({ currentTime: time });
   },
 
@@ -336,6 +357,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ activeSource });
     get().loadSourcePlaylists();
   },
+
+  setLocalPlaybackState: (playbackState, isPlaying) => set({ playbackState, isPlaying, localError: playbackState === 'error' ? get().localError : null }),
+
+  setLocalTime: (currentTime, duration) => set({
+    currentTime: Math.max(0, currentTime),
+    ...(typeof duration === 'number' && Number.isFinite(duration) && duration > 0 ? { duration } : {}),
+  }),
+
+  setLocalPlaybackError: (message) => set({ isPlaying: false, playbackState: 'error', localError: message }),
 
   toggleFavoriteSong: (song) => {
     const current = get().favoriteSongs;
@@ -452,6 +482,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const artistName = typeof song.artists[0] === 'string'
       ? (song.artists[0] as unknown as string)
       : song.artists[0]?.name || 'Unknown';
+    if (song.source === 'local') {
+      const lyrics = LOCAL_DEMO_LYRICS[song.id];
+      if (get().currentSong?.id === requestedSongId) set({
+        currentLyrics: lyrics ? { ...lyrics, availability: 'available' } : { title: song.title, artist: artistName, isWordByWord: false, lines: [], availability: 'unavailable' },
+        isLoadingLyrics: false,
+        lyricsStatus: lyrics ? 'available' : 'unavailable',
+      });
+      return;
+    }
     // Never leave the previous song's lines on screen while a new request is pending.
     set({ currentLyrics: null, isLoadingLyrics: true, lyricsStatus: 'loading' });
     try {

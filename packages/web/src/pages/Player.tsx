@@ -45,6 +45,7 @@ export default function Player() {
     isLoadingLyrics,
     lyricsStatus,
     playbackState,
+    localError,
   } = usePlayer();
   const { currentTheme } = useTheme();
 
@@ -192,15 +193,16 @@ export default function Player() {
   const displayedTime = (isSeeking && seekPreviewTime !== null) ? seekPreviewTime : currentTime;
   const displayedLyricsTime = Math.max(0, displayedTime + lyricsOffsetSeconds);
   const queueSources = Array.from(new Set(playlist.map(song => song.source)));
-  const queueLabel = queueSources.length > 1 ? '混合服務佇列' : queueSources[0] === 'ytmusic' ? 'YouTube Music 佇列' : queueSources[0] === 'spotify' ? 'Spotify 佇列' : queueSources[0] === 'local' ? '本地音樂佇列' : '目前播放佇列';
-  const getSourceLabel = (source: Song['source']) => source === 'ytmusic' ? 'YT Music' : source === 'spotify' ? 'Spotify' : '本地';
-  const lyricsStageStatus = isLoadingLyrics || lyricsStatus === 'loading'
-    ? { title: '正在載入歌詞', copy: '準備完成後，舞台會顯示同步歌詞或說明為何無法取得。' }
-    : currentSong.source === 'ytmusic' && !isPlaying && !youtubeError
-      ? { title: playbackState === 'buffering' || playbackState === 'loading' ? 'YouTube 正在準備播放' : '等待你在 YouTube 開始播放', copy: '請在原生播放器按下播放鍵，開始有聲播放與歌詞同步。' }
-      : currentLyrics?.lines?.length
-        ? { title: '同步歌詞可用', copy: '若文字與音樂有偏移，可開啟「校正與設定」進行調整。' }
-        : { title: lyricsStatus === 'instrumental' ? '這是一首純音樂內容' : lyricsStatus === 'error' ? '歌詞暫時無法載入' : '這首歌目前沒有同步歌詞', copy: lyricsStatus === 'error' ? '請稍後重試或繼續使用真實播放時間與視覺舞台。' : '你可以繼續播放、選擇其他曲目，或使用視覺舞台。' };
+  const queueLabel = queueSources.length > 1 ? '混合服務佇列' : queueSources[0] === 'ytmusic' ? 'YouTube Music 佇列' : queueSources[0] === 'spotify' ? 'Spotify 佇列' : queueSources[0] === 'local' ? '本機展示佇列' : '目前播放佇列';
+  const getSourceLabel = (source: Song['source']) => source === 'ytmusic' ? 'YT Music' : source === 'spotify' ? 'Spotify' : '本機音檔';
+  const lyricsStageStatus = (() => {
+    if (isLoadingLyrics || lyricsStatus === 'loading') return { title: '正在載入歌詞', copy: '準備完成後，舞台會顯示同步歌詞或說明為何無法取得。' };
+    if (currentSong.source === 'ytmusic' && !isPlaying && !youtubeError) return { title: playbackState === 'buffering' || playbackState === 'loading' ? 'YouTube 正在準備播放' : '等待你在 YouTube 開始播放', copy: '請在原生播放器按下播放鍵，開始有聲播放與歌詞同步。' };
+    if (localError) return { title: '本機音檔播放失敗', copy: localError };
+    if (currentSong.source === 'local' && !isPlaying && playbackState === 'loading') return { title: '本機音檔已準備', copy: '按下播放即可在不登入 YouTube Music 的情況下體驗 Echora 展示舞台。' };
+    if (currentLyrics?.lines?.length) return { title: '同步歌詞可用', copy: '若文字與音樂有偏移，可開啟「校正與設定」進行調整。' };
+    return { title: lyricsStatus === 'instrumental' ? '這是一首純音樂內容' : lyricsStatus === 'error' ? '歌詞暫時無法載入' : '這首歌目前沒有同步歌詞', copy: lyricsStatus === 'error' ? '請稍後重試或繼續使用真實播放時間與視覺舞台。' : currentSong.source === 'local' ? '這首展示音檔尚未附帶可核對的同步歌詞，之後可匯入 .lrc 或 .vtt。' : '你可以繼續播放、選擇其他曲目，或使用視覺舞台。' };
+  })();
 
   return (
     <div
@@ -425,12 +427,12 @@ export default function Player() {
               <p className="text-xs sm:text-sm text-[#62f5c4] font-semibold mt-0.5">
                 {activeArtist} {currentSong.album?.name ? `• ${currentSong.album.name}` : ''}
               </p>
-              {demoMode && <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b8ffe2]">Echora 展示模式 · 不需登入即可體驗</p>}
+              {demoMode && <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b8ffe2]">{currentSong.source === 'local' ? 'Echora 本機音檔展示 · 不需登入或 YouTube' : 'Echora 展示模式 · 不需登入即可體驗'}</p>}
             </div>
           </div>
 
           {/* Echora Kinetic Lyrics Animation Stage */}
-          <YouTubePlayer immersive={displayMode === 'stage'} concealed={displayMode === 'full' && showPlaylistDrawer} />
+          {currentSong.source === 'ytmusic' && <YouTubePlayer immersive={displayMode === 'stage'} concealed={displayMode === 'full' && showPlaylistDrawer} />}
           {displayMode === 'full' && showPlaylistDrawer && currentSong.source === 'ytmusic' && (
             <p className="pointer-events-none absolute bottom-6 right-6 z-20 rounded-xl border border-white/10 bg-[#07090e]/80 px-3 py-2 text-[11px] font-semibold text-slate-300 backdrop-blur">選歌時已隱藏 YouTube 播放器；關閉歌單側欄後即可操作。</p>
           )}
@@ -487,12 +489,12 @@ export default function Player() {
               >
                 退出全螢幕
               </button>
-              {currentSong.source === 'ytmusic' && (
+              {(currentSong.source === 'ytmusic' || currentSong.source === 'local') && (
                 <button
                   type="button"
                   onClick={handlePlayPause}
                   className="rounded-xl bg-gradient-to-r from-[#62f5c4] to-teal-400 px-3 py-2 text-xs font-extrabold text-black shadow-lg"
-                  aria-label={isPlaying ? '暫停 YouTube 音訊' : '播放 YouTube 音訊'}
+                  aria-label={isPlaying ? '暫停音訊' : '播放音訊'}
                 >
                   {isPlaying ? '暫停' : '播放音訊'}
                 </button>
