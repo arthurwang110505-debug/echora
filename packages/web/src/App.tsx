@@ -3,6 +3,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { PlayerProvider } from './contexts/PlayerContext';
 import { ThemeProvider } from './contexts/ThemeProvider';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
+import { RouteSkeleton } from './components/LoadingSkeletons';
 import './App.css';
 
 const Home = lazy(() => import('./pages/Home'));
@@ -12,7 +13,7 @@ const Library = lazy(() => import('./pages/Library'));
 const YouTubeCallback = lazy(() => import('./pages/YouTubeCallback'));
 
 function RouteLoader() {
-  return <div className="flex min-h-screen items-center justify-center bg-[#07090e] text-sm font-bold text-[#b8ffe2]" role="status">正在載入 Echora 舞台…</div>;
+  return <RouteSkeleton />;
 }
 
 const router = createBrowserRouter([

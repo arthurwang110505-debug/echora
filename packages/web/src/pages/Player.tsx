@@ -8,6 +8,7 @@ import YouTubePlayer from '../components/YouTubePlayer';
 import { spotifyClientId } from '../integrations/spotifyAuth';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import LyriclessSoundscapeStage from '../components/LyriclessSoundscapeStage';
+import { CoverImage, PanelSkeleton, PlayerSkeleton, StageSkeleton } from '../components/LoadingSkeletons';
 
 const OriginalFoliaVisualizerStage = lazy(() => import('../components/OriginalFoliaVisualizerStage'));
 const OriginalFoliaTuningPanel = lazy(() => import('../components/OriginalFoliaTuningPanel'));
@@ -67,6 +68,12 @@ export default function Player() {
   const stageRootRef = useRef<HTMLDivElement>(null);
   const spotifyAvailable = Boolean(spotifyClientId);
   const demoMode = location.state?.demo === true || new URLSearchParams(location.search).get('demo') === '1';
+  const [hasHydrated, setHasHydrated] = useState(false);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setHasHydrated(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   const handlePlayPause = () => {
     if (isPlaying && currentSong?.source === 'ytmusic' && activeVisualizer !== 'classic') {
@@ -156,6 +163,10 @@ export default function Player() {
 
     return idx !== -1 ? idx : 0;
   }, [currentLyrics, currentTime, isSeeking, seekPreviewTime, duration, lyricsOffsetSeconds]);
+
+  if (!currentSong && !hasHydrated) {
+    return <PlayerSkeleton />;
+  }
 
   if (!currentSong) {
     return (
@@ -356,7 +367,7 @@ export default function Player() {
                             : 'hover:bg-white/[0.06] text-slate-200 border border-transparent'
                         }`}
                       >
-                        <img src={songItem.coverUrl} alt={songItem.title} className="w-11 h-11 rounded-xl object-cover shadow-sm" />
+                        <CoverImage src={songItem.coverUrl} alt={songItem.title} wrapperClassName="w-11 h-11 rounded-xl" className="w-11 h-11 rounded-xl object-cover shadow-sm" />
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold truncate">{songItem.title}</p>
                           <p className="text-[11px] text-slate-400 truncate mt-0.5">
@@ -390,7 +401,7 @@ export default function Player() {
                         onClick={() => { pl.source === 'spotify' ? void loadSpotifyPlaylist(pl.id) : void loadYouTubePlaylist(pl.id); setShowPlaylistDrawer(false); }}
                         className="flex w-full items-center gap-3.5 p-2.5 rounded-2xl hover:bg-white/[0.06] cursor-pointer text-left text-slate-200 transition-all btn-spring"
                       >
-                        <img src={pl.coverUrl} alt={pl.name} className="w-11 h-11 rounded-xl object-cover shadow-sm" />
+                        <CoverImage src={pl.coverUrl} alt={pl.name} wrapperClassName="w-11 h-11 rounded-xl" className="w-11 h-11 rounded-xl object-cover shadow-sm" />
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold truncate">{pl.name}</p>
                           <p className="text-[10px] text-slate-400 mt-0.5">{pl.trackCount || 0} 首歌曲</p>
@@ -409,9 +420,10 @@ export default function Player() {
           {/* Track Header Card */}
           <div className={`${displayMode === 'stage' ? 'hidden' : 'flex'} items-center gap-4 sm:gap-5 z-10 glass-card p-3.5 sm:p-4 rounded-3xl border border-white/10 w-fit backdrop-blur-2xl shadow-xl transition-all`}>
             <div className="relative">
-              <img
+              <CoverImage
                 src={currentSong.coverUrl}
                 alt={currentSong.title}
+                wrapperClassName="w-14 h-14 rounded-2xl sm:w-16 sm:h-16"
                 className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover shadow-2xl transition-all duration-500 ${
                   isPlaying ? 'scale-100' : 'scale-95 opacity-80'
                 }`}
@@ -443,7 +455,9 @@ export default function Player() {
               <div className="mx-auto max-w-sm rounded-2xl border border-white/15 bg-[#111720]/85 px-5 py-3 text-sm text-slate-200 shadow-2xl backdrop-blur-xl"><p className="font-bold text-white">{lyricsStageStatus.title}</p><p className="mt-1 text-xs leading-5 text-slate-400">{lyricsStageStatus.copy}</p></div>
             </div>
           )}
-          {showLyriclessSoundscape ? (
+          {isLoadingLyrics ? (
+            <StageSkeleton />
+          ) : showLyriclessSoundscape ? (
             <LyriclessSoundscapeStage
               coverUrl={currentSong.coverUrl}
               songTitle={currentSong.title}
@@ -453,7 +467,7 @@ export default function Player() {
               theme={currentTheme}
             />
           ) : (
-            <Suspense fallback={<div className="flex min-h-[18rem] items-center justify-center rounded-3xl border border-white/10 bg-black/20 text-xs font-semibold text-slate-400">正在載入沉浸舞台…</div>}>
+            <Suspense fallback={<StageSkeleton />}>
               <OriginalFoliaVisualizerStage
                 lines={currentLyrics?.lines || []}
                 activeLineIndex={activeLineIndex}
@@ -472,7 +486,7 @@ export default function Player() {
           )}
 
           {showTuning && (
-            <Suspense fallback={<div className="pointer-events-none absolute inset-x-8 top-1/2 z-20 -translate-y-1/2 rounded-2xl border border-white/10 bg-[#111720]/80 p-4 text-center text-xs font-semibold text-slate-300">正在載入舞台設定…</div>}>
+            <Suspense fallback={<PanelSkeleton />}>
               <OriginalFoliaTuningPanel
                 mode={activeVisualizer}
                 autoMode={autoVisualizer}

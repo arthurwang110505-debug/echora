@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { useMemo } from 'react';
+import { CoverImage } from './LoadingSkeletons';
 
 type SoundscapeTheme = {
   backgroundColor?: string;
@@ -73,7 +74,7 @@ export default function LyriclessSoundscapeStage({ coverUrl, songTitle, songArti
           <div className="soundscape-orbit soundscape-orbit-outer" aria-hidden="true" />
           <div className="soundscape-orbit soundscape-orbit-inner" aria-hidden="true" />
           <div className="soundscape-artwork-frame">
-            {coverUrl ? <img src={coverUrl} alt={`${songTitle} 封面`} className="soundscape-artwork" /> : <div className="soundscape-artwork-fallback">E</div>}
+            {coverUrl ? <CoverImage src={coverUrl} alt={`${songTitle} 封面`} wrapperClassName="echora-soundscape-artwork-media" className="soundscape-artwork" /> : <div className="soundscape-artwork-fallback">E</div>}
             <div className="soundscape-artwork-shine" aria-hidden="true" />
           </div>
         </div>

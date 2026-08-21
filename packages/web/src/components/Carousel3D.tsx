@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'framer-motion';
-import { Disc, Play, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Play, ChevronLeft, ChevronRight } from 'lucide-react';
 import { type Song } from '@echora/core';
+import { CoverImage } from './LoadingSkeletons';
 
 interface CarouselItemProps {
   item: Song;
@@ -84,18 +85,12 @@ const CarouselItem: React.FC<CarouselItemProps> = ({
         }`}
         style={{ width: coverSize, height: coverSize }}
       >
-        {item.coverUrl ? (
-          <img
-            src={item.coverUrl}
-            alt={item.title}
-            decoding="async"
-            className="w-full h-full object-cover pointer-events-none transition-transform duration-500 group-hover:scale-105"
-          />
-        ) : (
-          <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
-            <Disc size={56} className="text-slate-600 opacity-40" />
-          </div>
-        )}
+        <CoverImage
+          src={item.coverUrl}
+          alt={item.title}
+          wrapperClassName="absolute inset-0"
+          className="w-full h-full object-cover pointer-events-none transition-transform duration-500 group-hover:scale-105"
+        />
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/20 opacity-60 group-hover:opacity-40 transition-opacity" />
 

@@ -5,6 +5,7 @@ import { type Song } from '@echora/core';
 import { spotifyClientId } from '../integrations/spotifyAuth';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { LOCAL_DEMO_SONGS } from '../store/localDemoSongs';
+import { CarouselSkeleton, CoverImage } from '../components/LoadingSkeletons';
 
 const Carousel3D = lazy(() => import('../components/Carousel3D').then(module => ({ default: module.Carousel3D })));
 
@@ -240,7 +241,7 @@ export default function Home() {
           <div className="relative hidden min-h-[380px] overflow-hidden lg:block">
             <div className="absolute right-[-8%] top-[12%] h-[430px] w-[430px] rounded-full bg-[#62f5c4]/20 blur-[90px]" />
             <div className="absolute right-[13%] top-[12%] h-[310px] w-[310px] rotate-12 rounded-[42px] border border-white/20 bg-white/10 p-3 shadow-2xl backdrop-blur-xl">
-              {heroSong ? <><img src={heroSong.coverUrl} alt={`${heroSong.title} 專輯封面`} className="h-full w-full rounded-[32px] object-cover opacity-90" /><div className="absolute inset-x-7 bottom-7 rounded-2xl border border-white/15 bg-[#07090e]/75 p-3 backdrop-blur-xl"><p className="text-xs font-bold text-white">{heroSong.title}</p><p className="mt-1 text-[10px] text-[#62f5c4]">{typeof heroSong.artists[0] === 'string' ? heroSong.artists[0] : heroSong.artists[0]?.name} · {activeSource === 'ytmusic' ? 'YouTube Music 示範' : activeSource === 'local' ? '本機音檔展示' : 'Spotify 示範'}</p></div></> : <div className="flex h-full flex-col items-center justify-center rounded-[32px] border border-dashed border-white/20 bg-[#07090e]/40 p-8 text-center"><span className="text-4xl">✦</span><p className="mt-4 text-sm font-extrabold text-white">{heroContent.eyebrow}</p><p className="mt-2 text-xs leading-5 text-slate-400">選擇可用來源後才會顯示對應內容。</p></div>}
+              {heroSong ? <><CoverImage src={heroSong.coverUrl} alt={`${heroSong.title} 專輯封面`} wrapperClassName="h-full w-full rounded-[32px]" className="h-full w-full rounded-[32px] object-cover opacity-90" /><div className="absolute inset-x-7 bottom-7 rounded-2xl border border-white/15 bg-[#07090e]/75 p-3 backdrop-blur-xl"><p className="text-xs font-bold text-white">{heroSong.title}</p><p className="mt-1 text-[10px] text-[#62f5c4]">{typeof heroSong.artists[0] === 'string' ? heroSong.artists[0] : heroSong.artists[0]?.name} · {activeSource === 'ytmusic' ? 'YouTube Music 示範' : activeSource === 'local' ? '本機音檔展示' : 'Spotify 示範'}</p></div></> : <div className="flex h-full flex-col items-center justify-center rounded-[32px] border border-dashed border-white/20 bg-[#07090e]/40 p-8 text-center"><span className="text-4xl">✦</span><p className="mt-4 text-sm font-extrabold text-white">{heroContent.eyebrow}</p><p className="mt-2 text-xs leading-5 text-slate-400">選擇可用來源後才會顯示對應內容。</p></div>}
             </div>
             <div className="absolute bottom-[13%] left-[10%] flex items-end gap-1 opacity-70">{[30, 60, 42, 82, 55, 95, 45, 72, 35].map((height, index) => <span key={index} className="w-1.5 rounded-full bg-[#62f5c4]" style={{ height }} />)}</div>
           </div>
@@ -335,7 +336,7 @@ export default function Home() {
           {filteredSongs.length > 0 ? (
             songViewMode === '3d' ? (
               <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-4 sm:p-6 backdrop-blur-xl shadow-2xl">
-                <Suspense fallback={<div className="flex min-h-72 items-center justify-center text-sm font-bold text-[#b8ffe2]" role="status">正在載入 3D 輪播…</div>}>
+                <Suspense fallback={<CarouselSkeleton />}>
                   <Carousel3D
                     items={filteredSongs}
                     initialFocusedIndex={focusedSongIndex}
@@ -371,7 +372,7 @@ export default function Home() {
       {/* Floating Mini Player */}
       {currentSong && (
         <div className="fixed bottom-4 left-4 right-4 z-30 mx-auto flex max-w-5xl items-center gap-3 rounded-2xl border border-white/15 bg-[#111720]/90 p-3 shadow-2xl backdrop-blur-2xl sm:bottom-6 sm:gap-5 sm:p-4">
-          <img src={currentSong.coverUrl} alt="" className="h-11 w-11 rounded-xl object-cover sm:h-14 sm:w-14" />
+          <CoverImage src={currentSong.coverUrl} alt="" wrapperClassName="h-11 w-11 rounded-xl sm:h-14 sm:w-14" className="h-11 w-11 rounded-xl object-cover sm:h-14 sm:w-14" />
           <button type="button" onClick={() => navigate('/player')} className="min-w-0 flex-1 text-left">
             <p className="truncate text-sm font-extrabold text-white">{currentSong.title}</p>
             <p className="mt-0.5 truncate text-xs text-[#62f5c4] font-medium">
@@ -504,7 +505,7 @@ function SongCard({ song, selected, onPlay }: { song: Song; selected: boolean; o
   return (
     <button type="button" onClick={onPlay} className={`group text-left btn-spring ${selected ? 'rounded-3xl ring-2 ring-[#62f5c4]/60' : ''}`}>
       <div className="relative aspect-square overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-xl transition-all duration-300 group-hover:-translate-y-1 group-hover:border-[#62f5c4]/40 group-hover:shadow-[0_18px_45px_rgba(0,0,0,0.35)]">
-        <img src={song.coverUrl} alt={`${song.title} 封面`} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        <CoverImage src={song.coverUrl} alt={`${song.title} 封面`} loading="lazy" wrapperClassName="h-full w-full" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-black/10 opacity-70" />
         <span className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/35 px-2 py-1 text-[8px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
           {song.source === 'ytmusic' ? 'YT MUSIC' : song.source === 'local' ? '本機音檔' : 'SPOTIFY'}
