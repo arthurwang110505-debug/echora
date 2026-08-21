@@ -65,3 +65,10 @@
 - [x] AUDIO-003：為本機展示曲目接入持久 HTML5 Audio 播放、播放／暫停、進度、seek、上一首／下一首、音量與 ended 狀態，同步 Zustand 播放狀態與 Media Session。
 - [x] AUDIO-004：為五首音檔提供內建、免網路 lyrics fallback，並在播放器清楚標示本機展示來源與歌詞狀態。
 - [x] AUDIO-005：完成本機音檔播放的單元／整合測試、typecheck、lint、build、瀏覽器 smoke check，提交 GitHub `master` 並驗證 Vercel production deployment。
+
+## 3D-first and lyricless soundscape
+- [x] UX-3D-001：首頁探索區預設直接使用 3D 輪播，不顯示效能／流量降低提示，也不因首次進入而攔截使用者。
+- [x] UX-3D-002：首頁保留網格作為可選瀏覽方式，但不以 reduced-motion 或未看過提示強制改變預設 3D 行為。
+- [x] UX-SOUND-001：無同步歌詞或純音樂曲目顯示專用沉浸式聲景背景，含封面色彩、音樂脈動、粒子／光暈與清楚的無歌詞狀態，不留下空舞台。
+- [x] UX-SOUND-002：有同步歌詞的曲目維持原有 Folia 歌詞舞台；無歌詞聲景背景支援播放、暫停、切歌、響應式版面與 reduced-motion 偏好。
+- [x] UX-SOUND-003：完成測試、typecheck、lint、build、桌面／行動瀏覽器 smoke check，提交 GitHub `master` 並驗證 Vercel production deployment。

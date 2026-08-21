@@ -7,6 +7,7 @@ import type { Playlist } from '@echora/core';
 import YouTubePlayer from '../components/YouTubePlayer';
 import { spotifyClientId } from '../integrations/spotifyAuth';
 import { useDialogFocus } from '../hooks/useDialogFocus';
+import LyriclessSoundscapeStage from '../components/LyriclessSoundscapeStage';
 
 const OriginalFoliaVisualizerStage = lazy(() => import('../components/OriginalFoliaVisualizerStage'));
 const OriginalFoliaTuningPanel = lazy(() => import('../components/OriginalFoliaTuningPanel'));
@@ -195,6 +196,7 @@ export default function Player() {
   const queueSources = Array.from(new Set(playlist.map(song => song.source)));
   const queueLabel = queueSources.length > 1 ? '混合服務佇列' : queueSources[0] === 'ytmusic' ? 'YouTube Music 佇列' : queueSources[0] === 'spotify' ? 'Spotify 佇列' : queueSources[0] === 'local' ? '本機展示佇列' : '目前播放佇列';
   const getSourceLabel = (source: Song['source']) => source === 'ytmusic' ? 'YT Music' : source === 'spotify' ? 'Spotify' : '本機音檔';
+  const showLyriclessSoundscape = !isLoadingLyrics && !currentLyrics?.lines?.length;
   const lyricsStageStatus = (() => {
     if (isLoadingLyrics || lyricsStatus === 'loading') return { title: '正在載入歌詞', copy: '準備完成後，舞台會顯示同步歌詞或說明為何無法取得。' };
     if (currentSong.source === 'ytmusic' && !isPlaying && !youtubeError) return { title: playbackState === 'buffering' || playbackState === 'loading' ? 'YouTube 正在準備播放' : '等待你在 YouTube 開始播放', copy: '請在原生播放器按下播放鍵，開始有聲播放與歌詞同步。' };
@@ -436,25 +438,38 @@ export default function Player() {
           {displayMode === 'full' && showPlaylistDrawer && currentSong.source === 'ytmusic' && (
             <p className="pointer-events-none absolute bottom-6 right-6 z-20 rounded-xl border border-white/10 bg-[#07090e]/80 px-3 py-2 text-[11px] font-semibold text-slate-300 backdrop-blur">選歌時已隱藏 YouTube 播放器；關閉歌單側欄後即可操作。</p>
           )}
-          <div className={`${displayMode === 'stage' ? 'top-6' : 'top-32'} pointer-events-none absolute inset-x-8 z-20 text-center`} role="status" aria-live="polite">
-            <div className="mx-auto max-w-sm rounded-2xl border border-white/15 bg-[#111720]/85 px-5 py-3 text-sm text-slate-200 shadow-2xl backdrop-blur-xl"><p className="font-bold text-white">{lyricsStageStatus.title}</p><p className="mt-1 text-xs leading-5 text-slate-400">{lyricsStageStatus.copy}</p></div>
-          </div>
-          <Suspense fallback={<div className="flex min-h-[18rem] items-center justify-center rounded-3xl border border-white/10 bg-black/20 text-xs font-semibold text-slate-400">正在載入沉浸舞台…</div>}>
-            <OriginalFoliaVisualizerStage
-              lines={currentLyrics?.lines || []}
-              activeLineIndex={activeLineIndex}
-              displayedTime={displayedLyricsTime}
-              isPlaying={isPlaying}
-              theme={currentTheme}
-              visualizerMode={activeVisualizer}
+          {(!showLyriclessSoundscape || Boolean(localError)) && (
+            <div className={`${displayMode === 'stage' ? 'top-6' : 'top-32'} pointer-events-none absolute inset-x-8 z-20 text-center`} role="status" aria-live="polite">
+              <div className="mx-auto max-w-sm rounded-2xl border border-white/15 bg-[#111720]/85 px-5 py-3 text-sm text-slate-200 shadow-2xl backdrop-blur-xl"><p className="font-bold text-white">{lyricsStageStatus.title}</p><p className="mt-1 text-xs leading-5 text-slate-400">{lyricsStageStatus.copy}</p></div>
+            </div>
+          )}
+          {showLyriclessSoundscape ? (
+            <LyriclessSoundscapeStage
               coverUrl={currentSong.coverUrl}
               songTitle={currentSong.title}
               songArtist={activeArtist}
-              onSeekLine={seek}
-              backgroundMode={backgroundMode}
-              visualizerTunings={visualizerTunings}
+              displayedTime={displayedLyricsTime}
+              isPlaying={isPlaying}
+              theme={currentTheme}
             />
-          </Suspense>
+          ) : (
+            <Suspense fallback={<div className="flex min-h-[18rem] items-center justify-center rounded-3xl border border-white/10 bg-black/20 text-xs font-semibold text-slate-400">正在載入沉浸舞台…</div>}>
+              <OriginalFoliaVisualizerStage
+                lines={currentLyrics?.lines || []}
+                activeLineIndex={activeLineIndex}
+                displayedTime={displayedLyricsTime}
+                isPlaying={isPlaying}
+                theme={currentTheme}
+                visualizerMode={activeVisualizer}
+                coverUrl={currentSong.coverUrl}
+                songTitle={currentSong.title}
+                songArtist={activeArtist}
+                onSeekLine={seek}
+                backgroundMode={backgroundMode}
+                visualizerTunings={visualizerTunings}
+              />
+            </Suspense>
+          )}
 
           {showTuning && (
             <Suspense fallback={<div className="pointer-events-none absolute inset-x-8 top-1/2 z-20 -translate-y-1/2 rounded-2xl border border-white/10 bg-[#111720]/80 p-4 text-center text-xs font-semibold text-slate-300">正在載入舞台設定…</div>}>

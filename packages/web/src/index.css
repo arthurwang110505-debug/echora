@@ -530,3 +530,161 @@
 
 :root[data-motion="reduced"] .lyric-word-fill,
 :root[data-motion="reduced"] .coverflow-card { transition: none !important; }
+
+/* Lyricless music gets a dedicated soundscape instead of an empty lyric stage. */
+.soundscape-stage {
+  position: relative;
+  display: flex;
+  min-height: min(66vh, 42rem);
+  flex: 1;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--soundscape-bg, #07090e);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 28px 90px rgba(0, 0, 0, 0.3);
+}
+
+.soundscape-backdrop,
+.soundscape-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.soundscape-backdrop { z-index: -3; }
+.soundscape-backdrop-art {
+  position: absolute;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  object-fit: cover;
+  opacity: 0.31;
+  filter: blur(42px) saturate(1.35);
+  transform: scale(1.08);
+}
+.soundscape-wash {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 48%, color-mix(in srgb, var(--soundscape-accent) 24%, transparent), transparent 27%),
+    linear-gradient(135deg, rgba(4, 10, 16, 0.72), rgba(5, 8, 18, 0.94));
+}
+.soundscape-glow {
+  position: absolute;
+  width: min(45vw, 34rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(68px);
+  opacity: 0.22;
+  animation: soundscapeDrift 17s var(--ease-ambient) infinite alternate;
+}
+.soundscape-glow-primary { left: -10%; top: -22%; background: var(--soundscape-accent); }
+.soundscape-glow-secondary { right: -12%; bottom: -24%; background: var(--soundscape-primary); animation-delay: -7s; }
+
+.soundscape-particles { z-index: -1; }
+.soundscape-particle {
+  position: absolute;
+  border-radius: 999px;
+  background: var(--soundscape-accent);
+  box-shadow: 0 0 14px var(--soundscape-accent);
+  opacity: 0.55;
+  animation: soundscapeParticle 8s var(--ease-ambient) infinite alternate;
+}
+.soundscape-particle:nth-child(3n) { background: var(--soundscape-secondary); box-shadow: 0 0 14px var(--soundscape-secondary); }
+
+.soundscape-content {
+  display: flex;
+  width: min(100%, 54rem);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin: auto;
+  padding: clamp(3rem, 8vw, 6rem) 1.5rem;
+  text-align: center;
+}
+.soundscape-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: color-mix(in srgb, var(--soundscape-accent) 90%, white);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.soundscape-kicker-dot { width: 0.42rem; height: 0.42rem; border-radius: 50%; background: var(--soundscape-accent); box-shadow: 0 0 12px var(--soundscape-accent); }
+.soundscape-kicker-divider { width: 1.5rem; height: 1px; background: rgba(255, 255, 255, 0.25); }
+.soundscape-artwork-shell {
+  position: relative;
+  display: grid;
+  width: clamp(13rem, 30vw, 20rem);
+  aspect-ratio: 1;
+  place-items: center;
+  margin: 0.75rem 0 0.35rem;
+}
+.soundscape-orbit {
+  position: absolute;
+  border: 1px solid color-mix(in srgb, var(--soundscape-accent) 54%, transparent);
+  border-radius: 50%;
+  opacity: 0.7;
+  transform: rotate(-22deg) scaleY(0.34);
+  transition: transform 900ms var(--ease-out-smooth), opacity 500ms var(--ease-out-smooth);
+}
+.soundscape-orbit-outer { inset: -16%; }
+.soundscape-orbit-inner { inset: -5%; border-color: color-mix(in srgb, var(--soundscape-secondary) 50%, transparent); transform: rotate(24deg) scaleY(0.48); }
+.soundscape-is-playing .soundscape-orbit-outer { animation: soundscapeOrbit 10s linear infinite; }
+.soundscape-is-playing .soundscape-orbit-inner { animation: soundscapeOrbitReverse 7s linear infinite; }
+.soundscape-is-paused .soundscape-orbit { opacity: 0.35; }
+.soundscape-artwork-frame {
+  position: relative;
+  width: 68%;
+  height: 68%;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 2rem;
+  box-shadow: 0 24px 70px color-mix(in srgb, var(--soundscape-accent) 22%, transparent), 0 18px 55px rgba(0, 0, 0, 0.45);
+  transform: rotate(-6deg);
+  transition: transform 700ms var(--ease-spring), box-shadow 700ms var(--ease-out-smooth);
+}
+.soundscape-is-playing .soundscape-artwork-frame { transform: rotate(-4deg) scale(calc(1 + var(--soundscape-pulse) * 0.035)); }
+.soundscape-artwork,
+.soundscape-artwork-fallback { width: 100%; height: 100%; object-fit: cover; }
+.soundscape-artwork-fallback { display: grid; place-items: center; background: linear-gradient(135deg, var(--soundscape-accent), var(--soundscape-primary)); color: #07120f; font-size: 4rem; font-weight: 900; }
+.soundscape-artwork-shine { position: absolute; inset: 0; background: linear-gradient(125deg, rgba(255,255,255,0.33), transparent 31%, transparent 68%, rgba(255,255,255,0.08)); mix-blend-mode: screen; }
+.soundscape-copy { max-width: 34rem; }
+.soundscape-eyebrow { color: rgba(255, 255, 255, 0.56); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.11em; }
+.soundscape-copy h2 { margin-top: 0.35rem; color: white; font-family: var(--font-outfit); font-size: clamp(1.7rem, 4vw, 3rem); font-weight: 900; letter-spacing: -0.04em; text-shadow: 0 8px 35px rgba(0, 0, 0, 0.32); }
+.soundscape-copy > p:last-child { margin-top: 0.2rem; color: color-mix(in srgb, var(--soundscape-accent) 80%, white); font-size: 0.85rem; font-weight: 700; }
+.soundscape-waveform { display: flex; height: 3.8rem; align-items: center; justify-content: center; gap: 0.28rem; margin-top: 0.45rem; }
+.soundscape-waveform span { width: 0.24rem; min-height: 0.55rem; border-radius: 999px; background: linear-gradient(to top, var(--soundscape-accent), var(--soundscape-secondary)); box-shadow: 0 0 12px color-mix(in srgb, var(--soundscape-accent) 55%, transparent); transition: height 160ms linear; }
+.soundscape-is-playing .soundscape-waveform span { animation: soundscapeBar 1.15s var(--ease-ambient) infinite alternate; }
+.soundscape-status { color: rgba(255, 255, 255, 0.48); font-size: 0.72rem; }
+
+@keyframes soundscapeDrift { from { transform: translate3d(-2%, -2%, 0) scale(0.94); } to { transform: translate3d(7%, 6%, 0) scale(1.08); } }
+@keyframes soundscapeParticle { from { transform: translate3d(0, 10px, 0); opacity: 0.22; } to { transform: translate3d(10px, -22px, 0); opacity: 0.78; } }
+@keyframes soundscapeOrbit { to { transform: rotate(338deg) scaleY(0.34); } }
+@keyframes soundscapeOrbitReverse { to { transform: rotate(-336deg) scaleY(0.48); } }
+@keyframes soundscapeBar { from { transform: scaleY(0.55); opacity: 0.55; } to { transform: scaleY(1.18); opacity: 1; } }
+
+@media (max-width: 640px) {
+  .soundscape-stage { min-height: 52vh; border-radius: 1.5rem; }
+  .soundscape-content { padding: 2.5rem 1rem 4.5rem; }
+  .soundscape-artwork-shell { width: min(56vw, 15rem); }
+  .soundscape-eyebrow { font-size: 0.62rem; }
+  .soundscape-kicker { font-size: 0.56rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .soundscape-glow,
+  :root:not([data-motion="full"]) .soundscape-particle,
+  :root:not([data-motion="full"]) .soundscape-is-playing .soundscape-orbit-outer,
+  :root:not([data-motion="full"]) .soundscape-is-playing .soundscape-orbit-inner,
+  :root:not([data-motion="full"]) .soundscape-is-playing .soundscape-waveform span,
+  :root[data-motion="reduced"] .soundscape-glow,
+  :root[data-motion="reduced"] .soundscape-particle,
+  :root[data-motion="reduced"] .soundscape-is-playing .soundscape-orbit-outer,
+  :root[data-motion="reduced"] .soundscape-is-playing .soundscape-orbit-inner,
+  :root[data-motion="reduced"] .soundscape-is-playing .soundscape-waveform span { animation: none !important; }
+}

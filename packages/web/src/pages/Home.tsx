@@ -66,21 +66,16 @@ export default function Home() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [songViewMode, setSongViewMode] = useState<'3d' | 'grid'>(() => {
-    if (typeof window === 'undefined') return 'grid';
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return 'grid';
-    return window.localStorage.getItem('echora.song-view-mode') === '3d' ? '3d' : 'grid';
+    if (typeof window === 'undefined') return '3d';
+    return window.localStorage.getItem('echora.song-view-mode') === 'grid' ? 'grid' : '3d';
   });
   const [focusedSongIndex, setFocusedSongIndex] = useState(0);
   const [connectionNotice, setConnectionNotice] = useState(false);
-  const [showPerformanceHint, setShowPerformanceHint] = useState(false);
   const connectModalRef = useRef<HTMLDivElement>(null);
-  const performanceModalRef = useRef<HTMLDivElement>(null);
   const closeConnectModal = useCallback(() => setShowConnectModal(false), []);
-  const closePerformanceHint = useCallback(() => setShowPerformanceHint(false), []);
   const spotifyAvailable = Boolean(spotifyClientId);
 
   useDialogFocus(showConnectModal, connectModalRef, closeConnectModal);
-  useDialogFocus(showPerformanceHint, performanceModalRef, closePerformanceHint);
 
   useEffect(() => {
     const handleBeforeInstall = (event: Event) => {
@@ -191,17 +186,7 @@ export default function Home() {
   };
 
   const requestViewMode = (mode: '3d' | 'grid') => {
-    if (mode === '3d' && typeof window !== 'undefined' && !window.localStorage.getItem('echora.3d-performance-hint-seen')) {
-      setShowPerformanceHint(true);
-      return;
-    }
     setSongViewMode(mode);
-  };
-
-  const confirm3DMode = () => {
-    window.localStorage.setItem('echora.3d-performance-hint-seen', 'true');
-    setSongViewMode('3d');
-    setShowPerformanceHint(false);
   };
 
   return (
@@ -381,7 +366,7 @@ export default function Home() {
         </section>
       </main>
 
-      {showPerformanceHint && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="performance-hint-title" aria-describedby="performance-hint-copy"><div ref={performanceModalRef} tabIndex={-1} className="w-full max-w-sm rounded-3xl border border-[#F9F871]/30 bg-[#111720] p-6 shadow-2xl"><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#F9F871]">效能提示</p><h2 id="performance-hint-title" className="mt-2 text-xl font-extrabold text-white">3D 輪播較耗裝置效能</h2><p id="performance-hint-copy" className="mt-3 text-sm leading-6 text-slate-300">長歌單或較舊的手機可能較不流暢。Echora 會記住你的選擇；若系統偏好減少動態效果，會先使用網格列表。</p><div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setShowPerformanceHint(false)} className="rounded-xl px-4 py-2 text-xs font-bold text-slate-300 hover:bg-white/10">維持網格</button><button type="button" onClick={confirm3DMode} className="rounded-xl bg-[#62f5c4] px-4 py-2 text-xs font-extrabold text-black">仍要開啟 3D</button></div></div></div>}
+
 
       {/* Floating Mini Player */}
       {currentSong && (
