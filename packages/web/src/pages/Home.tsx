@@ -146,7 +146,7 @@ export default function Home() {
   const heroContent = activeSource === 'ytmusic'
     ? youtubeConnected
       ? { eyebrow: '你的 YouTube Music', title: '從你的歌單，', accent: '開啟自己的光。', description: '你的私人歌單已可與音樂庫及播放器共用。選一首歌後，使用 YouTube 原生播放與同步歌詞舞台。', primary: currentSong ? '回到正在播放' : '開啟我的音樂庫', secondary: '重新同步歌單' }
-      : { eyebrow: 'YouTube Music 尚未連線', title: '先連接你的音樂，', accent: '再讓每首歌發光。', description: '使用 Google 官方登入讀取你的私人歌單；Echora 不會取得你的密碼。', primary: '連接 YouTube Music', secondary: '查看示範歌曲' }
+      : { eyebrow: '先體驗 Echora 舞台', title: '先看歌詞舞台，', accent: '喜歡再連接你的音樂。', description: '先用展示曲目體驗動態歌詞、視覺舞台與播放控制；喜歡後再連接 YouTube Music 讀取私人歌單。', primary: '先體驗歌詞舞台', secondary: '連接 YouTube Music' }
     : activeSource === 'spotify'
       ? { eyebrow: 'Spotify 尚未啟用', title: 'Spotify 正在準備中，', accent: '請先選擇可用來源。', description: '目前尚未設定 Spotify 開發者權限，因此不能登入或播放；這不是播放故障。', primary: '改用 YouTube Music', secondary: '了解可用來源' }
       : { eyebrow: '本地音樂', title: '本地音樂仍在準備，', accent: '先選擇可用來源。', description: '尚未匯入檔案時，Echora 不會混入其他服務的示範歌曲。你可以連接 YouTube Music 瀏覽歌單。', primary: '連接 YouTube Music', secondary: '查看我的音樂庫' };
@@ -154,13 +154,22 @@ export default function Home() {
   const handleHeroPrimary = () => {
     if (currentSong) { navigate('/player'); return; }
     if (activeSource === 'ytmusic' && youtubeConnected) { navigate('/library'); return; }
-    if (activeSource === 'ytmusic') { setShowConnectModal(true); return; }
+    if (activeSource === 'ytmusic') {
+      const demoPlaylist = FEATURED_SONGS.filter(song => song.source === 'ytmusic');
+      const demoSong = demoPlaylist[0];
+      if (demoSong) {
+        setPlaylist(demoPlaylist);
+        play(demoSong, demoPlaylist);
+        navigate('/player?demo=1', { state: { demo: true } });
+        return;
+      }
+    }
     setActiveSource('ytmusic');
   };
 
   const handleHeroSecondary = () => {
     if (activeSource === 'ytmusic' && youtubeConnected) { void loadSourcePlaylists(); return; }
-    if (activeSource === 'ytmusic') { document.getElementById('explore-library')?.scrollIntoView({ behavior: 'smooth' }); return; }
+    if (activeSource === 'ytmusic') { setShowConnectModal(true); return; }
     if (activeSource === 'local') { navigate('/library'); return; }
     setActiveSource('ytmusic');
   };

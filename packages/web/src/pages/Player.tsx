@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { usePlayer } from '../contexts/PlayerContext';
 import { useTheme } from '../contexts/ThemeProvider';
 import { type Song, type Line } from '@echora/core';
@@ -13,6 +13,7 @@ const OriginalFoliaTuningPanel = lazy(() => import('../components/OriginalFoliaT
 
 export default function Player() {
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     currentSong,
     currentLyrics,
@@ -63,6 +64,7 @@ export default function Player() {
   const [lyricsOffsetSeconds, setLyricsOffsetSeconds] = useState(0);
   const stageRootRef = useRef<HTMLDivElement>(null);
   const spotifyAvailable = Boolean(spotifyClientId);
+  const demoMode = location.state?.demo === true || new URLSearchParams(location.search).get('demo') === '1';
 
   const handlePlayPause = () => {
     if (isPlaying && currentSong?.source === 'ytmusic' && activeVisualizer !== 'classic') {
@@ -423,6 +425,7 @@ export default function Player() {
               <p className="text-xs sm:text-sm text-[#62f5c4] font-semibold mt-0.5">
                 {activeArtist} {currentSong.album?.name ? `• ${currentSong.album.name}` : ''}
               </p>
+              {demoMode && <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b8ffe2]">Echora 展示模式 · 不需登入即可體驗</p>}
             </div>
           </div>
 

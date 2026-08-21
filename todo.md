@@ -52,3 +52,9 @@
 - [x] REC-P2-03：確認 3D 效能提示、偏好記憶、PWA 與 bundle budget（stage runtime 已延後載入，Player 初始 chunk 約 29KB；stage chunk 約 1.45MB 的 build warning 保留為後續優化）。
 - [x] Final verification：lint、test、typecheck、build 與桌面瀏覽器 smoke check 已通過；手機以 safe-area／responsive code review 驗收，尚未使用真機。
 - [x] Delivery：已建立 `aa7454c`、推送 `master`，並確認 Vercel production deployment `dpl_2fQMennV8dZPhdzHqNMbBojDPQqY` 為 READY；production domain 已完成首頁與設定頁 smoke check。
+
+## Pre-login lyrics demo CTA
+- [x] DEMO-001：未連線 YouTube Music 時，首頁主 CTA 改為先體驗歌詞舞台，次 CTA 才是連接服務。
+- [x] DEMO-002：主 CTA 以現有內建示範曲目進入播放器，不要求 OAuth；播放器顯示展示模式提示，為後續本機音檔與同步歌詞接入保留入口。
+- [x] DEMO-003：已連線狀態維持回到正在播放／重新同步歌單的 CTA，不破壞已登入流程。
+- [x] DEMO-004：完成首頁、播放器的 typecheck、test、lint、build 與本地 production-like smoke check；正式 Vercel 部署待本輪 commit push 後驗證。
