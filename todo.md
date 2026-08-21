@@ -72,3 +72,8 @@
 - [x] UX-SOUND-001：無同步歌詞或純音樂曲目顯示專用沉浸式聲景背景，含封面色彩、音樂脈動、粒子／光暈與清楚的無歌詞狀態，不留下空舞台。
 - [x] UX-SOUND-002：有同步歌詞的曲目維持原有 Folia 歌詞舞台；無歌詞聲景背景支援播放、暫停、切歌、響應式版面與 reduced-motion 偏好。
 - [x] UX-SOUND-003：完成測試、typecheck、lint、build、桌面／行動瀏覽器 smoke check，提交 GitHub `master` 並驗證 Vercel production deployment。
+
+## Mobile responsive and premium CTA
+- [x] UX-MOBILE-001：以 390px 行動視窗驗證首頁、3D 輪播、CTA、播放器與 Soundscape，不出現水平溢出或主要內容遮擋。
+- [x] UX-MOBILE-002：將首頁未登入與本機展示 CTA 改為品牌化、精簡且仍可理解的行動語言；保留已登入與來源連線狀態的語意。
+- [x] UX-MOBILE-003：完成桌面／行動瀏覽器驗證、測試、typecheck、lint、build，提交 GitHub `master` 並驗證 Vercel production deployment。
