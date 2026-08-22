@@ -103,4 +103,4 @@
 - [x] FOLIA-004：將沉浸播放器 Settings 的舞台動畫選擇與舞台控制放在歌詞校正之前，並補足模式錯誤的可見 recovery。
 - [x] FOLIA-005：播放器、設定頁、骨架與首頁／輪播等使用者可見 icon 全面改用 Lucide React，不留 emoji icon。
 - [x] FOLIA-006：細分五首本地展示音檔的展示轉錄歌詞時間段與 word timings，補同步邊界／時間軸回歸測試，並保持非官方歌詞透明標示。
-- [ ] FOLIA-007：完成 desktop、390×844、393×852 與橫向窄高舞台 browser smoke，通過 release gate、GitHub master push 與 Vercel production 驗證。
+- [x] FOLIA-007：完成 desktop、390×844、393×852 與橫向窄高舞台 browser smoke，通過 release gate、GitHub master push 與 Vercel production 驗證。
