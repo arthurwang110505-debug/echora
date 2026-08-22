@@ -1,4 +1,4 @@
-import type { LyricData, Line } from '@echora/core';
+import type { LyricData, Line, Song } from '@echora/core';
 
 function createLine(startTime: number, endTime: number, fullText: string, wordsArray: string[]): Line {
   const totalDuration = endTime - startTime;
@@ -42,7 +42,7 @@ export const DEMO_LYRICS: Record<string, LyricData> = {
     artist: 'The Weeknd',
     isWordByWord: true,
     lines: [
-      createLine(0, 4800, "Yeah", ["Yeah"]),
+      createLine(0, 4800, 'Yeah', ['Yeah']),
       createLine(5200, 12000, "I've been on my own for long enough", ["I've", "been", "on", "my", "own", "for", "long", "enough"]),
       createLine(12500, 19500, "Maybe you can show me how to love, maybe", ["Maybe", "you", "can", "show", "me", "how", "to", "love,", "maybe"]),
       createLine(20000, 27000, "I'm going through withdrawals", ["I'm", "going", "through", "withdrawals"]),
@@ -59,15 +59,15 @@ export const DEMO_LYRICS: Record<string, LyricData> = {
     artist: 'YOASOBI',
     isWordByWord: true,
     lines: [
-      createLine(0, 5000, "沈むように溶けてゆくように", ["沈むように", "溶けてゆく", "ように"]),
-      createLine(5500, 11000, "二人だけの空が広がる夜に", ["二人だけの", "空が広がる", "夜に"]),
-      createLine(11500, 17000, "「さよなら」だけだった", ["「さよなら」", "だけ", "だった"]),
-      createLine(17500, 23000, "その一言で全てが分かった", ["その一言で", "全てが", "分かった"]),
-      createLine(23500, 29000, "日が沈み出した空と君の姿", ["日が沈み出した", "空と", "君の姿"]),
-      createLine(29500, 36000, "フェンス越しに重なっていた", ["フェンス越しに", "重なって", "いた"]),
-      createLine(36500, 43000, "初めて見た日から僕の心の全てを奪った", ["初めて見た日から", "僕の心の", "全てを奪った"]),
-      createLine(43500, 50000, "どこか儚い空気を纏う君は", ["どこか儚い", "空気を纏う", "君は"]),
-      createLine(50500, 58000, "寂しい目をしてたんだ", ["寂しい目を", "してたんだ"]),
+      createLine(0, 5000, '沈むように溶けてゆくように', ['沈むように', '溶けてゆく', 'ように']),
+      createLine(5500, 11000, '二人だけの空が広がる夜に', ['二人だけの', '空が広がる', '夜に']),
+      createLine(11500, 17000, '「さよなら」だけだった', ['「さよなら」', 'だけ', 'だった']),
+      createLine(17500, 23000, 'その一言で全てが分かった', ['その一言で', '全てが', '分かった']),
+      createLine(23500, 29000, '日が沈み出した空と君の姿', ['日が沈み出した', '空と', '君の姿']),
+      createLine(29500, 36000, 'フェンス越しに重なっていた', ['フェンス越しに', '重なって', 'いた']),
+      createLine(36500, 43000, '初めて見た日から僕の心の全てを奪った', ['初めて見た日から', '僕の心の', '全てを奪った']),
+      createLine(43500, 50000, 'どこか儚い空気を纏う君は', ['どこか儚い', '空気を纏う', '君は']),
+      createLine(50500, 58000, '寂しい目をしてたんだ', ['寂しい目を', 'してたんだ']),
     ],
   },
   yt_2: {
@@ -75,12 +75,12 @@ export const DEMO_LYRICS: Record<string, LyricData> = {
     artist: 'Utada Hikaru',
     isWordByWord: true,
     lines: [
-      createLine(0, 7000, "最後のキスは タバコの flavor がした", ["最後のキスは", "タバコの", "flavor がした"]),
-      createLine(7500, 15000, "苦くて切ない香り", ["苦くて", "切ない香り"]),
-      createLine(15500, 24000, "明日の今頃には あなたはどこにいるんだろう", ["明日の今頃には", "あなたは", "どこにいるんだろう"]),
-      createLine(24500, 32000, "誰を想ってるんだろう", ["誰を", "想ってるんだろう"]),
-      createLine(32500, 40000, "You are always gonna be my love", ["You", "are", "always", "gonna", "be", "my", "love"]),
-      createLine(40500, 50000, "いつか誰かとまた恋に落ちても", ["いつか誰かと", "また恋に", "落ちても"]),
+      createLine(0, 7000, '最後のキスは タバコの flavor がした', ['最後のキスは', 'タバコの', 'flavor がした']),
+      createLine(7500, 15000, '苦くて切ない香り', ['苦くて', '切ない香り']),
+      createLine(15500, 24000, '明日の今頃には あなたはどこにいるんだろう', ['明日の今頃には', 'あなたは', 'どこにいるんだろう']),
+      createLine(24500, 32000, '誰を想ってるんだろう', ['誰を', '想ってるんだろう']),
+      createLine(32500, 40000, 'You are always gonna be my love', ['You', 'are', 'always', 'gonna', 'be', 'my', 'love']),
+      createLine(40500, 50000, 'いつか誰かとまた恋に落ちても', ['いつか誰かと', 'また恋に', '落ちても']),
       createLine(50500, 60000, "I'll remember to love you taught me how", ["I'll", "remember", "to", "love", "you", "taught", "me", "how"]),
     ],
   },
@@ -89,13 +89,13 @@ export const DEMO_LYRICS: Record<string, LyricData> = {
     artist: 'Lady Gaga, Bruno Mars',
     isWordByWord: true,
     lines: [
-      createLine(0, 6000, "I, I just woke up from a dream", ["I,", "I", "just", "woke", "up", "from", "a", "dream"]),
-      createLine(6500, 13000, "Where you and I had to say goodbye", ["Where", "you", "and", "I", "had", "to", "say", "goodbye"]),
-      createLine(13500, 20000, "And I don't know what it all means", ["And", "I", "don't", "know", "what", "it", "all", "means"]),
-      createLine(20500, 28000, "But since I survived, I realized", ["But", "since", "I", "survived,", "I", "realized"]),
-      createLine(28500, 35000, "If the world was ending, I'd wanna be next to you", ["If", "the", "world", "was", "ending,", "I'd", "wanna", "be", "next", "to", "you"]),
-      createLine(35500, 44000, "If the party was over and our time on Earth was through", ["If", "the", "party", "was", "over", "and", "our", "time", "on", "Earth", "was", "through"]),
-      createLine(44500, 53000, "I'd wanna hold you just for a while and die with a smile", ["I'd", "wanna", "hold", "you", "just", "for", "a", "while", "and", "die", "with", "a", "smile"]),
+      createLine(0, 6000, 'I, I just woke up from a dream', ['I,', 'I', 'just', 'woke', 'up', 'from', 'a', 'dream']),
+      createLine(6500, 13000, 'Where you and I had to say goodbye', ['Where', 'you', 'and', 'I', 'had', 'to', 'say', 'goodbye']),
+      createLine(13500, 20000, "And I don't know what it all means", ['And', 'I', "don't", 'know', 'what', 'it', 'all', 'means']),
+      createLine(20500, 28000, 'But since I survived, I realized', ['But', 'since', 'I', 'survived,', 'I', 'realized']),
+      createLine(28500, 35000, "If the world was ending, I'd wanna be next to you", ['If', 'the', 'world', 'was', 'ending,', "I'd", 'wanna', 'be', 'next', 'to', 'you']),
+      createLine(35500, 44000, 'If the party was over and our time on Earth was through', ['If', 'the', 'party', 'was', 'over', 'and', 'our', 'time', 'on', 'Earth', 'was', 'through']),
+      createLine(44500, 53000, "I'd wanna hold you just for a while and die with a smile", ["I'd", 'wanna', 'hold', 'you', 'just', 'for', 'a', 'while', 'and', 'die', 'with', 'a', 'smile']),
     ],
   },
   yt_3: {
@@ -103,13 +103,35 @@ export const DEMO_LYRICS: Record<string, LyricData> = {
     artist: 'YOASOBI',
     isWordByWord: true,
     lines: [
-      createLine(0, 4000, "無敵の笑顔で荒らすメディア", ["無敵の笑顔で", "荒らす", "メディア"]),
-      createLine(4500, 8000, "知りたいその秘密ミステリアス", ["知りたい", "その秘密", "ミステリアス"]),
-      createLine(8500, 12000, "抜けてるとこさえ彼女のエリア", ["抜けてるとこさえ", "彼女の", "エリア"]),
-      createLine(12500, 17000, "完璧で嘘つきな君は", ["完璧で", "嘘つきな", "君は"]),
-      createLine(17500, 23000, "天才的なアイドル様", ["天才的な", "アイドル様"]),
-      createLine(23500, 30000, "誰もが目を奪われていく", ["誰もが", "目を奪われていく"]),
-      createLine(30500, 38000, "君は完璧で究極のアイドル", ["君は完璧で", "究極の", "アイドル"]),
+      createLine(0, 4000, '無敵の笑顔で荒らすメディア', ['無敵の笑顔で', '荒らす', 'メディア']),
+      createLine(4500, 8000, '知りたいその秘密ミステリアス', ['知りたい', 'その秘密', 'ミステリアス']),
+      createLine(8500, 12000, '抜けてるとこさえ彼女のエリア', ['抜けてるとこさえ', '彼女の', 'エリア']),
+      createLine(12500, 17000, '完璧で嘘つきな君は', ['完璧で', '嘘つきな', '君は']),
+      createLine(17500, 23000, '天才的なアイドル様', ['天才的な', 'アイドル様']),
+      createLine(23500, 30000, '誰もが目を奪われていく', ['誰もが', '目を奪われていく']),
+      createLine(30500, 38000, '君は完璧で究極のアイドル', ['君は完璧で', '究極の', 'アイドル']),
     ],
   },
 };
+
+/**
+ * Use the stable catalog id first. If a restored/provider song has a canonical
+ * YouTube video id instead, recover the bundled demo lyrics by title and artist.
+ */
+export function getBundledDemoLyrics(song: Pick<Song, 'id' | 'title' | 'artists'>): LyricData | undefined {
+  const exact = DEMO_LYRICS[song.id];
+  if (exact) return exact;
+
+  const artistName = typeof song.artists[0] === 'string'
+    ? song.artists[0]
+    : song.artists[0]?.name || '';
+  const normalizedTitle = song.title.trim().toLocaleLowerCase();
+  const normalizedArtist = artistName.trim().toLocaleLowerCase();
+
+  return Object.values(DEMO_LYRICS).find(lyrics => {
+    if (lyrics.title?.trim().toLocaleLowerCase() !== normalizedTitle) return false;
+    if (!normalizedArtist || !lyrics.artist) return true;
+    return lyrics.artist.toLocaleLowerCase().includes(normalizedArtist)
+      || normalizedArtist.includes(lyrics.artist.toLocaleLowerCase());
+  });
+}

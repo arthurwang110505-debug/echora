@@ -18,7 +18,15 @@ describe('local demo showcase songs', () => {
     }
   });
 
-  it('does not claim lyrics that were not supplied or verified', () => {
-    expect(Object.keys(LOCAL_DEMO_LYRICS)).toHaveLength(0);
+  it('maps every local track to matching exhibition lyric data', () => {
+    const songIds = LOCAL_DEMO_SONGS.map(song => song.id).sort();
+    expect(Object.keys(LOCAL_DEMO_LYRICS).sort()).toEqual(songIds);
+
+    for (const song of LOCAL_DEMO_SONGS) {
+      const lyrics = LOCAL_DEMO_LYRICS[song.id];
+      expect(lyrics?.availability).toBe('available');
+      expect(lyrics?.lines.length).toBeGreaterThan(0);
+      expect(lyrics?.lines.some(line => line.words.length > 1)).toBe(true);
+    }
   });
 });

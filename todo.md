@@ -88,3 +88,10 @@
 - [x] UX-PLAYER-004：將全螢幕控制收合為必要操作加單一 Settings 入口，支援展開、收合、Escape、外部點擊與鍵盤操作。
 - [x] UX-PLAYER-005：將行動版歌單改為 overlay drawer，避免壓縮右側舞台；桌面雙欄維持合理最小寬度與可讀性。
 - [x] UX-PLAYER-006：完成 390／393px 與桌面瀏覽器驗證、測試、typecheck、lint、build，提交 GitHub `master` 並驗證 Vercel production deployment。
+
+## Player demo lyrics and controls follow-up
+- [x] UX-PLAYER-007：修正歌單按鈕與「← 歌單」返回流程，確保行動版可到達完整歌單畫面，並補 drawer 開啟回歸測試。
+- [x] UX-PLAYER-008：恢復 `夜に駆ける`、`First Love`、`アイドル` 的展示歌詞載入，確認 demo ID 與 lyrics lookup 不被 playback URL 覆寫。
+- [x] UX-PLAYER-009：讓五首本地音檔使用可合法整合的歌詞資料；無可核實歌詞者保留明確無歌詞狀態，不臆造內容。
+- [x] UX-PLAYER-010：將歌詞校正控制改為清楚的「提前／同步／延後」標籤與數值反饋，補 mobile／desktop 互動驗收。
+- [ ] UX-PLAYER-011：完成測試、typecheck、lint、build、390／393px 與 desktop smoke，提交 GitHub `master` 並驗證 Vercel production deployment。

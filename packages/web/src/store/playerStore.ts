@@ -16,7 +16,7 @@ import {
   type SpotifySession,
 } from '../integrations/spotifyAuth';
 import { beginYouTubeLogin, clearYouTubeSession, finishYouTubeLogin, getStoredYouTubeSession } from '../integrations/youtubeAuth';
-import { DEMO_LYRICS } from './demoLyrics';
+import { getBundledDemoLyrics } from './demoLyrics';
 import { LOCAL_DEMO_LYRICS, LOCAL_DEMO_SONGS } from './localDemoSongs';
 import { recordDiagnostic } from '../lib/diagnostics';
 
@@ -218,6 +218,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const recentSongs = rememberRecentSong(song, get().recentSongs);
     set({
       currentSong: song,
+      activeSource: song.source === 'spotify' || song.source === 'ytmusic' ? song.source : 'local',
       // A newly mounted YouTube IFrame no longer inherits the homepage click gesture.
       // Local audio waits for the HTML5 Audio element to emit `play`, so blocked autoplay is visible.
       isPlaying: song.source === 'ytmusic' || isSpotifyUnavailable ? false : true,
@@ -391,8 +392,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   restorePlaybackSnapshot: () => {
     const snapshot = readPlaybackSnapshot();
-    if (!snapshot) return;
-    set({ ...snapshot, isPlaying: false, playbackState: 'paused' });
+    if (!snapshot?.currentSong) return;
+    const activeSource = snapshot.currentSong.source === 'spotify' || snapshot.currentSong.source === 'ytmusic'
+      ? snapshot.currentSong.source
+      : 'local';
+    set({ ...snapshot, activeSource, isPlaying: false, playbackState: 'paused' });
   },
 
   setSpotifyToken: (token) => {
@@ -485,9 +489,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   fetchLyrics: async (song: Song) => {
     const requestedSongId = song.id;
-    // Check bundled demo lyrics first for instant rich experience
-    if (DEMO_LYRICS[song.id]) {
-      if (get().currentSong?.id === requestedSongId) set({ currentLyrics: { ...DEMO_LYRICS[song.id], availability: 'available' }, isLoadingLyrics: false, lyricsStatus: 'available' });
+    // Check bundled demo lyrics first for an instant rich experience. The fallback
+    // keeps lyrics when a restored/provider song has replaced the catalog id with
+    // a canonical YouTube video id.
+    const bundledLyrics = getBundledDemoLyrics(song);
+    if (bundledLyrics) {
+      if (get().currentSong?.id === requestedSongId) set({ currentLyrics: { ...bundledLyrics, availability: 'available' }, isLoadingLyrics: false, lyricsStatus: 'available' });
       return;
     }
 

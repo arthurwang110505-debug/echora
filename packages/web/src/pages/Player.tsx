@@ -20,6 +20,7 @@ export default function Player() {
   const {
     currentSong,
     currentLyrics,
+    fetchLyrics,
     isPlaying,
     currentTime,
     duration,
@@ -77,6 +78,13 @@ export default function Player() {
     const frame = window.requestAnimationFrame(() => setHasHydrated(true));
     return () => window.cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => {
+    // Snapshots intentionally omit lyric payloads; recover them after the route
+    // hydrates so a direct /player visit never falls into the lyricless stage.
+    if (!hasHydrated || !currentSong || currentLyrics || isLoadingLyrics) return;
+    void fetchLyrics(currentSong);
+  }, [currentSong, currentLyrics, fetchLyrics, hasHydrated, isLoadingLyrics]);
 
   const handlePlayPause = () => {
     if (isPlaying && currentSong?.source === 'ytmusic' && activeVisualizer !== 'classic') {
@@ -168,8 +176,10 @@ export default function Player() {
   }, [currentSong?.id]);
 
   const returnToPlaylist = async () => {
+    // Keep the user in the player and reveal the playlist surface they asked for.
+    // The previous implementation navigated home, which made the "← 歌單" control feel broken.
+    setShowPlaylistDrawer(true);
     await leaveImmersiveStage();
-    navigate('/');
   };
 
   // Use the same offset-aware clock for the player chrome and every visualizer mode.
@@ -237,9 +247,11 @@ export default function Player() {
   const lyricsStageStatus = (() => {
     if (isLoadingLyrics || lyricsStatus === 'loading') return { title: '正在載入歌詞', copy: '準備完成後，舞台會顯示同步歌詞或說明為何無法取得。' };
     if (currentSong.source === 'ytmusic' && !isPlaying && !youtubeError) return { title: playbackState === 'buffering' || playbackState === 'loading' ? 'YouTube 正在準備播放' : '等待你在 YouTube 開始播放', copy: '請在原生播放器按下播放鍵，開始有聲播放與歌詞同步。' };
-    if (localError) return { title: '本機音檔播放失敗', copy: localError };
     if (currentSong.source === 'local' && !isPlaying && playbackState === 'loading') return { title: '本機音檔已準備', copy: '按下播放即可在不登入 YouTube Music 的情況下體驗 Echora 展示舞台。' };
-    if (currentLyrics?.lines?.length) return { title: '同步歌詞可用', copy: '若文字與音樂有偏移，可開啟「校正與設定」進行調整。' };
+    if (currentLyrics?.lines?.length) return currentSong.source === 'local'
+      ? { title: '展示轉錄歌詞', copy: '這些歌詞是依對應展示音檔轉錄的同步草稿；若有些微偏移，可用下方「提前／同步／延後」微調。' }
+      : { title: '同步歌詞可用', copy: '若文字與音樂有偏移，可用下方「提前／同步／延後」微調。' };
+    if (localError) return { title: '本機音檔播放失敗', copy: localError };
     return { title: lyricsStatus === 'instrumental' ? '這是一首純音樂內容' : lyricsStatus === 'error' ? '歌詞暫時無法載入' : '這首歌目前沒有同步歌詞', copy: lyricsStatus === 'error' ? '請稍後重試或繼續使用真實播放時間與視覺舞台。' : currentSong.source === 'local' ? '這首展示音檔尚未附帶可核對的同步歌詞，之後可匯入 .lrc 或 .vtt。' : '你可以繼續播放、選擇其他曲目，或使用視覺舞台。' };
   })();
 
@@ -333,16 +345,17 @@ export default function Player() {
           {displayMode === 'full' && (
             <button
               onClick={() => setShowPlaylistDrawer(!showPlaylistDrawer)}
-              className={`p-2.5 rounded-2xl text-xs border transition-all btn-spring ${
+              className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-xs font-bold transition-all btn-spring ${
                 showPlaylistDrawer
-                  ? 'bg-white/15 border-white/20 text-white shadow-sm'
-                  : 'bg-white/[0.05] border-white/10 text-slate-400 hover:text-white'
+                  ? 'border-white/20 bg-white/15 text-white shadow-sm'
+                  : 'border-white/10 bg-white/[0.05] text-slate-400 hover:text-white'
               }`}
               title={showPlaylistDrawer ? '關閉歌單' : '開啟歌單'}
               aria-label={showPlaylistDrawer ? '關閉歌單' : '開啟歌單'}
               aria-expanded={showPlaylistDrawer}
             >
-              📋
+              <span aria-hidden="true">📋</span>
+              <span>歌單</span>
             </button>
           )}
         </div>
@@ -586,15 +599,15 @@ export default function Player() {
                       <p className="mt-1 text-[11px] leading-5 text-slate-400">{lyricsStageStatus.copy}</p>
                     </div>
                     <div className="mt-3 rounded-xl border border-white/10 bg-black/15 px-3 py-2">
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-col gap-2.5">
                         <div>
-                          <p className="text-xs font-bold text-white">歌詞校正</p>
-                          <p className="mt-0.5 text-[11px] text-[#b8ffe2]">{lyricsOffsetLabel}</p>
+                          <p className="text-xs font-bold text-white">歌詞對齊</p>
+                          <p className="mt-0.5 text-[11px] text-slate-400">每次 {LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒 · 目前 <span className="font-semibold text-[#b8ffe2]">{lyricsOffsetLabel}</span></p>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <button type="button" onClick={() => adjustStageLyricsOffset(-LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-white/20" aria-label="歌詞提前 0.25 秒">−</button>
-                          <button type="button" onClick={() => setLyricsOffsetSeconds(0)} className="rounded-lg border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-2.5 py-1.5 text-[11px] font-bold text-[#b8ffe2]" aria-label="重設歌詞同步">同步</button>
-                          <button type="button" onClick={() => adjustStageLyricsOffset(LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-white/20" aria-label="歌詞延後 0.25 秒">＋</button>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <button type="button" onClick={() => adjustStageLyricsOffset(-LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/15 bg-white/10 px-2 py-2 text-[11px] font-bold text-white hover:bg-white/20" aria-label={`歌詞提前 ${LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒`}>提前</button>
+                          <button type="button" onClick={() => setLyricsOffsetSeconds(0)} className="rounded-lg border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-2 py-2 text-[11px] font-bold text-[#b8ffe2]" aria-label="重設歌詞同步">同步</button>
+                          <button type="button" onClick={() => adjustStageLyricsOffset(LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/15 bg-white/10 px-2 py-2 text-[11px] font-bold text-white hover:bg-white/20" aria-label={`歌詞延後 ${LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒`}>延後</button>
                         </div>
                       </div>
                     </div>
@@ -678,7 +691,7 @@ export default function Player() {
                 </button>
               </div>
             </div>
-            {showCalibration && <div id="desktop-calibration" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-3"><p className="text-xs text-slate-400">歌詞偏移：<span className="font-semibold text-[#b8ffe2]">{lyricsOffsetLabel}</span></p><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => adjustStageLyricsOffset(-LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[11px] font-bold text-slate-300 hover:text-white">歌詞 −</button><button type="button" onClick={() => setLyricsOffsetSeconds(0)} className="rounded-lg border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-2.5 py-2 text-[11px] font-bold text-[#b8ffe2]">重設同步</button><button type="button" onClick={() => adjustStageLyricsOffset(LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[11px] font-bold text-slate-300 hover:text-white">歌詞 ＋</button><button type="button" onClick={() => setShowTuning(value => !value)} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-slate-300 hover:text-white">視覺與舞台設定</button></div></div>}
+            {showCalibration && <div id="desktop-calibration" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-3"><div><p className="text-xs font-bold text-white">歌詞對齊</p><p className="mt-0.5 text-[11px] text-slate-400">每次調整 {LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒 · 目前 <span className="font-semibold text-[#b8ffe2]">{lyricsOffsetLabel}</span></p></div><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => adjustStageLyricsOffset(-LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[11px] font-bold text-slate-300 hover:text-white">提前 {LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒</button><button type="button" onClick={() => setLyricsOffsetSeconds(0)} className="rounded-lg border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-2.5 py-2 text-[11px] font-bold text-[#b8ffe2]">同步回原點</button><button type="button" onClick={() => adjustStageLyricsOffset(LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[11px] font-bold text-slate-300 hover:text-white">延後 {LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒</button><button type="button" onClick={() => setShowTuning(value => !value)} className="rounded-xl border border-white/[0.12] bg-white/[0.05] px-3 py-2 text-xs font-bold text-slate-300 hover:text-white">視覺與舞台設定</button></div></div>}
           </div>
         </main>
       </div>

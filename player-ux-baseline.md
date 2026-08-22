@@ -31,3 +31,13 @@ The post-stacking 393×852 run also reported document `scrollWidth = 393`, lyric
 Production browser smoke at `https://echora-three.vercel.app/` successfully entered `/player?demo=1` through the local showcase CTA. The deployed player rendered the revised playlist column, source tabs, stage, and compact lower controls without requiring a service login.
 
 Production browser smoke reached the deployed `/player?demo=1` route and switched to immersive mode. The live page exposed the revised three-control bottom chrome; opening Settings exposed the consolidated panel with lyric status, calibration, visual-stage settings, and exit-fullscreen actions. No account connection or private library operation was used.
+
+## Follow-up regression evidence
+
+本地播放器在直接載入 `/player?demo=1`、且 currentSong 由 snapshot 還原的情境下，`アイドル` 已從 lyricless Soundscape 回復為實際日文歌詞舞台；頁面同時顯示 `YT Music` 來源與 3 首示範佇列。切換至沉浸模式後，底部控制保留「← 歌單／播放／⚙ 設定」；按下「← 歌單」會回到雙欄並開啟播放清單。關閉 drawer 後，右上角明確的「📋 歌單」按鈕可再次開啟同一面板。
+
+歌單按鈕的行動意圖已從 icon-only 改為文字入口；歌詞校正控制在雙欄與 Settings 面板都改為「提前／同步／延後」，並顯示每次 0.25 秒與目前 offset。五首本地音檔已各自對應展示轉錄歌詞資料，來源稽核紀錄見 `lyrics-source-audit.md`。
+
+## Follow-up mobile smoke evidence
+
+以獨立 Chromium page target 重新驗收 390×844 與 393×852。兩個尺寸均通過：首頁可切換 YouTube Music 並選取 `夜に駆ける`，播放器實際渲染首句歌詞；明確的「📋 歌單」按鈕可開啟 full-viewport drawer，drawer 的 fixed rect 覆蓋整個 viewport；沉浸模式可顯示三個必要控制，Settings 可開啟，按下「歌詞延後 0.25 秒」會反映 `+0.25 秒`；「← 歌單」會留在播放器內切回雙欄並開啟歌單。切換到 `Dancing in the Stardust` 後，播放器實際渲染轉錄歌詞，Settings 顯示「展示轉錄歌詞」，且文件沒有水平溢出。原始量測 JSON 保留於專案外的 `/home/ubuntu/echora-ux-evidence-followup/player-ux-smoke.json`。
