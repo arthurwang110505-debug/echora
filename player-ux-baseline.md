@@ -44,7 +44,7 @@ Production browser smoke reached the deployed `/player?demo=1` route and switche
 
 ## Latest release evidence
 
-GitHub `master` commit `ea7527fcbe9c56ce4cdf5292d55e7dce3fb52d5d`（`fix(player): restore demo lyrics and playlist flow`）已在 Vercel 建立 production deployment `dpl_AeupGBGb1jmeDYRnhkNpebgD2tRY`，狀態 `READY`，deployment URL 為 `https://echora-8h1mbqf5r-arthurwang110505-3171s-projects.vercel.app`。正式 alias 仍為 `https://echora-three.vercel.app/`；尚待完成正式 alias smoke check 後再標記 release task 完成。
+GitHub `master` commit `ea7527fcbe9c56ce4cdf5292d55e7dce3fb52d5d`（`fix(player): restore demo lyrics and playlist flow`）已在 Vercel 建立 production deployment `dpl_AeupGBGb1jmeDYRnhkNpebgD2tRY`，狀態 `READY`，deployment URL 為 `https://echora-8h1mbqf5r-arthurwang110505-3171s-projects.vercel.app`。正式 alias `https://echora-three.vercel.app/` 已完成 HTTP smoke check，回應 `200 OK`；release task 已完成。
 
 ## Production browser follow-up
 
