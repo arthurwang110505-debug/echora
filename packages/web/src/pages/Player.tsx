@@ -2,13 +2,14 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useLocation, useNavigate } from 'react-router-dom';
 import { usePlayer } from '../contexts/PlayerContext';
 import { useTheme } from '../contexts/ThemeProvider';
-import { type Song, type Line } from '@echora/core';
+import { type Song } from '@echora/core';
 import type { Playlist } from '@echora/core';
 import YouTubePlayer from '../components/YouTubePlayer';
 import { spotifyClientId } from '../integrations/spotifyAuth';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import LyriclessSoundscapeStage from '../components/LyriclessSoundscapeStage';
 import { CoverImage, PanelSkeleton, PlayerSkeleton, StageSkeleton } from '../components/LoadingSkeletons';
+import { adjustLyricsOffset, getActiveLyricIndex, LYRICS_OFFSET_STEP_SECONDS } from '../utils/lyrics/activeLine';
 
 const OriginalFoliaVisualizerStage = lazy(() => import('../components/OriginalFoliaVisualizerStage'));
 const OriginalFoliaTuningPanel = lazy(() => import('../components/OriginalFoliaTuningPanel'));
@@ -54,7 +55,7 @@ export default function Player() {
   const [activeVisualizer, setActiveVisualizer] = useState('classic');
   const [autoVisualizer, setAutoVisualizer] = useState(false);
   const [showConnectModal, setShowConnectModal] = useState(false);
-  const [showPlaylistDrawer, setShowPlaylistDrawer] = useState(true);
+  const [showPlaylistDrawer, setShowPlaylistDrawer] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
   const connectModalRef = useRef<HTMLDivElement>(null);
   const closeConnectModal = useCallback(() => setShowConnectModal(false), []);
   useDialogFocus(showConnectModal, connectModalRef, closeConnectModal);
@@ -63,6 +64,8 @@ export default function Player() {
   const [backgroundMode, setBackgroundMode] = useState('latent');
   const [showTuning, setShowTuning] = useState(false);
   const [showCalibration, setShowCalibration] = useState(false);
+  const [showStageSettings, setShowStageSettings] = useState(false);
+  const stageSettingsRef = useRef<HTMLDivElement>(null);
   const [visualizerTunings, setVisualizerTunings] = useState<Record<string, any>>({});
   const [lyricsOffsetSeconds, setLyricsOffsetSeconds] = useState(0);
   const stageRootRef = useRef<HTMLDivElement>(null);
@@ -86,6 +89,8 @@ export default function Player() {
 
   const enterImmersiveStage = async () => {
     setDisplayMode('stage');
+    setShowCalibration(false);
+    setShowStageSettings(false);
     const element = stageRootRef.current;
     if (element && document.fullscreenElement !== element) {
       try { await element.requestFullscreen(); } catch { /* iOS Safari may reject programmatic fullscreen. */ }
@@ -98,6 +103,9 @@ export default function Player() {
 
   const leaveImmersiveStage = async () => {
     setDisplayMode('full');
+    setShowStageSettings(false);
+    setShowCalibration(false);
+    setShowTuning(false);
     if (document.fullscreenElement) {
       try { await document.exitFullscreen(); } catch { /* browser already exited fullscreen */ }
     }
@@ -121,6 +129,22 @@ export default function Player() {
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
   }, [displayMode, setDisplayMode]);
+
+  useEffect(() => {
+    if (!showStageSettings) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!stageSettingsRef.current?.contains(event.target as Node)) setShowStageSettings(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowStageSettings(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [showStageSettings]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -148,25 +172,27 @@ export default function Player() {
     navigate('/');
   };
 
-  // Active line index calculation with natural breath pause tolerance
+  // Use the same offset-aware clock for the player chrome and every visualizer mode.
   const activeLineIndex = useMemo(() => {
-    if (!currentLyrics?.lines || currentLyrics.lines.length === 0) return 0;
     const playbackTime = (isSeeking && seekPreviewTime !== null) ? seekPreviewTime : currentTime;
-    const effectiveTime = Math.max(0, playbackTime + lyricsOffsetSeconds);
-
-    const idx = currentLyrics.lines.findIndex((l: Line, i: number) => {
-      const nextLine = currentLyrics.lines[i + 1];
-      const lineTimeSec = l.startTime / 1000;
-      const nextTimeSec = nextLine ? nextLine.startTime / 1000 : (duration || lineTimeSec + 5);
-      return effectiveTime >= lineTimeSec && effectiveTime < nextTimeSec;
+    return getActiveLyricIndex({
+      lines: currentLyrics?.lines || [],
+      currentTimeSeconds: playbackTime,
+      durationSeconds: duration,
+      offsetSeconds: lyricsOffsetSeconds,
     });
-
-    return idx !== -1 ? idx : 0;
   }, [currentLyrics, currentTime, isSeeking, seekPreviewTime, duration, lyricsOffsetSeconds]);
 
   if (!currentSong && !hasHydrated) {
     return <PlayerSkeleton />;
   }
+
+  const lyricsOffsetLabel = lyricsOffsetSeconds === 0
+    ? '已同步'
+    : `${lyricsOffsetSeconds > 0 ? '+' : ''}${lyricsOffsetSeconds.toFixed(2)} 秒`;
+  const adjustStageLyricsOffset = (deltaSeconds: number) => {
+    setLyricsOffsetSeconds(value => adjustLyricsOffset(value, deltaSeconds));
+  };
 
   if (!currentSong) {
     return (
@@ -220,7 +246,7 @@ export default function Player() {
   return (
     <div
       ref={stageRootRef}
-      className="relative w-full h-screen overflow-hidden font-sans select-none flex flex-col transition-colors duration-700 ambient-grain"
+      className="echora-immersive-stage relative flex h-screen w-full select-none flex-col overflow-hidden font-sans transition-colors duration-700 ambient-grain"
       style={{ backgroundColor: currentTheme.backgroundColor || '#07090e' }}
     >
       {/* Dynamic Music-Reactive Blurred Backdrop with 800ms Crossfade */}
@@ -312,7 +338,9 @@ export default function Player() {
                   ? 'bg-white/15 border-white/20 text-white shadow-sm'
                   : 'bg-white/[0.05] border-white/10 text-slate-400 hover:text-white'
               }`}
-              title="側邊欄開關"
+              title={showPlaylistDrawer ? '關閉歌單' : '開啟歌單'}
+              aria-label={showPlaylistDrawer ? '關閉歌單' : '開啟歌單'}
+              aria-expanded={showPlaylistDrawer}
             >
               📋
             </button>
@@ -321,102 +349,118 @@ export default function Player() {
       </header>
 
       {/* Main Content Area */}
-      <div className="relative z-10 flex-1 flex overflow-hidden">
-        {/* Studio Playlist Drawer */}
+      <div className="relative z-30 flex min-h-0 min-w-0 flex-1 overflow-hidden">
+        {/* Playlist drawer: overlay on mobile, fixed-width column on desktop. */}
         {displayMode === 'full' && showPlaylistDrawer && (
-          <aside className="w-80 md:w-96 h-full glass-panel border-r border-white/10 flex flex-col p-4 md:p-5 gap-4 transition-all duration-300 drawer-enter">
-            {/* Source Switcher */}
-            <div className="flex rounded-2xl bg-white/[0.05] p-1 border border-white/10">
-              {(['spotify', 'ytmusic', 'local'] as const).map(src => (
-                <button
-                  key={src}
-                  onClick={() => setActiveSource(src)}
-                  disabled={src === 'spotify' && !spotifyAvailable}
-                  title={src === 'spotify' && !spotifyAvailable ? 'Spotify 尚未啟用，無法作為播放來源' : undefined}
-                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all duration-200 btn-spring disabled:cursor-not-allowed disabled:opacity-50 ${
-                    activeSource === src
-                      ? 'bg-gradient-to-r from-[#62f5c4] to-teal-400 text-black shadow-md'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {src === 'spotify' ? spotifyAvailable ? 'Spotify' : 'Spotify 鎖定' : src === 'ytmusic' ? 'YT Music' : '本地'}
-                </button>
-              ))}
-            </div>
-            <p className="rounded-xl border border-white/10 bg-black/15 px-3 py-2 text-[11px] leading-5 text-slate-400">來源會篩選可瀏覽的歌單；播放佇列保留你已選取的曲目。若佇列跨服務，曲目會標記其播放來源。</p>
-
-            {/* Playlists & Queue */}
-            <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-              <div>
-                <h4 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-2.5 font-mono">
-                  {queueLabel} ({playlist.length})
-                </h4>
-                <div className="space-y-1.5">
-                  {playlist.map((songItem: Song) => {
-                    const isItemActive = currentSong.id === songItem.id;
-                    return (
-                      <button
-                        type="button"
-                        key={songItem.id}
-                        onClick={() => { play(songItem, playlist); setShowPlaylistDrawer(false); }}
-                        aria-current={isItemActive ? 'true' : undefined}
-                        aria-label={`${songItem.title}，${getSourceLabel(songItem.source)}${isItemActive ? '，目前播放' : ''}`}
-                        className={`flex w-full items-center gap-3.5 p-2.5 rounded-2xl cursor-pointer text-left transition-all duration-200 btn-spring ${
-                          isItemActive
-                            ? 'bg-[#62f5c4]/15 border border-[#62f5c4]/40 text-[#62f5c4] shadow-md'
-                            : 'hover:bg-white/[0.06] text-slate-200 border border-transparent'
-                        }`}
-                      >
-                        <CoverImage src={songItem.coverUrl} alt={songItem.title} wrapperClassName="w-11 h-11 rounded-xl" className="w-11 h-11 rounded-xl object-cover shadow-sm" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold truncate">{songItem.title}</p>
-                          <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                            {typeof songItem.artists[0] === 'string' ? songItem.artists[0] : songItem.artists[0]?.name}
-                          </p>
-                          <span className="mt-1 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-bold text-slate-400">{getSourceLabel(songItem.source)}</span>
-                        </div>
-                        {isItemActive && isPlaying && (
-                          <div className="flex items-end gap-0.5 h-3.5 pr-1" aria-label="播放中">
-                            <span className="equalizer-bar" />
-                            <span className="equalizer-bar" />
-                            <span className="equalizer-bar" />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
+          <>
+            <button
+              type="button"
+              aria-label="關閉歌單面板"
+              className="fixed inset-0 z-40 bg-black/55 backdrop-blur-[2px] md:hidden"
+              onClick={() => setShowPlaylistDrawer(false)}
+            />
+            <aside
+              className="echora-queue fixed inset-y-0 left-0 z-50 flex h-full w-screen min-w-0 flex-col gap-4 overflow-hidden border-r border-white/10 bg-[#0d111a]/95 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] shadow-2xl drawer-slide-left md:relative md:inset-auto md:z-auto md:h-full md:w-96 md:min-w-96 md:flex-shrink-0 md:bg-transparent md:px-5 md:pb-5 md:pt-5 md:shadow-none"
+              aria-label="播放清單與歌單"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-extrabold text-white">播放清單</p>
+                  <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">{playlist.length} 首 · {queueLabel}</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPlaylistDrawer(false)}
+                  className="rounded-xl border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-slate-300 transition hover:bg-white/10 hover:text-white"
+                  aria-label="關閉歌單面板"
+                >
+                  ×
+                </button>
               </div>
 
-              {userPlaylists.length > 0 && (
+              {/* Source Switcher */}
+              <div className="flex rounded-2xl border border-white/10 bg-white/[0.05] p-1">
+                {(['spotify', 'ytmusic', 'local'] as const).map(src => (
+                  <button
+                    key={src}
+                    onClick={() => setActiveSource(src)}
+                    disabled={src === 'spotify' && !spotifyAvailable}
+                    title={src === 'spotify' && !spotifyAvailable ? 'Spotify 尚未啟用，無法作為播放來源' : undefined}
+                    className={`min-w-0 flex-1 rounded-xl py-2 text-xs font-bold transition-all duration-200 btn-spring disabled:cursor-not-allowed disabled:opacity-50 ${
+                      activeSource === src
+                        ? 'bg-gradient-to-r from-[#62f5c4] to-teal-400 text-black shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {src === 'spotify' ? spotifyAvailable ? 'Spotify' : 'Spotify 鎖定' : src === 'ytmusic' ? 'YT Music' : '本地'}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex-1 min-h-0 overflow-y-auto space-y-5 pr-1">
                 <div>
-                  <h4 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-2.5 font-mono">
-                    我的歌單
-                  </h4>
+                  <h4 className="mb-2.5 text-[11px] font-extrabold uppercase tracking-widest text-slate-400 font-mono">目前佇列</h4>
                   <div className="space-y-1.5">
-                    {userPlaylists.map((pl: Playlist) => (
-                      <button
-                        type="button"
-                        key={pl.id}
-                        onClick={() => { pl.source === 'spotify' ? void loadSpotifyPlaylist(pl.id) : void loadYouTubePlaylist(pl.id); setShowPlaylistDrawer(false); }}
-                        className="flex w-full items-center gap-3.5 p-2.5 rounded-2xl hover:bg-white/[0.06] cursor-pointer text-left text-slate-200 transition-all btn-spring"
-                      >
-                        <CoverImage src={pl.coverUrl} alt={pl.name} wrapperClassName="w-11 h-11 rounded-xl" className="w-11 h-11 rounded-xl object-cover shadow-sm" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold truncate">{pl.name}</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">{pl.trackCount || 0} 首歌曲</p>
-                        </div>
-                      </button>
-                    ))}
+                    {playlist.map((songItem: Song) => {
+                      const isItemActive = currentSong.id === songItem.id;
+                      return (
+                        <button
+                          type="button"
+                          key={songItem.id}
+                          onClick={() => { play(songItem, playlist); setShowPlaylistDrawer(false); }}
+                          aria-current={isItemActive ? 'true' : undefined}
+                          aria-label={`${songItem.title}，${getSourceLabel(songItem.source)}${isItemActive ? '，目前播放' : ''}`}
+                          className={`flex w-full min-w-0 items-center gap-3 rounded-2xl border p-2.5 text-left transition-all duration-200 btn-spring ${
+                            isItemActive
+                              ? 'border-[#62f5c4]/40 bg-[#62f5c4]/15 text-[#62f5c4] shadow-md'
+                              : 'border-transparent text-slate-200 hover:bg-white/[0.06]'
+                          }`}
+                        >
+                          <CoverImage src={songItem.coverUrl} alt={songItem.title} wrapperClassName="h-11 w-11 shrink-0 rounded-xl" className="h-11 w-11 rounded-xl object-cover shadow-sm" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-bold">{songItem.title}</p>
+                            <p className="mt-0.5 truncate text-[11px] text-slate-400">{typeof songItem.artists[0] === 'string' ? songItem.artists[0] : songItem.artists[0]?.name}</p>
+                            <span className="mt-1 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[9px] font-bold text-slate-400">{getSourceLabel(songItem.source)}</span>
+                          </div>
+                          {isItemActive && isPlaying && (
+                            <div className="flex shrink-0 items-end gap-0.5 pr-1" aria-label="播放中">
+                              <span className="equalizer-bar" /><span className="equalizer-bar" /><span className="equalizer-bar" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-              )}
-            </div>
-          </aside>
+
+                {userPlaylists.length > 0 && (
+                  <div>
+                    <h4 className="mb-2.5 text-[11px] font-extrabold uppercase tracking-widest text-slate-400 font-mono">我的歌單</h4>
+                    <div className="space-y-1.5">
+                      {userPlaylists.map((pl: Playlist) => (
+                        <button
+                          type="button"
+                          key={pl.id}
+                          onClick={() => { pl.source === 'spotify' ? void loadSpotifyPlaylist(pl.id) : void loadYouTubePlaylist(pl.id); setShowPlaylistDrawer(false); }}
+                          className="flex w-full min-w-0 items-center gap-3 rounded-2xl border border-transparent p-2.5 text-left text-slate-200 transition-all btn-spring hover:bg-white/[0.06]"
+                        >
+                          <CoverImage src={pl.coverUrl} alt={pl.name} wrapperClassName="h-11 w-11 shrink-0 rounded-xl" className="h-11 w-11 rounded-xl object-cover shadow-sm" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-bold">{pl.name}</p>
+                            <p className="mt-0.5 text-[10px] text-slate-400">{pl.trackCount || 0} 首歌曲</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </aside>
+          </>
         )}
 
         {/* Center Hero Stage View */}
-        <main className={`flex-1 h-full flex flex-col justify-between overflow-hidden relative z-10 ${displayMode === 'stage' ? 'p-0' : 'p-4 sm:p-6 md:p-8'}`}>
+        <main className={`min-w-0 flex-1 h-full flex flex-col justify-between overflow-hidden relative z-10 ${displayMode === 'stage' ? 'p-0' : 'p-4 sm:p-6 md:p-8'}`}>
           {/* Track Header Card */}
           <div className={`${displayMode === 'stage' ? 'hidden' : 'flex'} items-center gap-4 sm:gap-5 z-10 glass-card p-3.5 sm:p-4 rounded-3xl border border-white/10 w-fit backdrop-blur-2xl shadow-xl transition-all`}>
             <div className="relative">
@@ -448,12 +492,7 @@ export default function Player() {
           {/* Echora Kinetic Lyrics Animation Stage */}
           {currentSong.source === 'ytmusic' && <YouTubePlayer immersive={displayMode === 'stage'} concealed={displayMode === 'full' && showPlaylistDrawer} />}
           {displayMode === 'full' && showPlaylistDrawer && currentSong.source === 'ytmusic' && (
-            <p className="pointer-events-none absolute bottom-6 right-6 z-20 rounded-xl border border-white/10 bg-[#07090e]/80 px-3 py-2 text-[11px] font-semibold text-slate-300 backdrop-blur">選歌時已隱藏 YouTube 播放器；關閉歌單側欄後即可操作。</p>
-          )}
-          {(!showLyriclessSoundscape || Boolean(localError)) && (
-            <div className={`${displayMode === 'stage' ? 'top-6' : 'top-32'} pointer-events-none absolute inset-x-8 z-20 text-center`} role="status" aria-live="polite">
-              <div className="mx-auto max-w-sm rounded-2xl border border-white/15 bg-[#111720]/85 px-5 py-3 text-sm text-slate-200 shadow-2xl backdrop-blur-xl"><p className="font-bold text-white">{lyricsStageStatus.title}</p><p className="mt-1 text-xs leading-5 text-slate-400">{lyricsStageStatus.copy}</p></div>
-            </div>
+            <p className="pointer-events-none absolute bottom-6 right-6 z-20 hidden rounded-xl border border-white/10 bg-[#07090e]/80 px-3 py-2 text-[11px] font-semibold text-slate-300 backdrop-blur md:block">選歌時已隱藏 YouTube 播放器；關閉歌單側欄後即可操作。</p>
           )}
           {isLoadingLyrics ? (
             <StageSkeleton />
@@ -481,6 +520,7 @@ export default function Player() {
                 onSeekLine={seek}
                 backgroundMode={backgroundMode}
                 visualizerTunings={visualizerTunings}
+                isPlayerChromeHidden={false}
               />
             </Suspense>
           )}
@@ -510,14 +550,6 @@ export default function Player() {
               >
                 ← 歌單
               </button>
-              <button
-                type="button"
-                onClick={() => void leaveImmersiveStage()}
-                className="rounded-xl border border-[#62f5c4]/35 bg-[#62f5c4]/15 px-3 py-2 text-xs font-bold text-[#b8ffe2] hover:bg-[#62f5c4]/25"
-                aria-label="退出沉浸舞台"
-              >
-                退出全螢幕
-              </button>
               {(currentSong.source === 'ytmusic' || currentSong.source === 'local') && (
                 <button
                   type="button"
@@ -525,11 +557,54 @@ export default function Player() {
                   className="rounded-xl bg-gradient-to-r from-[#62f5c4] to-teal-400 px-3 py-2 text-xs font-extrabold text-black shadow-lg"
                   aria-label={isPlaying ? '暫停音訊' : '播放音訊'}
                 >
-                  {isPlaying ? '暫停' : '播放音訊'}
+                  {isPlaying ? '暫停' : '播放'}
                 </button>
               )}
-              <button type="button" onClick={() => setShowCalibration(value => !value)} className="rounded-xl border border-white/15 bg-black/35 px-3 py-2 text-xs font-bold text-white/80 hover:text-white" aria-expanded={showCalibration} aria-controls="stage-calibration">校正與設定</button>
-              {showCalibration && <div id="stage-calibration" className="absolute bottom-[calc(100%+0.75rem)] left-3 right-3 flex flex-wrap justify-center gap-2 rounded-2xl border border-white/10 bg-[#111720]/95 p-3 shadow-2xl"><button type="button" onClick={() => setLyricsOffsetSeconds(value => Math.max(-10, Number((value - 0.25).toFixed(2))))} className="rounded-xl border border-white/15 bg-white/10 px-2.5 py-2 text-xs font-bold text-white hover:bg-white/20">歌詞 −</button><button type="button" onClick={() => setLyricsOffsetSeconds(0)} className="rounded-xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-2.5 py-2 text-xs font-bold text-[#b8ffe2]">同步</button><button type="button" onClick={() => setLyricsOffsetSeconds(value => Math.min(10, Number((value + 0.25).toFixed(2))))} className="rounded-xl border border-white/15 bg-white/10 px-2.5 py-2 text-xs font-bold text-white hover:bg-white/20">歌詞 ＋</button><button type="button" onClick={() => setShowTuning(true)} className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-white">舞台設定</button></div>}
+              <div ref={stageSettingsRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowStageSettings(value => !value)}
+                  className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${showStageSettings ? 'border-[#62f5c4]/45 bg-[#62f5c4]/15 text-[#b8ffe2]' : 'border-white/15 bg-black/35 text-white/80 hover:text-white'}`}
+                  aria-label="開啟沉浸舞台設定"
+                  aria-expanded={showStageSettings}
+                  aria-controls="immersive-settings"
+                >
+                  ⚙ 設定
+                </button>
+                {showStageSettings && (
+                  <div id="immersive-settings" role="dialog" aria-label="沉浸舞台設定" className="fixed inset-x-3 bottom-[max(4.5rem,calc(env(safe-area-inset-bottom)+4.5rem))] z-[80] max-h-[calc(100dvh-7rem)] overflow-y-auto rounded-2xl border border-white/10 bg-[#111720]/95 p-3 text-left shadow-2xl backdrop-blur-2xl sm:absolute sm:inset-x-auto sm:bottom-[calc(100%+0.75rem)] sm:right-0 sm:max-h-[calc(100vh-2rem)] sm:w-[min(88vw,22rem)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-extrabold text-white">沉浸舞台設定</p>
+                        <p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-slate-500">只在需要時展開</p>
+                      </div>
+                      <button type="button" onClick={() => setShowStageSettings(false)} className="rounded-lg px-2 py-1 text-slate-400 hover:bg-white/10 hover:text-white" aria-label="關閉沉浸舞台設定">×</button>
+                    </div>
+                    <div className="mt-3 rounded-xl border border-white/10 bg-black/15 px-3 py-2">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">歌詞狀態</p>
+                      <p className="mt-1 text-xs font-semibold text-white">{lyricsStageStatus.title}</p>
+                      <p className="mt-1 text-[11px] leading-5 text-slate-400">{lyricsStageStatus.copy}</p>
+                    </div>
+                    <div className="mt-3 rounded-xl border border-white/10 bg-black/15 px-3 py-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-bold text-white">歌詞校正</p>
+                          <p className="mt-0.5 text-[11px] text-[#b8ffe2]">{lyricsOffsetLabel}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button type="button" onClick={() => adjustStageLyricsOffset(-LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-white/20" aria-label="歌詞提前 0.25 秒">−</button>
+                          <button type="button" onClick={() => setLyricsOffsetSeconds(0)} className="rounded-lg border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-2.5 py-1.5 text-[11px] font-bold text-[#b8ffe2]" aria-label="重設歌詞同步">同步</button>
+                          <button type="button" onClick={() => adjustStageLyricsOffset(LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-white/20" aria-label="歌詞延後 0.25 秒">＋</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-col gap-2">
+                      <button type="button" onClick={() => { setShowStageSettings(false); setShowTuning(true); }} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-white/10">視覺與舞台設定</button>
+                      <button type="button" onClick={() => void leaveImmersiveStage()} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-white/10">退出全螢幕，回到雙欄</button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -603,7 +678,7 @@ export default function Player() {
                 </button>
               </div>
             </div>
-            {showCalibration && <div id="desktop-calibration" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-3"><p className="text-xs text-slate-400">歌詞偏移：{lyricsOffsetSeconds === 0 ? '已同步' : `${lyricsOffsetSeconds > 0 ? '+' : ''}${lyricsOffsetSeconds.toFixed(2)} 秒`}</p><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => setLyricsOffsetSeconds(value => Math.max(-10, Number((value - 0.25).toFixed(2))))} className="rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[11px] font-bold text-slate-300 hover:text-white">歌詞 −</button><button type="button" onClick={() => setLyricsOffsetSeconds(0)} className="rounded-lg border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-2.5 py-2 text-[11px] font-bold text-[#b8ffe2]">重設同步</button><button type="button" onClick={() => setLyricsOffsetSeconds(value => Math.min(10, Number((value + 0.25).toFixed(2))))} className="rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[11px] font-bold text-slate-300 hover:text-white">歌詞 ＋</button><button type="button" onClick={() => setShowTuning(value => !value)} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-slate-300 hover:text-white">視覺與舞台設定</button></div></div>}
+            {showCalibration && <div id="desktop-calibration" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-3"><p className="text-xs text-slate-400">歌詞偏移：<span className="font-semibold text-[#b8ffe2]">{lyricsOffsetLabel}</span></p><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => adjustStageLyricsOffset(-LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[11px] font-bold text-slate-300 hover:text-white">歌詞 −</button><button type="button" onClick={() => setLyricsOffsetSeconds(0)} className="rounded-lg border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-2.5 py-2 text-[11px] font-bold text-[#b8ffe2]">重設同步</button><button type="button" onClick={() => adjustStageLyricsOffset(LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[11px] font-bold text-slate-300 hover:text-white">歌詞 ＋</button><button type="button" onClick={() => setShowTuning(value => !value)} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-slate-300 hover:text-white">視覺與舞台設定</button></div></div>}
           </div>
         </main>
       </div>

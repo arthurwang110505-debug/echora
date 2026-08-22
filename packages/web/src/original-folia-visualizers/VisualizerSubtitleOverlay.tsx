@@ -123,7 +123,7 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
                         opacity: { duration: 0.24, ease: 'easeOut' },
                         y: { duration: 0.24, ease: 'easeOut' },
                     }}
-                    className="absolute left-0 right-0 text-center space-y-2 px-4 z-20 pointer-events-none"
+                    className="absolute inset-x-0 z-20 space-y-2 px-3 text-center pointer-events-none"
                 >
                     {subtitleText ? (
                         <div className={contentClassName}>
@@ -140,13 +140,14 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0 }}
                                 data-font-debug-target="visualizer-translation"
-                                className="relative z-10 max-w-4xl mx-auto"
+                                className="relative z-10 mx-auto max-w-[calc(100vw-1.5rem)] break-words"
                                 style={{
                                     color: theme.secondaryColor,
                                     fontSize: scaleFontSize(translationFontSize),
                                     fontFamily: resolveThemeTranslationFontStack(subtitleTheme ?? theme),
                                     fontWeight: resolveThemeFontWeight(subtitleTheme ?? theme, 500),
                                     textShadow,
+                                    overflowWrap: 'anywhere',
                                 }}
                             >
                                 {subtitleText}
@@ -165,12 +166,13 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
                                 {upcomingLines.map((line, index) => (
                                     <p
                                         key={index}
-                                        className="truncate max-w-2xl mx-auto transition-all duration-500 blur-[1px]"
+                                        className="mx-auto max-w-[calc(100vw-1.5rem)] whitespace-normal break-words transition-all duration-500 blur-[1px]"
                                         style={{
                                             color: theme.secondaryColor,
                                             fontSize: scaleFontSize(upcomingFontSize),
                                             fontWeight: resolveThemeFontWeight(subtitleTheme ?? theme, 400),
                                             textShadow,
+                                            overflowWrap: 'anywhere',
                                         }}
                                     >
                                         {line.fullText}

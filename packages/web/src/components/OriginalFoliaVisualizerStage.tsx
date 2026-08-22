@@ -19,6 +19,7 @@ interface Props {
   audioBands?: { bass: number; lowMid: number; mid: number; vocal: number; treble: number };
   backgroundMode?: string;
   visualizerTunings?: Record<string, unknown>;
+  isPlayerChromeHidden?: boolean;
 }
 
 const MODES: OriginalMode[] = ['classic', 'cadenza', 'partita', 'fume', 'monet', 'cappella', 'pendolo', 'sonnet', 'claddagh', 'diorama', 'tilt'];
@@ -47,7 +48,7 @@ const toOriginalTheme = (theme: ThemeConfig) => ({
   fontWeight: 700,
 });
 
-export default function OriginalFoliaVisualizerStage({ lines, activeLineIndex, displayedTime, isPlaying = false, theme, visualizerMode = 'classic', coverUrl, songTitle, songArtist, onSeekLine, audioBands, backgroundMode = 'latent', visualizerTunings }: Props) {
+export default function OriginalFoliaVisualizerStage({ lines, activeLineIndex, displayedTime, isPlaying = false, theme, visualizerMode = 'classic', coverUrl, songTitle, songArtist, onSeekLine, audioBands, backgroundMode = 'latent', visualizerTunings, isPlayerChromeHidden = false }: Props) {
   const safeDisplayedTime = Number.isFinite(displayedTime) && displayedTime >= 0 ? displayedTime : 0;
   const currentTime = useMotionValue(safeDisplayedTime);
   const audioPower = useMotionValue(isPlaying ? 0.8 : 0.05);
@@ -103,6 +104,7 @@ export default function OriginalFoliaVisualizerStage({ lines, activeLineIndex, d
         songArtist={songArtist}
         coverUrl={coverUrl}
         paused={!isPlaying}
+        isPlayerChromeHidden={isPlayerChromeHidden}
         onLyricLineSeek={onSeekLine}
         lyricsFontScale={1}
         subtitleFontScale={1}

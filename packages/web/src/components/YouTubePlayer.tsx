@@ -132,7 +132,7 @@ export default function YouTubePlayer({ immersive = false, concealed = false }: 
     : awaitingUserGesture
     ? visibleSurfaceClass
     : 'pointer-events-none fixed -left-[10000px] top-0 h-[200px] w-[356px] overflow-hidden'} aria-hidden={concealed || !awaitingUserGesture} aria-label={concealed ? undefined : 'YouTube 原生播放器'}>
-    {awaitingUserGesture && !concealed && <div role={youtubeError ? 'alert' : 'status'} className={`pointer-events-none absolute inset-x-0 top-0 z-10 px-3 py-2 text-center text-xs font-semibold ${youtubeError ? 'bg-rose-950/90 text-rose-100' : 'bg-black/70 text-white'}`}>{playerMessage}</div>}
+    {awaitingUserGesture && !concealed && <div role={youtubeError ? 'alert' : 'status'} className={`${immersive && !youtubeError ? 'sr-only' : 'pointer-events-none absolute inset-x-0 top-0 z-10 px-3 py-2 text-center text-xs font-semibold'} ${youtubeError ? 'bg-rose-950/90 text-rose-100' : 'bg-black/70 text-white'}`}>{playerMessage}</div>}
     <div ref={containerRef} />
   </div>;
 }

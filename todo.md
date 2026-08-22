@@ -80,3 +80,11 @@
 
 ## Homepage headline refinement
 - [x] UX-HOME-001：將首頁未登入／本機展示 Hero 主標題改為品牌化語句，完成 desktop／mobile smoke check、測試、typecheck、lint、build 與 Vercel production 驗證。
+
+## Player mobile immersive UX refinement
+- [x] UX-PLAYER-001：修正行動版歌詞舞台的文字溢出、裁切與控制列遮擋問題，並保留長行可讀性。
+- [x] UX-PLAYER-002：移除沉浸舞台常駐狀態 Banner，改為低干擾的狀態呈現。
+- [x] UX-PLAYER-003：修復歌詞校正 −／同步／＋操作，使 offset 真正影響 active lyric 計算並補回歸測試。
+- [x] UX-PLAYER-004：將全螢幕控制收合為必要操作加單一 Settings 入口，支援展開、收合、Escape、外部點擊與鍵盤操作。
+- [x] UX-PLAYER-005：將行動版歌單改為 overlay drawer，避免壓縮右側舞台；桌面雙欄維持合理最小寬度與可讀性。
+- [ ] UX-PLAYER-006：完成 390／393px 與桌面瀏覽器驗證、測試、typecheck、lint、build，提交 GitHub `master` 並驗證 Vercel production deployment。

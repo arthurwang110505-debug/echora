@@ -210,14 +210,15 @@ const Word: React.FC<{
             variants={layoutVariants}
             initial="waiting"
             animate={status}
-            // Add `whitespace-nowrap` to prevent unexpected line breaks
-            className="inline-block origin-center relative will-change-transform whitespace-nowrap"
+            className={`relative inline-block max-w-full origin-center will-change-transform ${isCJK(word.text) ? 'whitespace-normal break-words text-center' : 'whitespace-nowrap'}`}
             style={{
                 fontSize,
                 fontWeight: resolveThemeFontWeight(theme, 700),
                 marginRight: config.marginRight,
                 alignSelf: config.alignSelf,
                 lineHeight: 1.22,
+                maxWidth: '100%',
+                overflowWrap: isCJK(word.text) ? 'anywhere' : 'normal',
             }}
         >
             {/* Glow Layer - Handles Text Shadow - Absolute Position */}
@@ -340,10 +341,17 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
         return buildDisplayWordsFromLayoutUnits(layoutUnits);
     }, [activeLine, resolvedClassicTuning.useLegacyLayout]);
 
-    const mainFontSize = `clamp(${(2.25 * lyricsFontScale).toFixed(3)}rem, ${(6 * lyricsFontScale).toFixed(3)}vw, ${(4.5 * lyricsFontScale).toFixed(3)}rem)`;
+    const isCompactViewport = viewportWidth < 640;
+    const mainFontSize = isCompactViewport
+        ? `clamp(${(1.5 * lyricsFontScale).toFixed(3)}rem, ${(7.5 * lyricsFontScale).toFixed(3)}vw, ${(2.75 * lyricsFontScale).toFixed(3)}rem)`
+        : `clamp(${(2.25 * lyricsFontScale).toFixed(3)}rem, ${(6 * lyricsFontScale).toFixed(3)}vw, ${(4.5 * lyricsFontScale).toFixed(3)}rem)`;
     const emptyFontSize = `clamp(${(1.5 * lyricsFontScale).toFixed(3)}rem, ${(3.5 * lyricsFontScale).toFixed(3)}vw, ${(2.25 * lyricsFontScale).toFixed(3)}rem)`;
-    const translationFontSize = `clamp(${(1.125 * lyricsFontScale).toFixed(3)}rem, ${(2.6 * lyricsFontScale).toFixed(3)}vw, ${(1.25 * lyricsFontScale).toFixed(3)}rem)`;
-    const upcomingFontSize = `clamp(${(0.875 * lyricsFontScale).toFixed(3)}rem, ${(2 * lyricsFontScale).toFixed(3)}vw, ${(1 * lyricsFontScale).toFixed(3)}rem)`;
+    const translationFontSize = isCompactViewport
+        ? `clamp(${(0.9 * lyricsFontScale).toFixed(3)}rem, ${(3.8 * lyricsFontScale).toFixed(3)}vw, ${(1.125 * lyricsFontScale).toFixed(3)}rem)`
+        : `clamp(${(1.125 * lyricsFontScale).toFixed(3)}rem, ${(2.6 * lyricsFontScale).toFixed(3)}vw, ${(1.25 * lyricsFontScale).toFixed(3)}rem)`;
+    const upcomingFontSize = isCompactViewport
+        ? `clamp(${(0.75 * lyricsFontScale).toFixed(3)}rem, ${(3 * lyricsFontScale).toFixed(3)}vw, ${(0.9 * lyricsFontScale).toFixed(3)}rem)`
+        : `clamp(${(0.875 * lyricsFontScale).toFixed(3)}rem, ${(2 * lyricsFontScale).toFixed(3)}vw, ${(1 * lyricsFontScale).toFixed(3)}rem)`;
 
     // Generate a stable random layout configuration for the current line.
     // Use the line start time as seed so the same lyric does not reshuffle every rerender.
@@ -358,10 +366,10 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
         const isCalm = intensity === 'calm';
 
         // Container layout decides how the whole line sits in the visual field before word offsets kick in.
-        const justifyOptions = isCalm
+        const justifyOptions = isCompactViewport || isCalm
             ? ['justify-center']
             : ['justify-start', 'justify-center', 'justify-end', 'justify-around', 'justify-between'];
-        const alignOptions = isCalm
+        const alignOptions = isCompactViewport || isCalm
             ? ['items-center']
             : ['items-start', 'items-center', 'items-end'];
 
@@ -379,16 +387,19 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
         const fontWeight = resolveThemeFontWeight(theme, 700);
         const getPixelFontSize = (fontScale: number, width: number): number => {
             const rem = 16;
-            const minPx = 2.25 * fontScale * rem;
-            const valPx = (6 * fontScale * width) / 100;
-            const maxPx = 4.5 * fontScale * rem;
+            const minRem = isCompactViewport ? 1.5 : 2.25;
+            const viewportRem = isCompactViewport ? 7.5 : 6;
+            const maxRem = isCompactViewport ? 2.75 : 4.5;
+            const minPx = minRem * fontScale * rem;
+            const valPx = (viewportRem * fontScale * width) / 100;
+            const maxPx = maxRem * fontScale * rem;
             return Math.max(minPx, Math.min(valPx, maxPx));
         };
         const pxFontSize = getPixelFontSize(lyricsFontScale, viewportWidth);
         const wordWidths = displayWords.map(w => measureWordWidth(w.text, pxFontSize, fontStack, fontWeight));
 
-        const baseSpread = isChaotic ? 60 : isCalm ? 0 : 20;
-        const baseRotate = isChaotic ? 30 : isCalm ? 0 : 5;
+        const baseSpread = isCompactViewport ? 0 : isChaotic ? 60 : isCalm ? 0 : 20;
+        const baseRotate = isCompactViewport ? 0 : isChaotic ? 30 : isCalm ? 0 : 5;
 
         const wordConfigs: WordLayoutConfig[] = displayWords.map((w, i) => {
             const wordSeed = seed + i;
@@ -419,7 +430,9 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
             const xVal = (random(1) - 0.5) * baseSpread * 2;
             const yVal = (random(2) - 0.5) * baseSpread * 2;
 
-            let marginRight = isChaotic ? `${random(5) * 1.5}rem` : '0.8rem';
+            let marginRight = isCompactViewport
+                ? `${(0.1 + random(5) * 0.18).toFixed(2)}rem`
+                : isChaotic ? `${random(5) * 1.5}rem` : '0.8rem';
 
             if (!resolvedClassicTuning.useLegacyLayout) {
                 // Calculate precise margin right to avoid visual overlap during scaling and translation
@@ -450,8 +463,9 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
 
                 const calculatedMargin = (halfOverflow_i + halfOverflow_next + xOffsetDiff + gap) * spacingMultiplier;
                 const minMargin = (isChaotic ? 0.08 * pxFontSize : 0.12 * pxFontSize) * spacingMultiplier;
-                const finalMargin = Math.max(minMargin, calculatedMargin);
-                marginRight = `${finalMargin.toFixed(1)}px`;
+                    const finalMargin = Math.max(minMargin, calculatedMargin);
+                    const safeMargin = isCompactViewport ? Math.min(finalMargin, pxFontSize * 0.22) : finalMargin;
+                    marginRight = `${Math.max(1, safeMargin).toFixed(1)}px`;
             }
 
             return {
@@ -467,10 +481,12 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
         });
 
         return { wordConfigs, lineConfig };
-    }, [activeLine, displayWords, resolvedClassicTuning.enableWordRotation, resolvedClassicTuning.useLegacyLayout, resolvedClassicTuning.wordSpacing, theme, lyricsFontScale, viewportWidth]);
+    }, [activeLine, displayWords, resolvedClassicTuning.enableWordRotation, resolvedClassicTuning.useLegacyLayout, resolvedClassicTuning.wordSpacing, theme, lyricsFontScale, viewportWidth, isCompactViewport]);
 
     // Container motion is the "body" of each word.
-    // waiting/active/passed all reuse the same layout config but interpret it differently.
+    // waiting/active/passed all reuse the same layout config but interpret them differently.
+    // Mobile keeps the active scale close to 1 so the lyric row remains inside the safe width.
+    const activeScaleMultiplier = isCompactViewport ? 1.08 : 1.4;
     const layoutVariants: Variants = {
         waiting: ({ config }: any) => ({
             opacity: 0,
@@ -482,7 +498,7 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
         }),
         active: ({ config }: any) => ({
             opacity: 1,
-            scale: isNaN(config.scale) ? 1.5 : config.scale * 1.4,
+            scale: isNaN(config.scale) ? activeScaleMultiplier : config.scale * activeScaleMultiplier,
             x: config.x,
             y: config.y,
             rotate: config.rotate,
@@ -667,7 +683,7 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
         >
             {/* Main Container */}
             <motion.div
-                className="relative z-10 w-full h-[70vh] flex items-center justify-center p-8 pointer-events-none will-change-transform"
+                className={`relative z-10 flex min-h-0 w-full items-center justify-center pointer-events-none will-change-transform ${isCompactViewport ? 'h-[min(58dvh,32rem)] px-3 pb-12 pt-3' : 'h-[70vh] p-8'}`}
                 animate={lyricContainerFloat?.animate}
                 transition={lyricContainerFloat?.transition}
             >
@@ -678,8 +694,8 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
                             initial={activeLineContainerMotion.initial}
                             animate={activeLineContainerMotion.animate}
                             exit={activeLineContainerMotion.exit}
-                            className={`flex flex-wrap w-full max-w-6xl content-center ${lineConfig.justifyContent} ${lineConfig.alignItems}`}
-                            style={{ perspective: `${lineConfig.perspective}px`, minHeight: '300px' }}
+                            className={`flex min-w-0 max-w-[calc(100vw-1.5rem)] flex-wrap content-center ${isCompactViewport ? 'gap-y-1' : ''} ${lineConfig.justifyContent} ${lineConfig.alignItems}`}
+                            style={{ perspective: `${lineConfig.perspective}px`, minHeight: isCompactViewport ? '0' : '300px', width: '100%' }}
                         >
                             {displayWords.map((word, idx) => {
                                 const config = wordConfigs[idx] || { id: `fallback-${idx}`, x: 0, y: 0, rotate: 0, scale: 1, marginRight: '0.5rem', alignSelf: 'auto', passedRotate: 0 };
