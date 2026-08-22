@@ -87,4 +87,4 @@
 - [x] UX-PLAYER-003：修復歌詞校正 −／同步／＋操作，使 offset 真正影響 active lyric 計算並補回歸測試。
 - [x] UX-PLAYER-004：將全螢幕控制收合為必要操作加單一 Settings 入口，支援展開、收合、Escape、外部點擊與鍵盤操作。
 - [x] UX-PLAYER-005：將行動版歌單改為 overlay drawer，避免壓縮右側舞台；桌面雙欄維持合理最小寬度與可讀性。
-- [ ] UX-PLAYER-006：完成 390／393px 與桌面瀏覽器驗證、測試、typecheck、lint、build，提交 GitHub `master` 並驗證 Vercel production deployment。
+- [x] UX-PLAYER-006：完成 390／393px 與桌面瀏覽器驗證、測試、typecheck、lint、build，提交 GitHub `master` 並驗證 Vercel production deployment。

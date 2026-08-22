@@ -27,3 +27,7 @@ After the stacking-context fix, the 390px drawer screenshot shows the playlist s
 The latest 390px immersive screenshot shows the Settings surface inset from both sides and fully visible above the compact bottom controls. The active lyric is centered inside the stage rather than clipped at the left edge; the panel contains only status, calibration, visual-stage settings, and exit actions.
 
 The post-stacking 393×852 run also reported document `scrollWidth = 393`, lyric nodes fully within the viewport, three visible immersive controls, `+0.25 秒` offset feedback, and a full-viewport fixed drawer (`left = 0`, `right = 393`, `top = 0`, `bottom = 852`).
+
+Production browser smoke at `https://echora-three.vercel.app/` successfully entered `/player?demo=1` through the local showcase CTA. The deployed player rendered the revised playlist column, source tabs, stage, and compact lower controls without requiring a service login.
+
+Production browser smoke reached the deployed `/player?demo=1` route and switched to immersive mode. The live page exposed the revised three-control bottom chrome; opening Settings exposed the consolidated panel with lyric status, calibration, visual-stage settings, and exit-fullscreen actions. No account connection or private library operation was used.
