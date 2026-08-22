@@ -20,19 +20,39 @@ interface Props {
   backgroundMode?: string;
   visualizerTunings?: Record<string, unknown>;
   isPlayerChromeHidden?: boolean;
+  settingsOpen?: boolean;
 }
 
 const MODES: OriginalMode[] = ['classic', 'cadenza', 'partita', 'fume', 'monet', 'cappella', 'pendolo', 'sonnet', 'claddagh', 'diorama', 'tilt'];
 
-class SceneErrorBoundary extends Component<{ children: ReactNode; onRecover: () => void }, { failed: boolean }> {
+class SceneErrorBoundary extends Component<{
+  children: ReactNode;
+  mode: OriginalMode;
+  onError?: (error: Error, info: ErrorInfo) => void;
+  onRetry?: () => void;
+  onFallback?: () => void;
+}, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('Echora visualizer scene failed; switching to the safe scene.', error, info);
-    window.setTimeout(this.props.onRecover, 0);
+    console.error(`Echora ${this.props.mode} visualizer scene failed.`, error, info);
+    this.props.onError?.(error, info);
   }
   render() {
-    if (this.state.failed) return <div className="flex h-full items-center justify-center bg-[#07090e] p-6 text-center text-sm text-slate-300">此視覺場景暫時無法載入，正在切換至安全場景…</div>;
+    if (this.state.failed) {
+      return (
+        <div className="flex h-full items-center justify-center bg-[#07090e] p-6 text-center text-sm text-slate-300">
+          <div className="max-w-sm space-y-3">
+            <p className="font-semibold text-white">{this.props.mode} 舞台暫時無法載入</p>
+            <p className="text-xs leading-5 text-slate-400">已保留目前舞台選擇，不會未經同意切回 Classic。你可以重試，或手動選擇 Classic。</p>
+            <div className="flex justify-center gap-2">
+              <button type="button" onClick={() => { this.setState({ failed: false }); this.props.onRetry?.(); }} className="rounded-xl border border-[#62f5c4]/30 bg-[#62f5c4]/10 px-3 py-2 text-xs font-bold text-[#b8ffe2] hover:bg-[#62f5c4]/20">重試 {this.props.mode}</button>
+              {this.props.mode !== 'classic' && <button type="button" onClick={this.props.onFallback} className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/15">切換到 Classic</button>}
+            </div>
+          </div>
+        </div>
+      );
+    }
     return this.props.children;
   }
 }
@@ -48,10 +68,15 @@ const toOriginalTheme = (theme: ThemeConfig) => ({
   fontWeight: 700,
 });
 
-export default function OriginalFoliaVisualizerStage({ lines, activeLineIndex, displayedTime, isPlaying = false, theme, visualizerMode = 'classic', coverUrl, songTitle, songArtist, onSeekLine, audioBands, backgroundMode = 'latent', visualizerTunings, isPlayerChromeHidden = false }: Props) {
+export default function OriginalFoliaVisualizerStage({ lines, activeLineIndex, displayedTime, isPlaying = false, theme, visualizerMode = 'classic', coverUrl, songTitle, songArtist, onSeekLine, audioBands, backgroundMode = 'latent', visualizerTunings, isPlayerChromeHidden = false, settingsOpen = false }: Props) {
   const safeDisplayedTime = Number.isFinite(displayedTime) && displayedTime >= 0 ? displayedTime : 0;
   const currentTime = useMotionValue(safeDisplayedTime);
-  const audioPower = useMotionValue(isPlaying ? 0.8 : 0.05);
+  const audioPower = useMotionValue(isPlaying ? 200 : 0);
+  const bass = useMotionValue(0);
+  const lowMid = useMotionValue(0);
+  const mid = useMotionValue(0);
+  const vocal = useMotionValue(0);
+  const treble = useMotionValue(0);
   const mode = (MODES.includes(visualizerMode as OriginalMode) ? visualizerMode : 'classic') as OriginalMode;
   // Echora stores lyric timestamps in milliseconds; Folia's renderer contract
   // is seconds. Passing the values through unchanged makes every animation
@@ -69,7 +94,7 @@ export default function OriginalFoliaVisualizerStage({ lines, activeLineIndex, d
   })), [lines]);
   const originalTheme = useMemo(() => toOriginalTheme(theme), [theme]);
 
-  const bands = useMemo(() => audioBands ?? {
+  const bandLevels = useMemo(() => audioBands ?? {
     // YouTube's iframe exposes transport time, but not PCM/FFT data. Keep a
     // deterministic musical pulse so the original visualizers still breathe
     // while a local audio source can provide real analyser bands later.
@@ -79,15 +104,31 @@ export default function OriginalFoliaVisualizerStage({ lines, activeLineIndex, d
     vocal: isPlaying ? 0.38 + Math.sin(displayedTime * 4.0 + 0.5) * 0.14 : 0.03,
     treble: isPlaying ? 0.24 + Math.sin(displayedTime * 7.0 + 2.5) * 0.10 : 0.02,
   }, [audioBands, safeDisplayedTime, isPlaying]);
+  const bands = useMemo(() => ({ bass, lowMid, mid, vocal, treble }), [bass, lowMid, mid, vocal, treble]);
 
   useEffect(() => {
+    const toMotionBandValue = (value: number) => {
+      const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0;
+      return Math.min(255, safeValue <= 1 ? safeValue * 255 : safeValue);
+    };
+    bass.set(toMotionBandValue(bandLevels.bass));
+    lowMid.set(toMotionBandValue(bandLevels.lowMid));
+    mid.set(toMotionBandValue(bandLevels.mid));
+    vocal.set(toMotionBandValue(bandLevels.vocal));
+    treble.set(toMotionBandValue(bandLevels.treble));
     currentTime.set(safeDisplayedTime);
-    audioPower.set(isPlaying ? 0.8 : 0.05);
-  }, [audioPower, currentTime, safeDisplayedTime, isPlaying]);
+    audioPower.set(isPlaying ? 200 : 0);
+  }, [audioPower, bass, bandLevels, currentTime, isPlaying, lowMid, mid, safeDisplayedTime, treble, vocal]);
 
   return (
-    <div className="relative h-full min-h-0 w-full overflow-hidden">
-      <SceneErrorBoundary key={mode} onRecover={() => window.dispatchEvent(new CustomEvent('echora:visualizer-recover'))}>
+    <div className="relative h-full min-h-0 w-full overflow-hidden" data-settings-open={settingsOpen ? 'true' : undefined}>
+      <SceneErrorBoundary
+        key={mode}
+        mode={mode}
+        onError={(error) => console.error(`Echora visualizer error in ${mode}:`, error)}
+        onRetry={() => currentTime.set(safeDisplayedTime)}
+        onFallback={() => window.dispatchEvent(new CustomEvent('echora:visualizer-fallback', { detail: { mode } }))}
+      >
       <OriginalVisualizerRenderer
         mode={mode}
         currentTime={currentTime}

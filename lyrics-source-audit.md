@@ -35,3 +35,7 @@ Pixabay 的授權摘要說明，符合其禁止用途前提時，內容可免費
 ## Additional source evidence
 
 The author-linked [Free Sound Server YouTube video](https://www.youtube.com/watch?v=lH4FOQMZA7o) identifies the track as “Dancing in the Stardust | FSS - Copyright Free Music” and its description presents it as no-copyright music; the fetched page did not expose an official lyric sheet. Searches for the other four exact title/author combinations returned either the corresponding Pixabay page or unrelated same-title works, not a reliable lyric source for these audio files. The implementation therefore uses the matching audio transcription files rather than copying lyrics from unrelated sites.
+
+## 本輪同步精度修正
+
+本輪沒有從第三方網站新增歌詞文字，也沒有把轉錄結果宣稱為官方歌詞。實作改為先將每個既有語音轉錄 segment 以專案既有 `SentenceLayout` 按標點與語意切成較短行，再把該 segment 原本的起訖時間按可讀文字量比例分配給各行；每行內的 words 亦按字元／文字量比例分配，最後一個 word 精確收束到原 line end。這會改善舞台換行與逐字提示的節奏，但仍屬**由音訊轉錄推導的展示同步草稿**，不能取代作者確認的 LRC／VTT。

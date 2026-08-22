@@ -936,3 +936,16 @@
   :root[data-motion="reduced"] .soundscape-is-playing .soundscape-orbit-inner,
   :root[data-motion="reduced"] .soundscape-is-playing .soundscape-waveform span { animation: none !important; }
 }
+
+/* Keep secondary lyric captions out of the way while an immersive settings surface is open. */
+.echora-immersive-stage [data-settings-open="true"] .echora-visualizer-subtitle-overlay {
+  display: none !important;
+}
+
+/* Landscape phones and short desktop windows need a tighter lyric safe area than a width-only breakpoint. */
+@media (max-height: 720px) and (orientation: landscape) {
+  .echora-immersive-stage .echora-visualizer-subtitle-overlay {
+    bottom: 2rem !important;
+    padding-inline: 0.75rem;
+  }
+}

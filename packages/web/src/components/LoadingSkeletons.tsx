@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
+import { Sparkles } from 'lucide-react';
 
 interface SkeletonBlockProps {
   className?: string;
@@ -31,7 +32,7 @@ export function CoverImage({ src, alt, className = '', wrapperClassName = '', lo
     <span className={`relative block overflow-hidden ${wrapperClassName}`} aria-busy={isLoading || undefined}>
       {(isLoading || hasError || !src) && (
         <span className="absolute inset-0 z-0" aria-hidden="true">
-          <span className="echora-cover-skeleton-mark">{hasError || !src ? '✦' : ''}</span>
+          <span className="echora-cover-skeleton-mark">{hasError || !src ? <Sparkles aria-hidden="true" className="h-5 w-5" /> : null}</span>
         </span>
       )}
       {src && !hasError && (

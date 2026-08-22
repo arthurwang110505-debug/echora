@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'framer-motion';
-import { Play, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, Play, ChevronLeft, ChevronRight } from 'lucide-react';
 import { type Song } from '@echora/core';
 import { CoverImage } from './LoadingSkeletons';
 
@@ -279,7 +279,7 @@ export const Carousel3D: React.FC<Carousel3DProps> = ({
                 onClick={() => onSelect(currentSong)}
                 className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#62f5c4] to-teal-400 text-black text-xs font-black shadow-[0_0_20px_rgba(98,245,196,0.35)] hover:brightness-110 active:scale-95 transition-all"
               >
-                立即播放舞台 →
+                立即播放舞台 <ArrowRight aria-hidden="true" className="ml-1.5 inline-block h-3.5 w-3.5 align-[-2px]" />
               </button>
             </div>
           </motion.div>

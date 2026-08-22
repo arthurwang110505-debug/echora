@@ -95,3 +95,12 @@
 - [x] UX-PLAYER-009：讓五首本地音檔使用可合法整合的歌詞資料；無可核實歌詞者保留明確無歌詞狀態，不臆造內容。
 - [x] UX-PLAYER-010：將歌詞校正控制改為清楚的「提前／同步／延後」標籤與數值反饋，補 mobile／desktop 互動驗收。
 - [x] UX-PLAYER-011：完成測試、typecheck、lint、build、390／393px 與 desktop smoke，提交 GitHub `master` 並驗證 Vercel production deployment。
+
+## Player Folia stage and lyric precision follow-up
+- [x] FOLIA-001：以 GitHub repository 內的 Folia original renderer 為基準，修正 Fume／Monet／Diorama 切換後不再靜默回落 Classic，並讓 Diorama 顯示可見內容。
+- [x] FOLIA-002：Settings／tuning 開啟時暫時隱藏下方 subtitle／upcoming lyric overlay，避免遮擋固定對話框；關閉後恢復。
+- [x] FOLIA-003：以 stage 實際容器尺寸與 landscape 可用高度限制歌詞行寬、縮放、旋轉與位移，避免桌面／橫向裝置裁切或水平溢出。
+- [x] FOLIA-004：將沉浸播放器 Settings 的舞台動畫選擇與舞台控制放在歌詞校正之前，並補足模式錯誤的可見 recovery。
+- [x] FOLIA-005：播放器、設定頁、骨架與首頁／輪播等使用者可見 icon 全面改用 Lucide React，不留 emoji icon。
+- [x] FOLIA-006：細分五首本地展示音檔的展示轉錄歌詞時間段與 word timings，補同步邊界／時間軸回歸測試，並保持非官方歌詞透明標示。
+- [ ] FOLIA-007：完成 desktop、390×844、393×852 與橫向窄高舞台 browser smoke，通過 release gate、GitHub master push 與 Vercel production 驗證。

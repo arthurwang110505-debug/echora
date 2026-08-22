@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Sparkles } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeProvider';
 import { generateTheme, type AiProviderConfig } from '@echora/core';
 import type { MotionPreference } from '../store/themeStore';
@@ -71,9 +72,7 @@ export default function Settings() {
     <div className="settings-page min-h-screen bg-[#07090e] text-white pb-24 font-sans selection:bg-[#62f5c4] selection:text-black">
       <header className="flex items-center py-4 px-6 border-b border-white/10 bg-[#0d111a]/80 backdrop-blur-2xl sticky top-0 z-30">
         <button type="button" onClick={() => navigate('/')} aria-label="返回探索頁" className="mr-4 p-2.5 hover:bg-white/10 rounded-2xl border border-white/10 transition-all btn-spring text-white">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-          </svg>
+          <ArrowLeft aria-hidden="true" className="h-5 w-5" strokeWidth={2.5} />
         </button>
         <div className="flex items-center gap-2">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[#62f5c4] via-teal-400 to-indigo-500 text-xs font-black text-black shadow-[0_0_12px_rgba(98,245,196,0.3)]">E</span>
@@ -166,7 +165,7 @@ export default function Settings() {
               disabled={isGenerating || !aiApiKey}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-[#62f5c4] to-teal-400 hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-extrabold text-black text-xs shadow-lg active:scale-95"
             >
-              {isGenerating ? '生成主題中...' : '✨ 依據歌詞生成專屬主題'}
+              {isGenerating ? '生成主題中...' : <><Sparkles aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />依據歌詞生成專屬主題</>}
             </button>
             {generationError ? <p className="rounded-xl border border-rose-300/25 bg-rose-300/10 p-3 text-xs leading-5 text-rose-200" role="alert">{generationError}</p> : null}
           </div>

@@ -13,28 +13,94 @@ export interface LocalDemoSong extends Song {
 
 const showcaseAlbum = { id: 'echora-pixabay-showcase', name: 'Echora 本機展示' };
 
-type TranscriptSegment = readonly [startSeconds: number, endSeconds: number, text: string];
+export type TranscriptSegment = readonly [startSeconds: number, endSeconds: number, text: string];
+
+const countTimingCharacters = (text: string) => Array.from(text.replace(/[\s\p{P}\p{S}]/gu, '')).length;
+
+const getTimingWeight = (text: string) => Math.max(1, countTimingCharacters(text) || Array.from(text.trim()).length || 1);
+
+const splitTranscriptText = (text: string, targetCount: number): string[] => {
+  let chunks = [text.trim()].filter(Boolean);
+  const punctuationPattern = /(?<=[。！？.!?、，,；;])\s*/u;
+  while (chunks.length < targetCount) {
+    const largestIndex = chunks.reduce((bestIndex, chunk, index, all) => getTimingWeight(chunk) > getTimingWeight(all[bestIndex]) ? index : bestIndex, 0);
+    const candidate = chunks[largestIndex];
+    const punctuationParts = candidate.split(punctuationPattern).map(part => part.trim()).filter(Boolean);
+    if (punctuationParts.length > 1) {
+      chunks.splice(largestIndex, 1, ...punctuationParts);
+      continue;
+    }
+    const graphemes = Array.from(candidate);
+    if (graphemes.length < 4) break;
+    const midpoint = Math.floor(graphemes.length / 2);
+    const whitespaceBoundary = candidate.slice(0, midpoint).lastIndexOf(' ');
+    const splitIndex = whitespaceBoundary > 0 ? whitespaceBoundary : midpoint;
+    chunks.splice(largestIndex, 1, candidate.slice(0, splitIndex).trim(), candidate.slice(splitIndex).trim());
+    chunks = chunks.filter(Boolean);
+  }
+  return chunks;
+};
+
+/**
+ * Split coarse speech-to-text segments without inventing lyric text. The source segment's exact start/end
+ * remains the outer boundary; only the interior is allocated by semantic chunk weight for smoother display.
+ */
+export function refineTranscriptSegments(segments: readonly TranscriptSegment[]): TranscriptSegment[] {
+  return segments.flatMap(([start, end, text]) => {
+    const safeStart = Number.isFinite(start) ? Math.max(0, start) : 0;
+    const safeEnd = Number.isFinite(end) ? Math.max(safeStart, end) : safeStart;
+    const duration = safeEnd - safeStart;
+    const targetCount = Math.min(4, Math.max(1, Math.ceil(Math.max(getTimingWeight(text) / 18, duration / 5.5))));
+    const chunks = splitTranscriptText(text, targetCount);
+    if (chunks.length <= 1) return [[safeStart, safeEnd, text.trim()] as TranscriptSegment];
+
+    const totalWeight = chunks.reduce((total, chunk) => total + getTimingWeight(chunk), 0);
+    let cursor = safeStart;
+    return chunks.map((chunk, index) => {
+      const chunkEnd = index === chunks.length - 1
+        ? safeEnd
+        : cursor + duration * getTimingWeight(chunk) / totalWeight;
+      const result: TranscriptSegment = [cursor, chunkEnd, chunk];
+      cursor = chunkEnd;
+      return result;
+    });
+  });
+}
 
 function createLine(startSeconds: number, endSeconds: number, fullText: string, wordsArray: string[]) {
   const startTime = Math.round(startSeconds * 1000);
   const endTime = Math.round(endSeconds * 1000);
-  const totalDuration = endTime - startTime;
-  const wordDuration = totalDuration / Math.max(wordsArray.length, 1);
-  const words = wordsArray.map((text, index) => ({
-    text,
-    startTime: startTime + index * wordDuration,
-    endTime: startTime + (index + 1) * wordDuration,
-  }));
+  const totalDuration = Math.max(0, endTime - startTime);
+  const wordWeights = wordsArray.map(getTimingWeight);
+  const totalWeight = wordWeights.reduce((total, weight) => total + weight, 0) || 1;
+  let cursor = startTime;
+  const words = wordsArray.map((text, index) => {
+    const wordEnd = index === wordsArray.length - 1
+      ? endTime
+      : Math.round(startTime + totalDuration * (wordWeights.slice(0, index + 1).reduce((total, weight) => total + weight, 0) / totalWeight));
+    const word = { text, startTime: cursor, endTime: Math.max(cursor, wordEnd) };
+    cursor = word.endTime;
+    return word;
+  });
 
   return { fullText, startTime, endTime, words };
 }
 
 function splitTranscriptWords(text: string) {
   if (/[^\x00-\x7F]/u.test(text)) {
-    return text
-      .split(/(?<=[。！？、，])/u)
-      .map(word => word.trim())
-      .filter(Boolean);
+    try {
+      const segments = typeof Intl !== 'undefined' && Intl.Segmenter
+        ? Array.from(new Intl.Segmenter('ja', { granularity: 'word' }).segment(text))
+            .filter(segment => segment.isWordLike)
+            .map(segment => segment.segment.trim())
+            .filter(Boolean)
+        : [];
+      if (segments.length > 1) return segments;
+    } catch {
+      // Older browsers can use the grapheme fallback below.
+    }
+    const graphemes = Array.from(text).filter(character => !/\s/u.test(character));
+    return graphemes.length > 1 ? graphemes : [text];
   }
   return text.match(/\S+/gu) || [text];
 }
@@ -44,7 +110,7 @@ function createTranscribedLyrics(title: string, artist: string, segments: readon
     title,
     artist,
     isWordByWord: true,
-    lines: segments.map(([start, end, text]) => createLine(start, end, text, splitTranscriptWords(text))),
+    lines: refineTranscriptSegments(segments).map(([start, end, text]) => createLine(start, end, text, splitTranscriptWords(text))),
     availability: 'available',
   };
 }

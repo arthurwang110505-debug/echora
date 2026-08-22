@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOCAL_DEMO_LYRICS, LOCAL_DEMO_SONGS } from './localDemoSongs';
+import { LOCAL_DEMO_LYRICS, LOCAL_DEMO_SONGS, refineTranscriptSegments } from './localDemoSongs';
 
 describe('local demo showcase songs', () => {
   it('contains the five uploaded royalty-free tracks', () => {
@@ -18,6 +18,16 @@ describe('local demo showcase songs', () => {
     }
   });
 
+  it('refines a coarse transcript without moving its outer time boundary', () => {
+    const refined = refineTranscriptSegments([[10, 20, '第一句。第二句。第三句。']]);
+    expect(refined.length).toBeGreaterThan(1);
+    expect(refined[0][0]).toBe(10);
+    expect(refined[refined.length - 1][1]).toBe(20);
+    for (let index = 1; index < refined.length; index += 1) {
+      expect(refined[index][0]).toBeGreaterThanOrEqual(refined[index - 1][1]);
+    }
+  });
+
   it('maps every local track to matching exhibition lyric data', () => {
     const songIds = LOCAL_DEMO_SONGS.map(song => song.id).sort();
     expect(Object.keys(LOCAL_DEMO_LYRICS).sort()).toEqual(songIds);
@@ -27,6 +37,17 @@ describe('local demo showcase songs', () => {
       expect(lyrics?.availability).toBe('available');
       expect(lyrics?.lines.length).toBeGreaterThan(0);
       expect(lyrics?.lines.some(line => line.words.length > 1)).toBe(true);
+      for (const line of lyrics?.lines ?? []) {
+        expect(line.startTime).toBeLessThanOrEqual(line.endTime);
+        let previousWordEnd = line.startTime;
+        for (const word of line.words) {
+          expect(word.startTime).toBeGreaterThanOrEqual(line.startTime);
+          expect(word.endTime).toBeLessThanOrEqual(line.endTime);
+          expect(word.startTime).toBeGreaterThanOrEqual(previousWordEnd);
+          expect(word.endTime).toBeGreaterThanOrEqual(word.startTime);
+          previousWordEnd = word.endTime;
+        }
+      }
     }
   });
 });

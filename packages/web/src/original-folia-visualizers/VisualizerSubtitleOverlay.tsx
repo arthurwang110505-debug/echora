@@ -123,7 +123,7 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
                         opacity: { duration: 0.24, ease: 'easeOut' },
                         y: { duration: 0.24, ease: 'easeOut' },
                     }}
-                    className="absolute inset-x-0 z-20 space-y-2 px-3 text-center pointer-events-none"
+                    className="echora-visualizer-subtitle-overlay absolute inset-x-0 z-20 space-y-2 px-3 text-center pointer-events-none"
                 >
                     {subtitleText ? (
                         <div className={contentClassName}>

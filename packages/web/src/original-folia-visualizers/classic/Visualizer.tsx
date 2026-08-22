@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, MotionValue, Variants, useMotionValueEvent } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { DEFAULT_CLASSIC_TUNING, Line, Theme, Word as WordType, AudioBands, type ClassicTuning } from '../../../types';
@@ -320,16 +320,29 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
     const activeWordRenderProfile = activeLineRenderProfile ?? (activeLine ? resolveClassicLineRenderProfile(activeLine) : null);
     const activeLineContainerMotion = getClassicLineContainerMotion(activeLineRenderProfile);
 
-    const [viewportWidth, setViewportWidth] = useState(() => (
-        typeof window === 'undefined' ? 1200 : window.innerWidth
-    ));
+    const stageRef = useRef<HTMLDivElement>(null);
+    const [stageSize, setStageSize] = useState(() => ({
+        width: typeof window === 'undefined' ? 1200 : window.innerWidth,
+        height: typeof window === 'undefined' ? 800 : window.innerHeight,
+    }));
 
     useEffect(() => {
-        const handleResize = () => {
-            setViewportWidth(window.innerWidth);
+        const element = stageRef.current;
+        if (!element) return;
+        const updateStageSize = () => {
+            const rect = element.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                setStageSize({ width: rect.width, height: rect.height });
+            }
         };
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        updateStageSize();
+        const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateStageSize);
+        observer?.observe(element);
+        window.addEventListener('resize', updateStageSize);
+        return () => {
+            observer?.disconnect();
+            window.removeEventListener('resize', updateStageSize);
+        };
     }, []);
 
     const displayWords = useMemo(() => {
@@ -341,10 +354,15 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
         return buildDisplayWordsFromLayoutUnits(layoutUnits);
     }, [activeLine, resolvedClassicTuning.useLegacyLayout]);
 
-    const isCompactViewport = viewportWidth < 640;
-    const mainFontSize = isCompactViewport
-        ? `clamp(${(1.5 * lyricsFontScale).toFixed(3)}rem, ${(7.5 * lyricsFontScale).toFixed(3)}vw, ${(2.75 * lyricsFontScale).toFixed(3)}rem)`
-        : `clamp(${(2.25 * lyricsFontScale).toFixed(3)}rem, ${(6 * lyricsFontScale).toFixed(3)}vw, ${(4.5 * lyricsFontScale).toFixed(3)}rem)`;
+    const isLandscape = stageSize.width > stageSize.height;
+    const isCompactViewport = stageSize.width < 640 || stageSize.height < 720 || (isLandscape && stageSize.height < 900);
+    const safeLineWidth = Math.max(240, stageSize.width - (isCompactViewport ? 28 : 80));
+    const mainFontSizePx = useMemo(() => {
+        const minPx = (isCompactViewport ? 1.5 : 2.25) * lyricsFontScale * 16;
+        const viewportPx = ((isCompactViewport ? 7.5 : 6) * lyricsFontScale * stageSize.width) / 100;
+        const maxPx = (isCompactViewport ? 2.75 : 4.5) * lyricsFontScale * 16;
+        return Math.max(minPx, Math.min(viewportPx, maxPx));
+    }, [isCompactViewport, lyricsFontScale, stageSize.width]);
     const emptyFontSize = `clamp(${(1.5 * lyricsFontScale).toFixed(3)}rem, ${(3.5 * lyricsFontScale).toFixed(3)}vw, ${(2.25 * lyricsFontScale).toFixed(3)}rem)`;
     const translationFontSize = isCompactViewport
         ? `clamp(${(0.9 * lyricsFontScale).toFixed(3)}rem, ${(3.8 * lyricsFontScale).toFixed(3)}vw, ${(1.125 * lyricsFontScale).toFixed(3)}rem)`
@@ -385,17 +403,7 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
         // That is important because time should change the animation state, not the base geometry.
         const fontStack = resolveThemeFontStack(theme);
         const fontWeight = resolveThemeFontWeight(theme, 700);
-        const getPixelFontSize = (fontScale: number, width: number): number => {
-            const rem = 16;
-            const minRem = isCompactViewport ? 1.5 : 2.25;
-            const viewportRem = isCompactViewport ? 7.5 : 6;
-            const maxRem = isCompactViewport ? 2.75 : 4.5;
-            const minPx = minRem * fontScale * rem;
-            const valPx = (viewportRem * fontScale * width) / 100;
-            const maxPx = maxRem * fontScale * rem;
-            return Math.max(minPx, Math.min(valPx, maxPx));
-        };
-        const pxFontSize = getPixelFontSize(lyricsFontScale, viewportWidth);
+        const pxFontSize = mainFontSizePx;
         const wordWidths = displayWords.map(w => measureWordWidth(w.text, pxFontSize, fontStack, fontWeight));
 
         const baseSpread = isCompactViewport ? 0 : isChaotic ? 60 : isCalm ? 0 : 20;
@@ -481,12 +489,22 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
         });
 
         return { wordConfigs, lineConfig };
-    }, [activeLine, displayWords, resolvedClassicTuning.enableWordRotation, resolvedClassicTuning.useLegacyLayout, resolvedClassicTuning.wordSpacing, theme, lyricsFontScale, viewportWidth, isCompactViewport]);
+    }, [activeLine, displayWords, resolvedClassicTuning.enableWordRotation, resolvedClassicTuning.useLegacyLayout, resolvedClassicTuning.wordSpacing, theme, mainFontSizePx, isCompactViewport]);
+
+    const estimatedLineWidth = useMemo(() => {
+        if (!displayWords.length) return 0;
+        const fontStack = resolveThemeFontStack(theme);
+        const fontWeight = resolveThemeFontWeight(theme, 700);
+        const measuredWidth = displayWords.reduce((total, word) => total + measureWordWidth(word.text, mainFontSizePx, fontStack, fontWeight), 0);
+        return measuredWidth + Math.max(0, displayWords.length - 1) * mainFontSizePx * 0.35;
+    }, [displayWords, mainFontSizePx, theme]);
+    const lineFontScale = Math.min(1, safeLineWidth / Math.max(safeLineWidth, estimatedLineWidth * 1.08));
+    const renderedLineFontSize = `${Math.max(isCompactViewport ? 20 : 30, mainFontSizePx * lineFontScale).toFixed(1)}px`;
 
     // Container motion is the "body" of each word.
     // waiting/active/passed all reuse the same layout config but interpret them differently.
     // Mobile keeps the active scale close to 1 so the lyric row remains inside the safe width.
-    const activeScaleMultiplier = isCompactViewport ? 1.08 : 1.4;
+    const activeScaleMultiplier = isCompactViewport ? 1.03 : 1.4;
     const layoutVariants: Variants = {
         waiting: ({ config }: any) => ({
             opacity: 0,
@@ -680,6 +698,7 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
             audioPower={audioPower}
             audioBands={audioBands}
             sharedProps={props}
+            ref={stageRef}
         >
             {/* Main Container */}
             <motion.div
@@ -694,8 +713,8 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
                             initial={activeLineContainerMotion.initial}
                             animate={activeLineContainerMotion.animate}
                             exit={activeLineContainerMotion.exit}
-                            className={`flex min-w-0 max-w-[calc(100vw-1.5rem)] flex-wrap content-center ${isCompactViewport ? 'gap-y-1' : ''} ${lineConfig.justifyContent} ${lineConfig.alignItems}`}
-                            style={{ perspective: `${lineConfig.perspective}px`, minHeight: isCompactViewport ? '0' : '300px', width: '100%' }}
+                            className={`flex min-w-0 max-w-full flex-wrap content-center overflow-visible ${isCompactViewport ? 'gap-y-1 px-2' : 'px-4'} ${lineConfig.justifyContent} ${lineConfig.alignItems}`}
+                            style={{ perspective: `${lineConfig.perspective}px`, minHeight: isCompactViewport ? '0' : '300px', width: `${Math.min(stageSize.width, safeLineWidth)}px`, maxWidth: '100%', boxSizing: 'border-box' }}
                         >
                             {displayWords.map((word, idx) => {
                                 const config = wordConfigs[idx] || { id: `fallback-${idx}`, x: 0, y: 0, rotate: 0, scale: 1, marginRight: '0.5rem', alignSelf: 'auto', passedRotate: 0 };
@@ -717,7 +736,7 @@ const Visualizer: React.FC<VisualizerProps> = (props) => {
                                         activeColor={activeColor}
                                         renderProfile={activeWordRenderProfile!}
                                         isChorus={activeLine.isChorus}
-                                        fontSize={mainFontSize}
+                                        fontSize={renderedLineFontSize}
                                     />
                                 );
                             })}
