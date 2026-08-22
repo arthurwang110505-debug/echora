@@ -41,3 +41,11 @@ Production browser smoke reached the deployed `/player?demo=1` route and switche
 ## Follow-up mobile smoke evidence
 
 以獨立 Chromium page target 重新驗收 390×844 與 393×852。兩個尺寸均通過：首頁可切換 YouTube Music 並選取 `夜に駆ける`，播放器實際渲染首句歌詞；明確的「📋 歌單」按鈕可開啟 full-viewport drawer，drawer 的 fixed rect 覆蓋整個 viewport；沉浸模式可顯示三個必要控制，Settings 可開啟，按下「歌詞延後 0.25 秒」會反映 `+0.25 秒`；「← 歌單」會留在播放器內切回雙欄並開啟歌單。切換到 `Dancing in the Stardust` 後，播放器實際渲染轉錄歌詞，Settings 顯示「展示轉錄歌詞」，且文件沒有水平溢出。原始量測 JSON 保留於專案外的 `/home/ubuntu/echora-ux-evidence-followup/player-ux-smoke.json`。
+
+## Latest release evidence
+
+GitHub `master` commit `ea7527fcbe9c56ce4cdf5292d55e7dce3fb52d5d`（`fix(player): restore demo lyrics and playlist flow`）已在 Vercel 建立 production deployment `dpl_AeupGBGb1jmeDYRnhkNpebgD2tRY`，狀態 `READY`，deployment URL 為 `https://echora-8h1mbqf5r-arthurwang110505-3171s-projects.vercel.app`。正式 alias 仍為 `https://echora-three.vercel.app/`；尚待完成正式 alias smoke check 後再標記 release task 完成。
+
+## Production browser follow-up
+
+正式網址 `/player?demo=1&release=ea7527f` 已由 browser client render 實際呈現 `夜に駆ける`、YOASOBI 與多行日文歌詞（包括「沈むように」「溶けてゆく」「二人だけの空が広がる夜に」）。頁面同時可見 `YT Music` 佇列、明確「📋 歌單」入口與「校正與設定」入口；此確認不涉及登入或外部帳戶操作。

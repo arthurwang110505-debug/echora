@@ -94,4 +94,4 @@
 - [x] UX-PLAYER-008：恢復 `夜に駆ける`、`First Love`、`アイドル` 的展示歌詞載入，確認 demo ID 與 lyrics lookup 不被 playback URL 覆寫。
 - [x] UX-PLAYER-009：讓五首本地音檔使用可合法整合的歌詞資料；無可核實歌詞者保留明確無歌詞狀態，不臆造內容。
 - [x] UX-PLAYER-010：將歌詞校正控制改為清楚的「提前／同步／延後」標籤與數值反饋，補 mobile／desktop 互動驗收。
-- [ ] UX-PLAYER-011：完成測試、typecheck、lint、build、390／393px 與 desktop smoke，提交 GitHub `master` 並驗證 Vercel production deployment。
+- [x] UX-PLAYER-011：完成測試、typecheck、lint、build、390／393px 與 desktop smoke，提交 GitHub `master` 並驗證 Vercel production deployment。
