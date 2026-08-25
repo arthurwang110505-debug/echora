@@ -139,4 +139,4 @@
 - [x] UI-002：重整 Settings 的 mobile、iPad／tablet 與 desktop layout，修正容器寬度、header、卡片間距與底部安全區。
 - [x] PLAY-001：舞台播放控制清楚顯示 Play／Pause icon 與 aria-label，且 local、YouTube Music、Spotify 的 pause action 都能與實際播放來源同步。
 - [x] PLAY-002：檢查頁面進入背景、離開 fullscreen、route 切換與 Media Session 後的播放／暫停狀態，補回歸測試。
-- [ ] UI-003：完成 390×844、768×1024 iPad portrait、1024×768 iPad landscape 與 desktop browser smoke，通過 release gate、GitHub master push 與 Vercel production 驗證。
+- [x] UI-003：完成 390×844、768×1024 iPad portrait、1024×768 iPad landscape 與 desktop browser smoke，通過 release gate、GitHub master push 與 Vercel production 驗證。
