@@ -132,4 +132,4 @@
 - [x] AI-002：新增安全的 Agnes server-side proxy，使用 `AGNES_API_KEY`，不把 secret 暴露到 Vite bundle；缺少設定時顯示可操作錯誤。
 - [x] AI-003：修復 AI 主題生成與 Settings 其他控件的實際 state wiring，避免「可點擊但不生效」；補測試。
 - [x] AI-004：完成官方 Agnes API health／request contract 檢查、型別檢查、lint、build 與 Settings browser smoke。
-- [ ] AI-005：使用最新 Agnes integration commit 推送 GitHub master，並完成 Vercel production deployment／HTTP verification。
+- [x] AI-005：使用最新 Agnes integration commit 推送 GitHub master，並完成 Vercel production deployment／HTTP verification。
