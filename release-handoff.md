@@ -1,7 +1,7 @@
 # Echora 改進計劃交付摘要
 
 **範圍：** UI-001、UI-002、PLAY-001、PLAY-002、UI-003  
-**GitHub：** `arthurwang110505-debug/echora`，`master`，commit `69033e31d1940d342757025ea8b7eb793a5d5325`  
+**GitHub：** `arthurwang110505-debug/echora`，`master`，commit `a0c4cc0cdb49f4f19bf9452ed719ae73fef8295c`  
 **Vercel 狀態：** `production-ready`  
 **發布摘要：** 已將 Settings route 的持久歌曲列隱藏、完成 Settings 的 mobile／iPad／desktop responsive layout，並修正 local audio 播放狀態與 Play／Pause 控制同步。GitHub master push 後，既有 `echora` Vercel project 已自動產生 production deployment；deployment 狀態與 production route 均已驗證。
 
@@ -35,9 +35,9 @@
 |---|---|
 | Repository | `https://github.com/arthurwang110505-debug/echora` |
 | Branch | `master` |
-| Commit | `69033e31d1940d342757025ea8b7eb793a5d5325` |
-| Commit message | `fix(player): sync pause controls across routes` |
-| Push 結果 | 成功；remote `refs/heads/master` 指向 `69033e31d1940d342757025ea8b7eb793a5d5325`。 |
+| Commit | `a0c4cc0cdb49f4f19bf9452ed719ae73fef8295c` |
+| Commit message | `docs(release): record settings playback delivery`（包含前一個 `fix(player): sync pause controls across routes` commit） |
+| Push 結果 | 成功；remote `refs/heads/master` 指向 `a0c4cc0cdb49f4f19bf9452ed719ae73fef8295c`。 |
 
 ## Vercel 部署證據
 
@@ -46,12 +46,12 @@
 | Connector | `Vercel`，已啟用 |
 | Team | `arthurwang110505-3171's projects` (`team_jdonrY3U82gD7CnZnR7eTaB6`) |
 | Project | `echora` (`prj_UlOMf7pJo7IHsW8P1DyVNR3h9xly`) |
-| Deployment | `dpl_BJEVb8mQWrcxdWdaFr47bXbPcAZe` |
+| Deployment | `dpl_2L56DW8Fk6mbm1DEdy5bHWDB9w1R` |
 | Target | `production` |
 | Status | `READY` |
-| Deployment URL | `https://echora-lqmogwtak-arthurwang110505-3171s-projects.vercel.app` |
+| Deployment URL | `https://echora-11hywayjv-arthurwang110505-3171s-projects.vercel.app` |
 | Production alias | `https://echora-three.vercel.app` |
-| Commit reference | `69033e31d1940d342757025ea8b7eb793a5d5325`；Vercel metadata commit message 為 `fix(player): sync pause controls across routes`。 |
+| Commit reference | `a0c4cc0cdb49f4f19bf9452ed719ae73fef8295c`；Vercel metadata commit message 為 `docs(release): record settings playback delivery`。 |
 | Smoke check | Production `/` 與 `/settings`：HTTP 200，HTML response successful。 |
 
 ## 已知限制
