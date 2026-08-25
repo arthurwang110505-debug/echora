@@ -95,8 +95,8 @@ export function HomeSkeleton() {
           <SkeletonBlock className="h-9 w-9 rounded-xl" />
         </div>
       </header>
-      <main className="relative z-10 mx-auto w-full max-w-[1440px] space-y-10 px-5 pb-28 pt-7 sm:px-8 lg:px-12 lg:pt-12">
-        <section className="echora-skeleton-hero">
+      <main className="relative z-10 mx-auto w-full max-w-[1440px] space-y-7 px-5 pb-[calc(6.75rem+env(safe-area-inset-bottom))] pt-5 sm:space-y-10 sm:px-8 sm:pb-32 sm:pt-7 lg:px-12 lg:pt-12">
+        <section className="echora-skeleton-hero min-h-[300px] sm:min-h-[340px] lg:min-h-[380px]">
           <div className="max-w-2xl">
             <SkeletonBlock className="h-7 w-40 rounded-full" />
             <SkeletonBlock className="mt-6 h-14 w-[min(32rem,90%)] rounded-2xl sm:h-20" />
@@ -110,8 +110,8 @@ export function HomeSkeleton() {
           </div>
           <SkeletonArtwork className="echora-skeleton-hero-art" />
         </section>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {[1, 2, 3].map(item => <SkeletonBlock key={item} className="h-20 rounded-2xl" />)}
+        <div className="flex justify-center rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
+          <SkeletonBlock className="h-3 w-40 rounded-full" />
         </div>
         <section className="space-y-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">

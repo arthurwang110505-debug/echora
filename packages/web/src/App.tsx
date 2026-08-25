@@ -1,8 +1,9 @@
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, Outlet, RouterProvider } from 'react-router-dom';
 import { PlayerProvider } from './contexts/PlayerContext';
 import { ThemeProvider } from './contexts/ThemeProvider';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
+import PersistentMiniPlayer from './components/PersistentMiniPlayer';
 import { RouteSkeleton } from './components/LoadingSkeletons';
 import './App.css';
 
@@ -16,12 +17,21 @@ function RouteLoader() {
   return <RouteSkeleton />;
 }
 
+function AppShell() {
+  return <><Outlet /><PersistentMiniPlayer /></>;
+}
+
 const router = createBrowserRouter([
-  { path: '/', element: <Home /> },
-  { path: '/player', element: <Player /> },
-  { path: '/settings', element: <Settings /> },
-  { path: '/library', element: <Library /> },
-  { path: '/oauth/youtube/callback', element: <YouTubeCallback /> },
+  {
+    element: <AppShell />,
+    children: [
+      { path: '/', element: <Home /> },
+      { path: '/player', element: <Player /> },
+      { path: '/settings', element: <Settings /> },
+      { path: '/library', element: <Library /> },
+      { path: '/oauth/youtube/callback', element: <YouTubeCallback /> },
+    ],
+  },
 ]);
 
 function App() {

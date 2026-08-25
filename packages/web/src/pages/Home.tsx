@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, Check, LayoutGrid, Orbit, Pause, Play, Search, Settings2, SkipBack, SkipForward, Star, Sparkles, X } from 'lucide-react';
+import { ArrowRight, Check, LayoutGrid, Orbit, Play, Search, Settings2, Sparkles, X } from 'lucide-react';
 import { usePlayer } from '../contexts/PlayerContext';
 import { type Song } from '@echora/core';
 import { spotifyClientId } from '../integrations/spotifyAuth';
@@ -52,14 +52,14 @@ const FEATURED_SONGS: Song[] = [
 const sources = [
   { id: 'spotify' as const, label: 'Spotify', dot: 'bg-[#1ed760]' },
   { id: 'ytmusic' as const, label: 'YouTube Music', dot: 'bg-[#ff3d57]' },
-  { id: 'local' as const, label: '本地音樂', dot: 'bg-amber-300' },
+  { id: 'local' as const, label: '本機展示', dot: 'bg-amber-300' },
 ];
 
 export default function Home() {
   const navigate = useNavigate();
   const location = useLocation();
   const {
-    currentSong, isPlaying, play, playPause, next, prev, setPlaylist, favoriteSongs, toggleFavoriteSong,
+    currentSong, play, setPlaylist,
     activeSource, setActiveSource, spotifyConnected, spotifyError, connectSpotify, disconnectSpotify,
     youtubeConnected, youtubeError, youtubeConnectionState, youtubeProfile, userPlaylists, isSyncingLibrary, libraryError, lastLibrarySyncAt, loadSourcePlaylists, connectYouTube, disconnectYouTube,
   } = usePlayer();
@@ -132,7 +132,7 @@ export default function Home() {
   };
 
   const sourceIsConnected = activeSource === 'ytmusic' ? youtubeConnected : activeSource === 'spotify' ? spotifyConnected : false;
-  const connectLabel = activeSource === 'ytmusic' ? (youtubeConnected ? 'YouTube 已連線' : '連接 YouTube Music') : activeSource === 'local' ? '本地音樂' : spotifyConnected ? 'Spotify 已連線' : 'Spotify 尚未啟用';
+  const connectLabel = activeSource === 'ytmusic' ? (youtubeConnected ? 'YouTube 已連線' : '連接 YouTube Music') : activeSource === 'local' ? '本機展示' : spotifyConnected ? 'Spotify 已連線' : 'Spotify 尚未啟用';
   const syncCopy = youtubeConnectionState === 'syncing' || isSyncingLibrary
     ? '歌單同步中…'
     : youtubeConnectionState === 'expired'
@@ -229,16 +229,16 @@ export default function Home() {
       {connectionNotice && <div className="fixed right-5 top-24 z-50 flex items-center gap-3 rounded-2xl border border-emerald-400/30 bg-[#111720]/95 px-4 py-3 text-sm font-bold text-white shadow-2xl backdrop-blur-xl"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400/20 text-emerald-300"><Check aria-hidden="true" className="h-4 w-4" /></span>
 <span>YouTube Music 已連線，歌單正在載入</span></div>}
 
-      <main className="relative z-10 mx-auto max-w-[1440px] space-y-10 px-5 pb-36 pt-7 sm:px-8 lg:px-12 lg:pt-12">
-        <section className="relative grid min-h-[380px] overflow-hidden rounded-[30px] border border-white/10 bg-gradient-to-br from-[#142e32] via-[#101922] to-[#111126] shadow-2xl lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="relative z-10 flex flex-col justify-center p-7 sm:p-10 lg:p-14">
-            <span className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-3.5 py-2 text-[11px] font-bold tracking-wide text-[#62f5c4]"><span className="h-1.5 w-1.5 rounded-full bg-[#62f5c4] shadow-[0_0_10px_#62f5c4]" /> {heroContent.eyebrow}</span>
-            <h1 className="max-w-2xl font-heading text-4xl font-black leading-[0.98] tracking-[-0.04em] text-white sm:text-5xl lg:text-7xl">{heroContent.title}<br /><span className="bg-gradient-to-r from-[#62f5c4] via-teal-200 to-white bg-clip-text text-transparent">{heroContent.accent}</span></h1>
-            <p className="mt-6 max-w-xl text-sm leading-7 text-slate-300/80 sm:text-base">{heroContent.description}</p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+      <main className="relative z-10 mx-auto max-w-[1440px] space-y-7 px-5 pb-[calc(6.75rem+env(safe-area-inset-bottom))] pt-5 sm:space-y-10 sm:px-8 sm:pb-32 sm:pt-7 lg:px-12 lg:pt-12">
+        <section className="relative grid min-h-[300px] overflow-hidden rounded-[26px] border border-white/10 bg-gradient-to-br from-[#142e32] via-[#101922] to-[#111126] shadow-2xl sm:min-h-[340px] sm:rounded-[30px] lg:min-h-[380px] lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="relative z-10 flex flex-col justify-center p-6 sm:p-10 lg:p-14">
+            <span className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-3 py-1.5 text-[10px] font-bold tracking-wide text-[#62f5c4] sm:mb-5 sm:px-3.5 sm:py-2 sm:text-[11px]"><span className="h-1.5 w-1.5 rounded-full bg-[#62f5c4] shadow-[0_0_10px_#62f5c4]" /> {heroContent.eyebrow}</span>
+            <h1 className="max-w-2xl font-heading text-[2.1rem] font-black leading-[0.98] tracking-[-0.04em] text-white sm:text-5xl lg:text-7xl">{heroContent.title}<br /><span className="bg-gradient-to-r from-[#62f5c4] via-teal-200 to-white bg-clip-text text-transparent">{heroContent.accent}</span></h1>
+            <p className="mt-4 max-w-xl text-[13px] leading-6 text-slate-300/80 sm:mt-6 sm:text-base sm:leading-7">{heroContent.description}</p>
+            <div className="mt-6 flex flex-wrap items-center gap-3 sm:mt-8">
               <button type="button" onClick={handleHeroPrimary} className="rounded-xl bg-[#62f5c4] px-5 py-3 text-sm font-extrabold text-black shadow-[0_10px_35px_rgba(98,245,196,0.25)] transition hover:-translate-y-0.5 hover:brightness-110 active:scale-95">{heroContent.primary} <ArrowRight aria-hidden="true" className="ml-2 inline-block h-4 w-4 align-[-3px]" />
 </button>
-              <button type="button" onClick={handleHeroSecondary} className="rounded-xl border border-white/15 bg-white/[0.05] px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10 active:scale-95">{heroContent.secondary}</button>
+              <button type="button" onClick={handleHeroSecondary} className="hidden rounded-xl border border-white/15 bg-white/[0.05] px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10 active:scale-95 sm:inline-flex">{heroContent.secondary}</button>
             </div>
           </div>
           <div className="relative hidden min-h-[380px] overflow-hidden lg:block">
@@ -251,22 +251,20 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="grid gap-3 sm:grid-cols-3" aria-label="Echora 舞台體驗">
-          <StagePromise label="1. 選一首歌" detail="先從免登入展示曲目開始" />
-          <StagePromise label="2. 按下播放" detail="歌詞、視覺與節奏隨即啟動" />
-          <StagePromise label="3. 進入 Stage" detail="需要時再連接你的音樂服務" />
+        <section className="flex items-center justify-center gap-2 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-3 text-center text-[11px] font-bold tracking-wide text-slate-400 sm:text-xs" aria-label="Echora 舞台體驗流程">
+          <span className="text-white">選歌</span><span aria-hidden="true" className="text-[#62f5c4]">→</span><span>播放</span><span aria-hidden="true" className="text-[#62f5c4]">→</span><span className="text-[#b8ffe2]">Stage</span>
         </section>
 
         <section id="explore-library" className="space-y-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[#62f5c4]/80">Echora 3D Library</p>
-              <h2 className="font-heading text-2xl font-extrabold tracking-tight text-white sm:text-3xl">探索你的下一首歌</h2>
+              <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[#62f5c4]/80">Echora Library</p>
+              <h2 className="font-heading text-2xl font-extrabold tracking-tight text-white sm:text-3xl">探索你的音樂</h2>
             </div>
 
-            <div className="flex flex-wrap items-end gap-3">
-              {/* Source Switcher */}
-              <div className="space-y-1"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">想播放自己的音樂？</p><div className="flex w-fit rounded-2xl border border-white/10 bg-white/[0.04] p-1 backdrop-blur-md">
+            <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-end">
+              {/* Music source switcher */}
+              <div className="space-y-1"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">你的音樂</p><div className="flex w-full rounded-2xl border border-white/10 bg-white/[0.04] p-1 backdrop-blur-md sm:w-fit">
                 {sources.map(source => (
                   <button
                     type="button"
@@ -275,7 +273,7 @@ export default function Home() {
                     disabled={source.id === 'spotify' && !spotifyAvailable}
                     aria-label={`切換來源至 ${source.label}`}
                     title={source.id === 'spotify' && !spotifyAvailable ? 'Spotify 尚未啟用，無法作為播放來源' : undefined}
-                    className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all duration-200 btn-spring disabled:cursor-not-allowed disabled:opacity-50 ${
+                    className={`flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-all duration-200 btn-spring sm:flex-none sm:px-3.5 disabled:cursor-not-allowed disabled:opacity-50 ${
                       activeSource === source.id
                         ? 'bg-white/[0.12] text-white shadow-lg border border-white/15'
                         : 'text-slate-400 hover:text-white'
@@ -372,73 +370,6 @@ export default function Home() {
       </main>
 
 
-
-      {/* Floating Mini Player */}
-      {currentSong && (
-        <div className="fixed bottom-4 left-4 right-4 z-30 mx-auto flex max-w-5xl items-center gap-3 rounded-2xl border border-white/15 bg-[#111720]/90 p-3 shadow-2xl backdrop-blur-2xl sm:bottom-6 sm:gap-5 sm:p-4">
-          <CoverImage src={currentSong.coverUrl} alt="" wrapperClassName="h-11 w-11 rounded-xl sm:h-14 sm:w-14" className="h-11 w-11 rounded-xl object-cover sm:h-14 sm:w-14" />
-          <button type="button" onClick={() => navigate('/player')} className="min-w-0 flex-1 text-left">
-            <p className="truncate text-sm font-extrabold text-white">{currentSong.title}</p>
-            <p className="mt-0.5 truncate text-xs text-[#62f5c4] font-medium">
-              {typeof currentSong.artists[0] === 'string' ? currentSong.artists[0] : currentSong.artists[0]?.name}
-            </p>
-          </button>
-          <div className="hidden items-end gap-1 sm:flex">
-            {[12, 20, 15, 26, 18].map((height, index) => (
-              <span
-                key={index}
-                className={`w-1 rounded-full ${isPlaying ? 'animate-pulse bg-[#62f5c4]' : 'bg-slate-600'}`}
-                style={{ height }}
-              />
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => toggleFavoriteSong(currentSong)}
-              aria-label={favoriteSongs.some(song => song.source === currentSong.source && song.id === currentSong.id) ? '取消收藏目前歌曲' : '收藏目前歌曲'}
-              aria-pressed={favoriteSongs.some(song => song.source === currentSong.source && song.id === currentSong.id)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-lg text-[#F9F871] transition hover:bg-white/10 active:scale-90"
-            >
-              <Star aria-hidden="true" className="h-4 w-4" fill={favoriteSongs.some(song => song.source === currentSong.source && song.id === currentSong.id) ? 'currentColor' : 'none'} />
-            </button>
-            <button
-              type="button"
-              onClick={prev}
-              className="hidden h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-white/10 hover:text-white active:scale-90 sm:flex"
-              aria-label="上一首"
-            >
-              <SkipBack aria-hidden="true" className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={playPause}
-              className={`flex h-10 w-10 items-center justify-center rounded-full bg-[#62f5c4] text-sm font-black text-black transition active:scale-90 ${
-                isPlaying ? 'playing-pulse-glow' : ''
-              }`}
-              aria-label={isPlaying ? '暫停' : '播放'}
-            >
-              {isPlaying ? <Pause aria-hidden="true" className="h-4 w-4" fill="currentColor" /> : <Play aria-hidden="true" className="h-4 w-4" fill="currentColor" />}
-            </button>
-            <button
-              type="button"
-              onClick={next}
-              className="hidden h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-white/10 hover:text-white active:scale-90 sm:flex"
-              aria-label="下一首"
-            >
-              <SkipForward aria-hidden="true" className="h-4 w-4" />
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/player')}
-            className="hidden rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-[#62f5c4]/40 hover:text-[#62f5c4] active:scale-95 md:block"
-          >
-            開啟舞台 <ArrowRight aria-hidden="true" className="ml-1 inline-block h-3.5 w-3.5 align-[-2px]" />
-          </button>
-        </div>
-      )}
-
       {/* Spotify Connect Modal */}
       {showConnectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xl modal-backdrop-enter" role="dialog" aria-modal="true" aria-labelledby="connect-title" aria-describedby="connect-description">
@@ -490,32 +421,23 @@ export default function Home() {
   );
 }
 
-function StagePromise({ label, detail }: { label: string; detail: string }) {
-  return (
-    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.035] px-5 py-4">
-      <p className="text-sm font-extrabold text-white">{label}</p>
-      <p className="mt-1 text-xs leading-5 text-slate-500">{detail}</p>
-    </div>
-  );
-}
-
 function SongCard({ song, selected, onPlay }: { song: Song; selected: boolean; onPlay: () => void }) {
   const artist = typeof song.artists[0] === 'string' ? song.artists[0] : song.artists[0]?.name || 'Unknown artist';
   return (
-    <button type="button" onClick={onPlay} className={`group text-left btn-spring ${selected ? 'rounded-3xl ring-2 ring-[#62f5c4]/60' : ''}`}>
-      <div className="relative aspect-square overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-xl transition-all duration-300 group-hover:-translate-y-1 group-hover:border-[#62f5c4]/40 group-hover:shadow-[0_18px_45px_rgba(0,0,0,0.35)]">
+    <button type="button" onClick={onPlay} aria-label={`播放 ${song.title}，${artist}`} className={`group block min-w-0 rounded-3xl text-left outline-none transition-transform duration-200 focus-visible:ring-2 focus-visible:ring-[#62f5c4] focus-visible:ring-offset-2 focus-visible:ring-offset-[#07090e] active:scale-[0.98] ${selected ? 'ring-2 ring-[#62f5c4]/70' : ''}`}>
+      <div className={`relative aspect-square overflow-hidden rounded-3xl border bg-white/[0.055] shadow-xl transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_18px_45px_rgba(0,0,0,0.35)] ${selected ? 'border-[#62f5c4]/55' : 'border-white/[0.15] group-hover:border-[#62f5c4]/45'}`}>
         <CoverImage src={song.coverUrl} alt={`${song.title} 封面`} loading="lazy" wrapperClassName="h-full w-full" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-black/10 opacity-70" />
         <span className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/35 px-2 py-1 text-[8px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
           {song.source === 'ytmusic' ? 'YT MUSIC' : song.source === 'local' ? '本機音檔' : 'SPOTIFY'}
         </span>
-        <span className="absolute bottom-3 right-3 flex h-10 w-10 translate-y-2 items-center justify-center rounded-full bg-[#62f5c4] text-black opacity-0 shadow-lg transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+        <span className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-[#62f5c4] text-black opacity-95 shadow-lg transition-all duration-300 sm:h-10 sm:w-10 sm:translate-y-2 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
           <Play aria-hidden="true" className="h-4 w-4" fill="currentColor" />
         </span>
       </div>
-      <div className="mt-3 min-w-0 px-1">
-        <p className="truncate text-sm font-extrabold text-white transition-colors group-hover:text-[#62f5c4]">{song.title}</p>
-        <p className="mt-1 truncate text-xs text-slate-500">{artist}</p>
+      <div className="mt-2.5 min-w-0 px-1">
+        <p className="truncate text-[13px] font-extrabold text-white transition-colors group-hover:text-[#62f5c4] sm:text-sm">{song.title}</p>
+        <p className="mt-1 truncate text-xs text-slate-400">{artist}</p>
       </div>
     </button>
   );

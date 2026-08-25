@@ -115,3 +115,14 @@
 - [x] ECHORA-P2-01：補齊首頁與設定頁的可及性文案、空狀態與載入／生成回饋，避免技術詞彙成為一般使用者的主要阻力。
 - [x] ECHORA-VERIFY-01：完成變更範圍的測試、TypeScript、lint、production build，以及桌面與 390px 行動版首頁、播放器、音樂庫與設定頁驗證；確認 Folia attribution、播放器、服務來源、歌詞與 PWA 沒有回歸。
 - [x] ECHORA-DELIVERY-01：檢視差異後以描述性 conventional commit 推送至確認的 GitHub 分支；不部署到外部平台，除非使用者明確提出。
+
+## Mobile music-app refinement
+- [x] ECHORA-MOBILE-P0-01：在 390px 行動版保留「讓每一首歌，都成為一座舞台」及「立即播放展示曲目」，但將 Hero 首屏高度縮短約 20–25%，讓歌曲探索更早出現。
+- [x] ECHORA-MOBILE-P0-02：將首頁三張「選歌／播放／Stage」教學卡改為單行、低視覺權重的流程提示，避免首頁像教學網站。
+- [x] ECHORA-MOBILE-P0-03：將首頁來源控制改為「你的音樂」內容來源層級，保留本機展示、YouTube Music、Spotify 與連線狀態，但降低 provider 設定感。
+- [x] ECHORA-MOBILE-P0-04：精修 3D／網格歌曲卡的封面比例、標題與演出者階層、觸控回饋、選取與播放狀態；保留 active song 的 emerald outline，並改善非作用中卡片辨識度。
+- [x] ECHORA-MOBILE-P0-05：將迷你播放器提升為跨首頁、音樂庫與設定頁的持久控制列；未選歌時不顯示，播放後固定在安全區上方，提供封面、曲名、演出者、收藏、播放／暫停，並可點擊資訊進入 `/player`。
+- [x] ECHORA-MOBILE-P1-01：保持既有 Mobile Header 的品牌、Connect 與 Settings 優先順序，避免額外狀態壓過 Echora 品牌。
+- [x] ECHORA-MOBILE-P1-02：更新首頁載入骨架，使其高度與內容密度對齊縮短後的 Hero 與簡化流程提示。
+- [x] ECHORA-MOBILE-VERIFY-01：完成新增或更新的行為測試、TypeScript、lint、production build，以及 375px、390px、430px、768px、1440px 的首頁與持久迷你播放器視覺驗證；確認無水平溢出、裁切、modal 溢出或 safe-area 遮擋。
+- [ ] ECHORA-MOBILE-DELIVERY-01：檢視差異後以描述性 conventional commit 推送 `master`，並驗證既有 Vercel production 網址確實服務相同 commit。
