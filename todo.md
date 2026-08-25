@@ -126,3 +126,10 @@
 - [x] ECHORA-MOBILE-P1-02：更新首頁載入骨架，使其高度與內容密度對齊縮短後的 Hero 與簡化流程提示。
 - [x] ECHORA-MOBILE-VERIFY-01：完成新增或更新的行為測試、TypeScript、lint、production build，以及 375px、390px、430px、768px、1440px 的首頁與持久迷你播放器視覺驗證；確認無水平溢出、裁切、modal 溢出或 safe-area 遮擋。
 - [x] ECHORA-MOBILE-DELIVERY-01：檢視差異後以描述性 conventional commit 推送 `master`，並驗證既有 Vercel production 網址確實服務相同 commit。
+
+## Agnes AI settings integration follow-up
+- [x] AI-001：移除 Settings 的 Gemini／OpenAI API key 與 provider 選擇，改為統一 Agnes AI 設定說明，不在前端收集或傳送金鑰。
+- [x] AI-002：新增安全的 Agnes server-side proxy，使用 `AGNES_API_KEY`，不把 secret 暴露到 Vite bundle；缺少設定時顯示可操作錯誤。
+- [x] AI-003：修復 AI 主題生成與 Settings 其他控件的實際 state wiring，避免「可點擊但不生效」；補測試。
+- [x] AI-004：完成官方 Agnes API health／request contract 檢查、型別檢查、lint、build 與 Settings browser smoke。
+- [ ] AI-005：使用最新 Agnes integration commit 推送 GitHub master，並完成 Vercel production deployment／HTTP verification。

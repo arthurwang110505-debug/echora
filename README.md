@@ -39,7 +39,10 @@ pnpm --filter=@echora/web preview
 VITE_SPOTIFY_CLIENT_ID
 VITE_SPOTIFY_REDIRECT_URI=https://你的-vercel-domain.vercel.app/
 VITE_YOUTUBE_API_KEY（可選）
+AGNES_API_KEY（伺服器端必要；不要使用 VITE_ 前綴）
 ```
+
+`AGNES_API_KEY` 必須設定在 Vercel Project Settings → Environment Variables，並套用到需要的 deployment environment。它只會由 `/api/ai/theme` serverless proxy 讀取；瀏覽器 Settings 不再要求使用者貼上 Gemini／OpenAI 金鑰。Agnes 使用 OpenAI-compatible API，proxy 呼叫 `https://apihub.agnes-ai.com/v1/chat/completions`，並以 `Authorization: Bearer` 驗證。
 
 同時將相同的 HTTPS 網址加入 Spotify Developer Dashboard 的 Redirect URI，然後重新部署。
 

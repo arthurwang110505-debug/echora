@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, CircleAlert, LoaderCircle, Sparkles } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeProvider';
 import { usePlayer } from '../contexts/PlayerContext';
-import { generateTheme, type AiProviderConfig, type ThemeConfig } from '@echora/core';
+import { getAgnesApiStatus, generateAgnesTheme, type AgnesApiStatus } from '../services/agnesAi';
+import type { ThemeConfig } from '@echora/core';
 import type { MotionPreference } from '../store/themeStore';
 import { clearDiagnosticEvents, createDiagnosticSummary, getDiagnosticLabel, readDiagnosticEvents, type DiagnosticEvent } from '../lib/diagnostics';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { currentTheme, setTheme, toggleTheme, enableAiTheme, aiThemeEnabled, motionPreference, setMotionPreference } = useTheme();
+  const { currentTheme, activeTheme, setTheme, toggleTheme, enableAiTheme, aiThemeEnabled, motionPreference, setMotionPreference } = useTheme();
   const { currentSong, currentLyrics } = usePlayer();
-  const [aiApiKey, setAiApiKey] = useState('');
-  const [aiProvider, setAiProvider] = useState<'gemini' | 'openai'>('gemini');
+  const [agnesStatus, setAgnesStatus] = useState<AgnesApiStatus>('unavailable');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedTheme, setGeneratedTheme] = useState<ThemeConfig | null>(null);
   const [systemReducedMotion, setSystemReducedMotion] = useState(false);
@@ -20,12 +20,21 @@ export default function Settings() {
   const [copyFeedback, setCopyFeedback] = useState('');
   const [generationError, setGenerationError] = useState('');
 
+  const refreshAgnesStatus = async () => {
+    try {
+      setAgnesStatus(await getAgnesApiStatus());
+    } catch {
+      setAgnesStatus('unavailable');
+    }
+  };
+
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     const updateSystemPreference = () => setSystemReducedMotion(mediaQuery.matches);
     updateSystemPreference();
     mediaQuery.addEventListener?.('change', updateSystemPreference);
     setDiagnosticEvents(readDiagnosticEvents());
+    void refreshAgnesStatus();
     return () => mediaQuery.removeEventListener?.('change', updateSystemPreference);
   }, []);
 
@@ -36,24 +45,35 @@ export default function Settings() {
     .map(line => line.fullText || line.words.map(word => word.text).join(' '))
     .filter(Boolean)
     .join('\n') || '', [currentLyrics]);
+  const isPureMusic = Boolean(currentSong?.isPureMusic || !currentLyrics?.lines.length);
 
   const handleGenerateTheme = async () => {
-    if (!aiApiKey || !currentSong) return;
-
-    setIsGenerating(true);
     setGenerationError('');
     setGeneratedTheme(null);
+    if (!currentSong) {
+      setGenerationError('請先播放一首歌，再為它設計舞台。');
+      return;
+    }
+    if (!aiThemeEnabled) {
+      setGenerationError('請先開啟「允許 AI 動態生成主題」。');
+      return;
+    }
+    if (agnesStatus !== 'configured') {
+      setGenerationError('Agnes AI 尚未完成伺服器設定，請在 Vercel Environment Variables 加入 AGNES_API_KEY 後重新部署。');
+      return;
+    }
+
+    setIsGenerating(true);
     try {
-      const config: AiProviderConfig = { provider: aiProvider, apiKey: aiApiKey };
-      const response = await generateTheme(config, {
-        lyricsText: lyricsText || `No synchronized lyrics are available. Create a stage from the song title and artist: ${currentSong.title} ${songArtist}.`,
-        isPureMusic: Boolean(currentSong.isPureMusic || !currentLyrics?.lines.length),
+      const response = await generateAgnesTheme({
+        lyricsText: lyricsText || `No synchronized lyrics are available. Create a stage from the song title and artist: ${currentSong.title} ${songArtist}`,
+        isPureMusic,
         songTitle: songArtist ? `${currentSong.title} — ${songArtist}` : currentSong.title,
       });
-      if (response?.dark) setGeneratedTheme(response.dark as ThemeConfig);
+      setGeneratedTheme(response[activeTheme]);
     } catch (error) {
-      console.error('Failed to generate stage theme:', error);
-      setGenerationError(error instanceof Error ? error.message : '舞台暫時無法生成，請稍後再試。');
+      console.error('Failed to generate Agnes theme:', error);
+      setGenerationError(error instanceof Error ? error.message : 'Agnes AI 主題生成失敗，請稍後再試。');
     } finally {
       setIsGenerating(false);
     }
@@ -77,6 +97,12 @@ export default function Settings() {
       setCopyFeedback('這個瀏覽器無法直接複製；請在支援剪貼簿權限的瀏覽器重試。');
     }
   };
+
+  const agnesStatusLabel = agnesStatus === 'configured'
+    ? 'Agnes AI 已就緒'
+    : agnesStatus === 'missing'
+      ? 'Agnes AI 尚未設定金鑰'
+      : '暫時無法確認 Agnes AI 狀態';
 
   return (
     <div className="settings-page min-h-screen bg-[#07090e] pb-24 font-sans text-white selection:bg-[#62f5c4] selection:text-black">
@@ -144,26 +170,26 @@ export default function Settings() {
             )}
 
             <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/15 p-4">
-              <span><span className="block text-sm font-bold text-white">使用生成的舞台配色</span><span className="mt-0.5 block text-xs text-slate-400">這是選用功能；一般播放不需要啟用。</span></span>
-              <input type="checkbox" checked={aiThemeEnabled} onChange={(event) => enableAiTheme(event.target.checked)} className="h-5 w-5 cursor-pointer rounded accent-[#62f5c4]" />
+              <span><span className="block text-sm font-bold text-white">使用生成的舞台配色</span><span className="mt-0.5 block text-xs text-slate-400">由 Agnes AI 生成；一般播放不需要啟用。</span></span>
+              <input type="checkbox" checked={aiThemeEnabled} onChange={(event) => { enableAiTheme(event.target.checked); setGenerationError(''); }} aria-label="允許 AI 動態生成主題" className="h-5 w-5 cursor-pointer rounded accent-[#62f5c4]" />
             </label>
 
-            <div>
-              <label htmlFor="ai-api-key" className="mb-2 block text-xs font-medium text-slate-300">你的 AI 服務金鑰</label>
-              <input id="ai-api-key" type="password" value={aiApiKey} onChange={(event) => { setAiApiKey(event.target.value); setGenerationError(''); }} placeholder="輸入你的金鑰…" autoComplete="off" aria-describedby="ai-key-privacy" className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-xs text-white outline-none focus:border-[#62f5c4]" />
-              <p id="ai-key-privacy" className="mt-2 text-[11px] leading-5 text-slate-500">金鑰只留在此頁面的記憶體中；生成時才會直接傳送給你選擇的服務商。Echora 不會代管金鑰，也不會把它寫入網址或診斷資料。</p>
-              {aiApiKey ? <button type="button" onClick={() => setAiApiKey('')} className="mt-2 rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-bold text-slate-300 transition hover:bg-white/10">清除目前金鑰</button> : null}
+            <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-white">Agnes AI 主題服務</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">API key 只在 server-side proxy 使用，不會出現在瀏覽器、URL、診斷摘要或 GitHub。</p>
+                </div>
+                <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-bold text-slate-300" role="status" aria-live="polite">
+                  {agnesStatus === 'configured' ? <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5 text-[#62f5c4]" /> : agnesStatus === 'missing' ? <CircleAlert aria-hidden="true" className="h-3.5 w-3.5 text-amber-300" /> : <LoaderCircle aria-hidden="true" className="h-3.5 w-3.5 animate-spin text-slate-400" />}
+                  <span>{agnesStatusLabel}</span>
+                </div>
+              </div>
+              {agnesStatus !== 'configured' ? <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><p className="text-[11px] leading-5 text-slate-400">{agnesStatus === 'missing' ? '請由部署管理者在 Vercel 設定 AGNES_API_KEY 後重新部署。' : '請確認 production API route 已部署，或稍後重試。'}</p><button type="button" onClick={() => void refreshAgnesStatus()} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-bold text-slate-300 transition hover:bg-white/10">重新檢查</button></div> : <p className="mt-3 text-[11px] leading-5 text-slate-400">提示只會包含目前歌曲的歌名、歌詞或純音樂狀態；不會送出私人歌單或本機診斷紀錄。</p>}
             </div>
 
-            <label className="block text-xs font-medium text-slate-300">生成服務
-              <select value={aiProvider} onChange={(event) => setAiProvider(event.target.value as 'gemini' | 'openai')} className="mt-2 w-full rounded-xl border border-white/10 bg-[#111720] px-4 py-2.5 text-xs text-white outline-none focus:border-[#62f5c4]">
-                <option value="gemini">Google Gemini</option>
-                <option value="openai">OpenAI</option>
-              </select>
-            </label>
-
-            <button type="button" onClick={handleGenerateTheme} disabled={isGenerating || !aiApiKey || !currentSong} className="w-full rounded-xl bg-gradient-to-r from-[#62f5c4] to-teal-400 py-3 text-xs font-extrabold text-black shadow-lg transition-all hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40">
-              {isGenerating ? '正在為這首歌設計舞台…' : <><Sparkles aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />生成舞台預覽</>}
+            <button type="button" onClick={() => void handleGenerateTheme()} disabled={isGenerating || !aiThemeEnabled || agnesStatus !== 'configured' || !currentSong} className="w-full rounded-xl bg-gradient-to-r from-[#62f5c4] to-teal-400 py-3 text-xs font-extrabold text-black shadow-lg transition-all hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40">
+              {isGenerating ? <><LoaderCircle aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 animate-spin align-[-3px]" />正在為這首歌設計舞台…</> : <><Sparkles aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />生成 Agnes 舞台預覽</>}
             </button>
             {generationError ? <p className="rounded-xl border border-rose-300/25 bg-rose-300/10 p-3 text-xs leading-5 text-rose-200" role="alert">{generationError}</p> : null}
 

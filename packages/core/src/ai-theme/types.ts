@@ -1,4 +1,4 @@
-// AI Theme types
+// Agnes AI theme types
 import type { ThemeConfig } from '../types';
 export type { ThemeConfig } from '../types';
 
@@ -13,11 +13,15 @@ export interface AiThemeResponse {
   dark: ThemeConfig;
 }
 
-export type AiProvider = 'gemini' | 'openai';
+export type AiProvider = 'agnes';
 
+/**
+ * Provider metadata for integrations that need to label the active AI service.
+ * Secrets are intentionally not part of the client/core contract; Agnes credentials
+ * belong in the server-side runtime environment.
+ */
 export interface AiProviderConfig {
-  provider: AiProvider;
-  apiKey: string;
+  provider: 'agnes';
   apiUrl?: string;
   model?: string;
   temperature?: number;
