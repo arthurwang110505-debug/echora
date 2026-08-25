@@ -57,6 +57,6 @@ describe('Settings AI stage experience', () => {
     expect(markup).toContain('正在設計');
     expect(markup).toContain('Night Signals');
     expect(markup).toContain('會參考目前可用的歌詞與歌曲氛圍');
-    expect(markup).toContain('生成舞台預覽');
+    expect(markup).toContain('生成 Agnes 舞台預覽');
   });
 });

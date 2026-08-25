@@ -26,6 +26,7 @@ export default function Player() {
     currentTime,
     duration,
     playPause,
+    pause,
     next,
     prev,
     seek,
@@ -91,7 +92,8 @@ export default function Player() {
     // Playback must not reset a user-selected Folia renderer. YouTube transport
     // state and visualizer state are independent; only an explicit fallback action
     // may change the active mode.
-    playPause();
+    if (isPlaying) pause();
+    else playPause();
   };
 
   const enterImmersiveStage = async () => {
@@ -574,10 +576,13 @@ export default function Player() {
               <button
                 type="button"
                 onClick={handlePlayPause}
-                className="rounded-xl bg-gradient-to-r from-[#62f5c4] to-teal-400 px-3 py-2 text-xs font-extrabold text-black shadow-lg"
+                className="inline-flex min-w-[4.75rem] items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#62f5c4] to-teal-400 px-3 py-2 text-xs font-extrabold text-black shadow-lg transition hover:brightness-110 active:scale-95"
                 aria-label={isPlaying ? '暫停音訊' : '播放音訊'}
+                aria-pressed={isPlaying}
+                title={isPlaying ? '暫停音訊' : '播放音訊'}
               >
-                {isPlaying ? '暫停' : '播放'}
+                {isPlaying ? <Pause aria-hidden="true" className="h-4 w-4" fill="currentColor" /> : <Play aria-hidden="true" className="h-4 w-4" fill="currentColor" />}
+                <span>{isPlaying ? '暫停' : '播放'}</span>
               </button>
                   <button type="button" onClick={next} className="rounded-xl border border-white/15 bg-black/35 px-2.5 py-2 text-white/80 hover:bg-white/10 hover:text-white" aria-label="下一首"><SkipForward aria-hidden="true" className="h-4 w-4" /></button>
                 </>

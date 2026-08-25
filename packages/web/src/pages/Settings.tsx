@@ -105,8 +105,8 @@ export default function Settings() {
       : '暫時無法確認 Agnes AI 狀態';
 
   return (
-    <div className="settings-page min-h-screen bg-[#07090e] pb-24 font-sans text-white selection:bg-[#62f5c4] selection:text-black">
-      <header className="sticky top-0 z-30 flex items-center border-b border-white/10 bg-[#0d111a]/80 px-6 py-4 backdrop-blur-2xl">
+    <div className="settings-page min-h-screen bg-[#07090e] pb-8 font-sans text-white selection:bg-[#62f5c4] selection:text-black">
+      <header className="sticky top-0 z-30 flex items-center border-b border-white/10 bg-[#0d111a]/90 px-4 py-3 backdrop-blur-2xl sm:px-6 sm:py-4">
         <button type="button" onClick={() => navigate('/')} aria-label="返回探索頁" className="mr-4 rounded-2xl border border-white/10 p-2.5 text-white transition-all hover:bg-white/10 btn-spring">
           <ArrowLeft aria-hidden="true" className="h-5 w-5" strokeWidth={2.5} />
         </button>
@@ -116,7 +116,7 @@ export default function Settings() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl space-y-8 p-6">
+      <main className="mx-auto grid w-full max-w-7xl gap-8 p-4 sm:p-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(19rem,0.85fr)] lg:items-start lg:p-8"><div className="space-y-8">
         <section className="space-y-3">
           <h2 className="font-mono text-xs font-extrabold uppercase tracking-widest text-[#62f5c4]">播放與外觀</h2>
           <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] p-4 glass-card">
@@ -202,6 +202,8 @@ export default function Settings() {
           </div>
         </section>
 
+        </div>
+        <div className="space-y-8 lg:sticky lg:top-24">
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-4"><h2 className="font-mono text-xs font-extrabold uppercase tracking-widest text-[#62f5c4]">連線與隱私</h2><button type="button" onClick={() => { clearDiagnosticEvents(); setDiagnosticEvents([]); setCopyFeedback(''); }} disabled={!diagnosticEvents.length} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-bold text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40">清除紀錄</button></div>
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs text-slate-300 glass-card"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold text-white">本機診斷紀錄</p><p className="mt-1 leading-5 text-slate-400">僅保留在這台裝置最近 30 筆播放與錯誤事件；不含帳號、token、歌名或歌詞，不會傳送至外部服務。</p></div>{diagnosticEvents.length ? <button type="button" onClick={() => void handleCopyDiagnostics()} className="rounded-lg border border-[#62f5c4]/30 bg-[#62f5c4]/10 px-3 py-1.5 text-[11px] font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/20">複製診斷摘要</button> : null}</div>{copyFeedback ? <p className="mt-3 text-[11px] text-[#b8ffe2]" role="status">{copyFeedback}</p> : null}{diagnosticEvents.length ? <ul className="mt-3 space-y-2">{diagnosticEvents.slice(0, 5).map(event => <li key={event.id} className="flex items-center justify-between gap-3 rounded-xl bg-black/20 px-3 py-2"><span className="text-[#b8ffe2]">{getDiagnosticLabel(event.name)}</span><time className="text-slate-500">{new Date(event.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time></li>)}</ul> : <p className="mt-3 text-slate-500">目前沒有可顯示的本機診斷紀錄。</p>}</div>
@@ -214,6 +216,7 @@ export default function Settings() {
             <span className="rounded-xl border border-[#62f5c4]/20 bg-[#62f5c4]/10 px-2.5 py-1 font-bold text-[#62f5c4]">像 App 一樣使用</span>
           </div>
         </section>
+        </div>
       </main>
     </div>
   );

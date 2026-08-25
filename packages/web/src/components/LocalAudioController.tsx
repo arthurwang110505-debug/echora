@@ -25,8 +25,15 @@ export default function LocalAudioController() {
 
     const playAudio = () => {
       const playPromise = audio.play();
-      if (playPromise && typeof playPromise.catch === 'function') {
-        void playPromise.catch(() => setError('本機音檔無法播放，請確認瀏覽器允許播放或稍後再試。'));
+      if (playPromise && typeof playPromise.then === 'function') {
+        void playPromise.then(() => {
+          // A browser may resolve play() without dispatching a second `play`
+          // event when the element was already playing. Keep the transport UI
+          // authoritative in that case so Pause remains available after route changes.
+          if (!audio.paused) usePlayerStore.getState().setLocalPlaybackState('playing', true);
+        }).catch(() => setError('本機音檔無法播放，請確認瀏覽器允許播放或稍後再試。'));
+      } else if (!audio.paused) {
+        usePlayerStore.getState().setLocalPlaybackState('playing', true);
       }
     };
 
@@ -77,6 +84,13 @@ export default function LocalAudioController() {
       store.setLocalTime(getDuration(audio) || audio.currentTime, getDuration(audio));
       store.next();
     };
+    const syncAudioState = () => {
+      const store = usePlayerStore.getState();
+      if (audio.ended) return;
+      if (!audio.paused && !store.isPlaying) {
+        store.setLocalPlaybackState('playing', true);
+      }
+    };
     const onError = () => setError('本機音檔載入失敗，請稍後重試或選擇其他展示曲目。');
 
     window.addEventListener('echora:local-load', onLoad);
@@ -90,6 +104,9 @@ export default function LocalAudioController() {
     audio.addEventListener('waiting', onWaiting);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
+    document.addEventListener('visibilitychange', syncAudioState);
+    window.addEventListener('pageshow', syncAudioState);
+    syncAudioState();
 
     return () => {
       window.removeEventListener('echora:local-load', onLoad);
@@ -103,6 +120,8 @@ export default function LocalAudioController() {
       audio.removeEventListener('waiting', onWaiting);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
+      document.removeEventListener('visibilitychange', syncAudioState);
+      window.removeEventListener('pageshow', syncAudioState);
       audio.pause();
       audio.removeAttribute('src');
       audio.load();
@@ -112,6 +131,16 @@ export default function LocalAudioController() {
   const currentSong = usePlayerStore(state => state.currentSong);
   const volume = usePlayerStore(state => state.volume);
   const isMuted = usePlayerStore(state => state.isMuted);
+  const isPlaying = usePlayerStore(state => state.isPlaying);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || currentSong?.source !== 'local' || audio.paused || audio.ended || isPlaying) return;
+    // A route restore can leave an already-playing element behind while the
+    // store is still paused. Reconcile from the media element before drawing
+    // a Play control that would issue another play request.
+    usePlayerStore.getState().setLocalPlaybackState('playing', true);
+  }, [currentSong?.audioUrl, currentSong?.id, currentSong?.source, isPlaying]);
 
   useEffect(() => {
     const audio = audioRef.current;

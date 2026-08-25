@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter, Outlet, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, Outlet, RouterProvider, useLocation } from 'react-router-dom';
 import { PlayerProvider } from './contexts/PlayerContext';
 import { ThemeProvider } from './contexts/ThemeProvider';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
@@ -18,7 +18,10 @@ function RouteLoader() {
 }
 
 function AppShell() {
-  return <><Outlet /><PersistentMiniPlayer /></>;
+  const location = useLocation();
+  const showPersistentMiniPlayer = location.pathname !== '/settings';
+
+  return <><Outlet />{showPersistentMiniPlayer ? <PersistentMiniPlayer /> : null}</>;
 }
 
 const router = createBrowserRouter([

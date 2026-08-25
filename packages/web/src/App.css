@@ -74,9 +74,10 @@
 
 /* Settings page styles */
 .settings-page {
-  padding: 16px;
-  max-width: 600px;
-  margin: 0 auto;
+  width: 100%;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
 }
 
 .setting-group {

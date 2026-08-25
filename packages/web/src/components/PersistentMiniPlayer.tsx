@@ -6,10 +6,11 @@ import { CoverImage } from './LoadingSkeletons';
 export default function PersistentMiniPlayer() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentSong, isPlaying, playPause, favoriteSongs, toggleFavoriteSong } = usePlayer();
+  const { currentSong, isPlaying, playPause, pause, favoriteSongs, toggleFavoriteSong } = usePlayer();
 
   const isPlayerRoute = location.pathname === '/player' || location.pathname.startsWith('/oauth/');
-  if (!currentSong || isPlayerRoute) return null;
+  const isSettingsRoute = location.pathname === '/settings' || location.pathname.startsWith('/settings/');
+  if (!currentSong || isPlayerRoute || isSettingsRoute) return null;
 
   const artist = typeof currentSong.artists[0] === 'string'
     ? currentSong.artists[0]
@@ -34,8 +35,9 @@ export default function PersistentMiniPlayer() {
       </button>
       <button
         type="button"
-        onClick={playPause}
+        onClick={() => { if (isPlaying) pause(); else playPause(); }}
         aria-label={isPlaying ? '暫停播放' : '繼續播放'}
+        title={isPlaying ? '暫停播放' : '繼續播放'}
         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#62f5c4] text-black shadow-[0_0_18px_rgba(98,245,196,0.25)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#62f5c4] active:scale-90 ${isPlaying ? 'playing-pulse-glow' : ''}`}
       >
         {isPlaying ? <Pause aria-hidden="true" className="h-4 w-4" fill="currentColor" /> : <Play aria-hidden="true" className="h-4 w-4" fill="currentColor" />}

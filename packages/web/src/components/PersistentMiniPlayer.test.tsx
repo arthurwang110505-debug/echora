@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   pathname: '/',
   navigate: vi.fn(),
   playPause: vi.fn(),
+  pause: vi.fn(),
   toggleFavoriteSong: vi.fn(),
 }));
 
@@ -64,6 +65,14 @@ describe('PersistentMiniPlayer', () => {
     mocks.isPlaying = false;
     mocks.favoriteSongs = [];
     mocks.pathname = '/player';
+
+    expect(renderToStaticMarkup(<PersistentMiniPlayer />)).toBe('');
+  });
+
+  it('stays hidden while Settings is open', () => {
+    mocks.currentSong = song;
+    mocks.isPlaying = true;
+    mocks.pathname = '/settings';
 
     expect(renderToStaticMarkup(<PersistentMiniPlayer />)).toBe('');
   });
