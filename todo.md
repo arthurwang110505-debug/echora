@@ -114,4 +114,4 @@
 - [x] ECHORA-P1-03：將安裝入口改為自然的「像 App 一樣使用 Echora／加到主畫面」文案，保留現有 PWA manifest、service worker 與安裝流程。
 - [x] ECHORA-P2-01：補齊首頁與設定頁的可及性文案、空狀態與載入／生成回饋，避免技術詞彙成為一般使用者的主要阻力。
 - [x] ECHORA-VERIFY-01：完成變更範圍的測試、TypeScript、lint、production build，以及桌面與 390px 行動版首頁、播放器、音樂庫與設定頁驗證；確認 Folia attribution、播放器、服務來源、歌詞與 PWA 沒有回歸。
-- [ ] ECHORA-DELIVERY-01：檢視差異後以描述性 conventional commit 推送至確認的 GitHub 分支；不部署到外部平台，除非使用者明確提出。
+- [x] ECHORA-DELIVERY-01：檢視差異後以描述性 conventional commit 推送至確認的 GitHub 分支；不部署到外部平台，除非使用者明確提出。
