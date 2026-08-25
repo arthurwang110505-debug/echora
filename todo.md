@@ -125,4 +125,4 @@
 - [x] ECHORA-MOBILE-P1-01：保持既有 Mobile Header 的品牌、Connect 與 Settings 優先順序，避免額外狀態壓過 Echora 品牌。
 - [x] ECHORA-MOBILE-P1-02：更新首頁載入骨架，使其高度與內容密度對齊縮短後的 Hero 與簡化流程提示。
 - [x] ECHORA-MOBILE-VERIFY-01：完成新增或更新的行為測試、TypeScript、lint、production build，以及 375px、390px、430px、768px、1440px 的首頁與持久迷你播放器視覺驗證；確認無水平溢出、裁切、modal 溢出或 safe-area 遮擋。
-- [ ] ECHORA-MOBILE-DELIVERY-01：檢視差異後以描述性 conventional commit 推送 `master`，並驗證既有 Vercel production 網址確實服務相同 commit。
+- [x] ECHORA-MOBILE-DELIVERY-01：檢視差異後以描述性 conventional commit 推送 `master`，並驗證既有 Vercel production 網址確實服務相同 commit。
