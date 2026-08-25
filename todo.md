@@ -104,3 +104,14 @@
 - [x] FOLIA-005：播放器、設定頁、骨架與首頁／輪播等使用者可見 icon 全面改用 Lucide React，不留 emoji icon。
 - [x] FOLIA-006：細分五首本地展示音檔的展示轉錄歌詞時間段與 word timings，補同步邊界／時間軸回歸測試，並保持非官方歌詞透明標示。
 - [x] FOLIA-007：完成 desktop、390×844、393×852 與橫向窄高舞台 browser smoke，通過 release gate、GitHub master push 與 Vercel production 驗證。
+
+## Stage-first product experience refinement
+- [x] ECHORA-P0-01：首頁預設以可立即播放的本機展示曲目作為第一個互動，讓未登入使用者一鍵進入歌詞舞台；服務來源與 OAuth 僅在使用者需要播放自己的音樂時出現。
+- [x] ECHORA-P0-02：重整首頁資訊層級與行動版觸控流程，以「選歌 → 播放 → 進入 Stage」取代來源／技術設定的前置決策，並保留 YouTube、Spotify 與本機曲目的既有行為。
+- [x] ECHORA-P0-03：將播放器的 Stage 入口與沉浸模式表達為核心體驗，預設保留歌曲資訊、傳輸控制與歌詞／Stage 操作；既有校正、視覺器與進階調校持續收納於次層設定。
+- [x] ECHORA-P1-01：將音樂庫重整為「最近播放、收藏、我的歌單」優先的音樂 App 資訊層級，將同步、來源與本機保存資訊降至次要描述，並維持既有同步與錯誤回復流程。
+- [x] ECHORA-P1-02：將 AI 主題功能改為「為這首歌生成舞台」的歌曲情境流程，使用目前歌曲與已取得歌詞作為輸入；保留 BYOK、Gemini／OpenAI 選擇與不持久化金鑰的既有安全邊界。
+- [x] ECHORA-P1-03：將安裝入口改為自然的「像 App 一樣使用 Echora／加到主畫面」文案，保留現有 PWA manifest、service worker 與安裝流程。
+- [x] ECHORA-P2-01：補齊首頁與設定頁的可及性文案、空狀態與載入／生成回饋，避免技術詞彙成為一般使用者的主要阻力。
+- [x] ECHORA-VERIFY-01：完成變更範圍的測試、TypeScript、lint、production build，以及桌面與 390px 行動版首頁、播放器、音樂庫與設定頁驗證；確認 Folia attribution、播放器、服務來源、歌詞與 PWA 沒有回歸。
+- [ ] ECHORA-DELIVERY-01：檢視差異後以描述性 conventional commit 推送至確認的 GitHub 分支；不部署到外部平台，除非使用者明確提出。

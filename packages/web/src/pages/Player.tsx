@@ -320,7 +320,7 @@ export default function Player() {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Smartphone aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />雙欄模式
+              <Smartphone aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />播放器
             </button>
             <button
               onClick={() => void enterImmersiveStage()}
@@ -330,7 +330,7 @@ export default function Player() {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Sparkles aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />沉浸舞台
+              <Sparkles aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />進入 Stage
             </button>
           </div>
         </div>
@@ -342,8 +342,8 @@ export default function Player() {
             className="flex items-center gap-2 px-3 md:px-4 py-1.5 rounded-2xl bg-[#62f5c4]/15 border border-[#62f5c4]/30 hover:bg-[#62f5c4]/25 text-[#62f5c4] text-xs font-bold transition-all btn-spring"
           >
             <span className={`w-2 h-2 rounded-full ${(activeSource === 'spotify' ? spotifyConnected : youtubeConnected) ? 'bg-[#62f5c4] shadow-[0_0_8px_#62f5c4]' : 'bg-slate-500'} `} />
-            <span className="hidden sm:inline">{activeSource === 'spotify' ? (spotifyConnected ? 'Spotify 已連線' : '連線 Spotify') : (youtubeConnected ? 'YouTube 已連線' : '連線 YouTube')}</span>
-            <span className="sm:hidden">{activeSource === 'spotify' ? (spotifyConnected ? 'Spotify' : '連線') : (youtubeConnected ? 'YouTube' : '連線')}</span>
+            <span className="hidden sm:inline">{activeSource === 'spotify' ? (spotifyConnected ? 'Spotify 已連線' : '我的音樂') : (youtubeConnected ? 'YouTube 已連線' : '我的音樂')}</span>
+            <span className="sm:hidden">{activeSource === 'spotify' ? (spotifyConnected ? 'Spotify' : '音樂') : (youtubeConnected ? 'YouTube' : '音樂')}</span>
           </button>
 
           {displayMode === 'full' && (
@@ -569,14 +569,18 @@ export default function Player() {
                 <ArrowLeft aria-hidden="true" className="h-4 w-4" />歌單
               </button>
               {(currentSong.source === 'ytmusic' || currentSong.source === 'local') && (
-                <button
-                  type="button"
-                  onClick={handlePlayPause}
-                  className="rounded-xl bg-gradient-to-r from-[#62f5c4] to-teal-400 px-3 py-2 text-xs font-extrabold text-black shadow-lg"
-                  aria-label={isPlaying ? '暫停音訊' : '播放音訊'}
-                >
-                  {isPlaying ? '暫停' : '播放'}
-                </button>
+                <>
+                  <button type="button" onClick={prev} className="rounded-xl border border-white/15 bg-black/35 px-2.5 py-2 text-white/80 hover:bg-white/10 hover:text-white" aria-label="上一首"><SkipBack aria-hidden="true" className="h-4 w-4" /></button>
+              <button
+                type="button"
+                onClick={handlePlayPause}
+                className="rounded-xl bg-gradient-to-r from-[#62f5c4] to-teal-400 px-3 py-2 text-xs font-extrabold text-black shadow-lg"
+                aria-label={isPlaying ? '暫停音訊' : '播放音訊'}
+              >
+                {isPlaying ? '暫停' : '播放'}
+              </button>
+                  <button type="button" onClick={next} className="rounded-xl border border-white/15 bg-black/35 px-2.5 py-2 text-white/80 hover:bg-white/10 hover:text-white" aria-label="下一首"><SkipForward aria-hidden="true" className="h-4 w-4" /></button>
+                </>
               )}
               <div ref={stageSettingsRef} className="relative">
                 <button
@@ -693,7 +697,8 @@ export default function Player() {
               <div className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-2 md:w-auto">
                 <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">目前舞台</p><p className="text-xs font-extrabold text-[#b8ffe2]">{activeVisualizer}</p></div>
                 <div className="flex items-center gap-1.5">
-                  <button type="button" onClick={() => setShowCalibration(value => !value)} className={`shrink-0 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${showCalibration ? 'border-[#62f5c4]/50 bg-[#62f5c4]/20 text-[#62f5c4]' : 'border-white/10 bg-white/[0.05] text-slate-300 hover:text-white'}`} aria-expanded={showCalibration} aria-controls="desktop-calibration">校正與設定</button>
+                  <button type="button" onClick={() => void enterImmersiveStage()} className="shrink-0 rounded-xl bg-[#62f5c4] px-3 py-2 text-xs font-extrabold text-black transition hover:brightness-110">Stage</button>
+                  <button type="button" onClick={() => setShowCalibration(value => !value)} className={`shrink-0 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${showCalibration ? 'border-[#62f5c4]/50 bg-[#62f5c4]/20 text-[#62f5c4]' : 'border-white/10 bg-white/[0.05] text-slate-300 hover:text-white'}`} aria-expanded={showCalibration} aria-controls="desktop-calibration">更多</button>
                 </div>
               </div>
 

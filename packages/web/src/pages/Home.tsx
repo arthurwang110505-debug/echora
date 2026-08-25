@@ -150,10 +150,10 @@ export default function Home() {
   const heroContent = activeSource === 'ytmusic'
     ? youtubeConnected
       ? { eyebrow: '你的 YouTube Music', title: '從你的歌單，', accent: '開啟自己的光。', description: '你的私人歌單已可與音樂庫及播放器共用。選一首歌後，使用 YouTube 原生播放與同步歌詞舞台。', primary: currentSong ? '返回播放舞台' : '開啟我的音樂庫', secondary: '同步我的音樂庫' }
-      : { eyebrow: '先體驗 Echora 舞台', title: '讓每一首歌，', accent: '都成為一座舞台。', description: '先用展示曲目體驗動態歌詞、視覺舞台與播放控制；喜歡後再連接 YouTube Music 讀取私人歌單。', primary: '探索 Echora 舞台', secondary: '同步你的音樂庫' }
+      : { eyebrow: '先體驗 Echora 舞台', title: '讓每一首歌，', accent: '都成為一座舞台。', description: '先用展示曲目體驗動態歌詞、視覺舞台與播放控制；喜歡後再連接 YouTube Music 讀取私人歌單。', primary: '立即播放展示曲目', secondary: '播放自己的音樂' }
     : activeSource === 'spotify'
-      ? { eyebrow: 'Spotify 尚未啟用', title: 'Spotify 正在準備中，', accent: '請先選擇可用來源。', description: '目前尚未設定 Spotify 開發者權限，因此不能登入或播放；這不是播放故障。', primary: '探索可用來源', secondary: '查看連線方式' }
-      : { eyebrow: 'Echora 本機展示', title: '讓每一首歌，', accent: '都成為一座舞台。', description: '五首免版稅本機音檔已準備好；不需登入或依賴 YouTube Music，就能先體驗真實播放、舞台視覺與播放控制。', primary: '探索 Echora 舞台', secondary: '同步你的音樂庫' };
+      ? { eyebrow: 'Spotify 尚未啟用', title: 'Spotify 正在準備中，', accent: '請先選擇可用來源。', description: '目前尚未設定 Spotify 開發者權限，因此不能登入或播放；這不是播放故障。', primary: '先體驗展示舞台', secondary: '查看連線方式' }
+      : { eyebrow: 'Echora 本機展示', title: '讓每一首歌，', accent: '都成為一座舞台。', description: '五首免版稅本機音檔已準備好；不需登入或依賴 YouTube Music，就能先體驗真實播放、舞台視覺與播放控制。', primary: '立即播放展示曲目', secondary: '播放自己的音樂' };
 
   const handleHeroPrimary = () => {
     if (currentSong) { navigate('/player'); return; }
@@ -216,7 +216,7 @@ export default function Home() {
 
           <div className="flex items-center gap-2">
             {youtubeConnected && youtubeProfile && <div className="hidden items-center gap-2 rounded-full border border-[#ff3d57]/30 bg-[#ff3d57]/10 px-2 py-1 sm:flex"><span className="relative"><img src={youtubeProfile.avatarUrl} alt="YouTube 頭像" className="h-7 w-7 rounded-full object-cover" /><span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 animate-pulse rounded-full bg-emerald-400 ring-2 ring-[#111720]" /></span><span className="max-w-24 truncate text-[11px] font-bold text-white">{youtubeProfile.name}</span></div>}
-            {deferredPrompt && (youtubeConnected || spotifyConnected) && <button type="button" onClick={handleInstall} className="hidden rounded-xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-3 py-2 text-xs font-bold text-[#62f5c4] transition hover:bg-[#62f5c4]/20 sm:block">安裝 Echora</button>}
+            {deferredPrompt && <button type="button" onClick={handleInstall} className="hidden rounded-xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-3 py-2 text-xs font-bold text-[#62f5c4] transition hover:bg-[#62f5c4]/20 sm:block">加到主畫面</button>}
             <button type="button" onClick={() => setShowConnectModal(true)} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-slate-200 transition hover:border-[#62f5c4]/40 hover:bg-[#62f5c4]/10 hover:text-[#62f5c4] sm:px-4 active:scale-95">
               <span className={`h-2 w-2 rounded-full ${sourceIsConnected ? 'bg-emerald-400 shadow-[0_0_9px_#34d399]' : 'bg-slate-500'}`} />
               <span className="hidden sm:inline">{connectLabel}</span><span className="sm:hidden">接入</span>
@@ -251,10 +251,10 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="grid gap-3 sm:grid-cols-3">
-          <Stat label="視覺模式" value="07" detail="Signature scenes" />
-          <Stat label="歌詞格式" value="06+" detail="LRC / YRC / VTT" />
-          <Stat label="裝置支援" value="∞" detail="手機 · iPad · 桌面" />
+        <section className="grid gap-3 sm:grid-cols-3" aria-label="Echora 舞台體驗">
+          <StagePromise label="1. 選一首歌" detail="先從免登入展示曲目開始" />
+          <StagePromise label="2. 按下播放" detail="歌詞、視覺與節奏隨即啟動" />
+          <StagePromise label="3. 進入 Stage" detail="需要時再連接你的音樂服務" />
         </section>
 
         <section id="explore-library" className="space-y-6">
@@ -266,7 +266,7 @@ export default function Home() {
 
             <div className="flex flex-wrap items-end gap-3">
               {/* Source Switcher */}
-              <div className="space-y-1"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">1. 選擇內容來源</p><div className="flex w-fit rounded-2xl border border-white/10 bg-white/[0.04] p-1 backdrop-blur-md">
+              <div className="space-y-1"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">想播放自己的音樂？</p><div className="flex w-fit rounded-2xl border border-white/10 bg-white/[0.04] p-1 backdrop-blur-md">
                 {sources.map(source => (
                   <button
                     type="button"
@@ -288,7 +288,7 @@ export default function Home() {
               </div></div>
 
               {/* 3D Carousel vs Grid Toggle */}
-              <div className="space-y-1"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">2. 選擇瀏覽方式</p><div className="flex rounded-2xl border border-white/10 bg-white/[0.04] p-1 backdrop-blur-md">
+              <div className="space-y-1"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">瀏覽方式</p><div className="flex rounded-2xl border border-white/10 bg-white/[0.04] p-1 backdrop-blur-md">
                 <button
                   type="button"
                   onClick={() => requestViewMode('3d')}
@@ -490,16 +490,11 @@ export default function Home() {
   );
 }
 
-function Stat({ label, value, detail }: { label: string; value: string; detail: string }) {
+function StagePromise({ label, detail }: { label: string; detail: string }) {
   return (
     <div className="rounded-2xl border border-white/[0.07] bg-white/[0.035] px-5 py-4">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600">{label}</p>
-          <p className="mt-1 font-heading text-2xl font-extrabold text-white">{value}</p>
-        </div>
-        <p className="text-right text-[10px] font-medium text-slate-600">{detail}</p>
-      </div>
+      <p className="text-sm font-extrabold text-white">{label}</p>
+      <p className="mt-1 text-xs leading-5 text-slate-500">{detail}</p>
     </div>
   );
 }
