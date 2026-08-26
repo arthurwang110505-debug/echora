@@ -155,4 +155,4 @@
 - [x] REC-P2-01：縮短 mobile 首屏到可選歌曲／展示曲目的 discovery path，保留 hero 與主要 CTA hierarchy。
 - [x] REC-P2-02：不可用來源以清楚且一致的 disabled／說明模式呈現，避免干擾可用來源。
 - [x] REC-P2-03：建立效能與 failure recovery 驗證，並避免不必要的 Stage runtime 早期載入；補足 audio／service worker／API 失敗提示。
-- [ ] REC-RELEASE：完成 tests、typecheck、lint、build、browser screenshots、GitHub master push 與 Vercel production verification。
+- [x] REC-RELEASE：完成 tests、typecheck、lint、build、browser screenshots、GitHub master push 與 Vercel production verification。
