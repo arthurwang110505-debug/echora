@@ -145,4 +145,4 @@
 - [x] UI-004：從 Settings 移除本機診斷紀錄整個 UI 區塊，避免佔用設定頁主要垂直空間；保留其他設定功能不受影響。
 - [x] UI-005：Settings 不顯示任何特定 AI 供應商名稱、專屬金鑰名稱或供應商品牌文案，改用中性的 AI 主題服務描述。
 - [x] UI-006：將「像 App 一樣使用」改為顯示目前產品版本 `vX.Y.Z`，來源與 web package version 一致。
-- [ ] UI-007：完成 Settings mobile／iPad／desktop screenshot smoke、tests、typecheck、lint、build、GitHub push 與 Vercel production verification。
+- [x] UI-007：完成 Settings mobile／iPad／desktop screenshot smoke、tests、typecheck、lint、build、GitHub push 與 Vercel production verification。
