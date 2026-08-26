@@ -294,7 +294,7 @@ export default function Player() {
       </div>
 
       {/* Top Navigation Header */}
-      <header className={`relative z-20 items-center justify-between px-5 md:px-8 py-3.5 glass-panel border-b border-white/[0.08] ${displayMode === 'stage' ? 'hidden' : 'flex'}`}>
+      <header aria-hidden={displayMode === 'stage'} className={`relative z-20 items-center justify-between px-5 md:px-8 py-3.5 glass-panel border-b border-white/[0.08] ${displayMode === 'stage' ? 'hidden' : 'flex'}`}>
         <div className="flex items-center gap-3 md:gap-5">
           <button
             onClick={() => navigate('/')}
@@ -390,7 +390,7 @@ export default function Player() {
                 <button
                   type="button"
                   onClick={() => setShowPlaylistDrawer(false)}
-                  className="rounded-xl border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-slate-300 transition hover:bg-white/10 hover:text-white"
+                  className="min-h-11 min-w-11 rounded-xl border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-slate-300 transition hover:bg-white/10 hover:text-white"
                   aria-label="關閉歌單面板"
                 >
                   <X aria-hidden="true" className="h-4 w-4" />
@@ -401,11 +401,14 @@ export default function Player() {
               <div className="flex rounded-2xl border border-white/10 bg-white/[0.05] p-1">
                 {(['spotify', 'ytmusic', 'local'] as const).map(src => (
                   <button
+                    type="button"
                     key={src}
                     onClick={() => setActiveSource(src)}
                     disabled={src === 'spotify' && !spotifyAvailable}
+                    aria-label={`切換來源至 ${src === 'spotify' ? 'Spotify' : src === 'ytmusic' ? 'YouTube Music' : '本機展示'}`}
                     title={src === 'spotify' && !spotifyAvailable ? 'Spotify 尚未啟用，無法作為播放來源' : undefined}
-                    className={`min-w-0 flex-1 rounded-xl py-2 text-xs font-bold transition-all duration-200 btn-spring disabled:cursor-not-allowed disabled:opacity-50 ${
+                    aria-pressed={activeSource === src}
+                    className={`min-h-11 min-w-0 flex-1 rounded-xl py-2 text-xs font-bold transition-all duration-200 btn-spring disabled:cursor-not-allowed disabled:opacity-50 ${
                       activeSource === src
                         ? 'bg-gradient-to-r from-[#62f5c4] to-teal-400 text-black shadow-md'
                         : 'text-slate-400 hover:text-white'
@@ -422,13 +425,14 @@ export default function Player() {
                   <div className="space-y-1.5">
                     {playlist.map((songItem: Song) => {
                       const isItemActive = currentSong.id === songItem.id;
+                      const itemState = isItemActive ? (isPlaying ? '，播放中' : '，目前選取') : '';
                       return (
                         <button
                           type="button"
                           key={songItem.id}
                           onClick={() => { play(songItem, playlist); setShowPlaylistDrawer(false); }}
                           aria-current={isItemActive ? 'true' : undefined}
-                          aria-label={`${songItem.title}，${getSourceLabel(songItem.source)}${isItemActive ? '，目前播放' : ''}`}
+                          aria-label={`${songItem.title}，${getSourceLabel(songItem.source)}${itemState}`}
                           className={`flex w-full min-w-0 items-center gap-3 rounded-2xl border p-2.5 text-left transition-all duration-200 btn-spring ${
                             isItemActive
                               ? 'border-[#62f5c4]/40 bg-[#62f5c4]/15 text-[#62f5c4] shadow-md'
@@ -561,37 +565,39 @@ export default function Player() {
             </Suspense>
           )}
           {displayMode === 'stage' && !showTuning && (
-            <div className="fixed inset-x-0 bottom-0 z-[70] flex items-center justify-center gap-2 border-t border-white/10 bg-[#07090e]/80 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:inset-x-auto sm:right-4 sm:bottom-4 sm:rounded-2xl sm:border sm:p-2">
+            <div className="fixed inset-x-0 bottom-0 z-[70] flex items-center justify-center gap-2 border-t border-white/10 bg-[#07090e]/80 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:inset-x-auto sm:right-4 sm:bottom-4 sm:rounded-2xl sm:border sm:p-2" role="group" aria-label="沉浸播放控制">
+              <span id="immersive-playback-status" className="sr-only" aria-live="polite">{isPlaying ? '目前播放中' : '目前已暫停'}</span>
               <button
                 type="button"
                 onClick={() => void returnToPlaylist()}
-                className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20"
+                className="min-h-11 min-w-11 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20"
                 aria-label="返回歌單選擇頁"
               >
                 <ArrowLeft aria-hidden="true" className="h-4 w-4" />歌單
               </button>
               {(currentSong.source === 'ytmusic' || currentSong.source === 'local') && (
                 <>
-                  <button type="button" onClick={prev} className="rounded-xl border border-white/15 bg-black/35 px-2.5 py-2 text-white/80 hover:bg-white/10 hover:text-white" aria-label="上一首"><SkipBack aria-hidden="true" className="h-4 w-4" /></button>
+                  <button type="button" onClick={prev} className="min-h-11 min-w-11 rounded-xl border border-white/15 bg-black/35 px-2.5 py-2 text-white/80 hover:bg-white/10 hover:text-white" aria-label="上一首"><SkipBack aria-hidden="true" className="h-4 w-4" /></button>
               <button
                 type="button"
                 onClick={handlePlayPause}
-                className="inline-flex min-w-[4.75rem] items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#62f5c4] to-teal-400 px-3 py-2 text-xs font-extrabold text-black shadow-lg transition hover:brightness-110 active:scale-95"
+                className="inline-flex min-h-11 min-w-[4.75rem] items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#62f5c4] to-teal-400 px-3 py-2 text-xs font-extrabold text-black shadow-lg transition hover:brightness-110 active:scale-95"
                 aria-label={isPlaying ? '暫停音訊' : '播放音訊'}
                 aria-pressed={isPlaying}
+                aria-describedby="immersive-playback-status"
                 title={isPlaying ? '暫停音訊' : '播放音訊'}
               >
                 {isPlaying ? <Pause aria-hidden="true" className="h-4 w-4" fill="currentColor" /> : <Play aria-hidden="true" className="h-4 w-4" fill="currentColor" />}
                 <span>{isPlaying ? '暫停' : '播放'}</span>
               </button>
-                  <button type="button" onClick={next} className="rounded-xl border border-white/15 bg-black/35 px-2.5 py-2 text-white/80 hover:bg-white/10 hover:text-white" aria-label="下一首"><SkipForward aria-hidden="true" className="h-4 w-4" /></button>
+                  <button type="button" onClick={next} className="min-h-11 min-w-11 rounded-xl border border-white/15 bg-black/35 px-2.5 py-2 text-white/80 hover:bg-white/10 hover:text-white" aria-label="下一首"><SkipForward aria-hidden="true" className="h-4 w-4" /></button>
                 </>
               )}
               <div ref={stageSettingsRef} className="relative">
                 <button
                   type="button"
                   onClick={() => setShowStageSettings(value => !value)}
-                  className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${showStageSettings ? 'border-[#62f5c4]/45 bg-[#62f5c4]/15 text-[#b8ffe2]' : 'border-white/15 bg-black/35 text-white/80 hover:text-white'}`}
+                  className={`min-h-11 min-w-11 rounded-xl border px-3 py-2 text-xs font-bold transition ${showStageSettings ? 'border-[#62f5c4]/45 bg-[#62f5c4]/15 text-[#b8ffe2]' : 'border-white/15 bg-black/35 text-white/80 hover:text-white'}`}
                   aria-label="開啟沉浸舞台設定"
                   aria-expanded={showStageSettings}
                   aria-controls="immersive-settings"
@@ -620,7 +626,7 @@ export default function Player() {
                         disabled={autoVisualizer}
                         onChange={(event) => { setAutoVisualizer(false); setActiveVisualizer(event.target.value); }}
                         aria-label="選擇舞台動畫"
-                        className="mt-3 w-full rounded-xl border border-white/15 bg-[#0b1218] px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#62f5c4] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="mt-3 min-h-11 w-full rounded-xl border border-white/15 bg-[#0b1218] px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#62f5c4] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {[
                           ['classic', 'Classic'], ['cadenza', 'Cadenza'], ['partita', 'Partita'], ['fume', 'Fume'], ['monet', 'Monet'],
@@ -629,14 +635,14 @@ export default function Player() {
                       </select>
                       <label className="mt-3 flex items-center justify-between gap-3 text-[11px] font-semibold text-slate-300">
                         <span>跟隨音樂自動切換舞台</span>
-                        <input type="checkbox" checked={autoVisualizer} onChange={(event) => setAutoVisualizer(event.target.checked)} className="accent-[#62f5c4]" />
+                        <input type="checkbox" checked={autoVisualizer} onChange={(event) => setAutoVisualizer(event.target.checked)} aria-label="跟隨音樂自動切換舞台" className="h-5 w-5 accent-[#62f5c4]" />
                       </label>
                       <label className="mt-3 block text-[11px] font-semibold text-slate-300">背景效果
-                        <select value={backgroundMode} onChange={(event) => setBackgroundMode(event.target.value)} aria-label="選擇背景效果" className="mt-1.5 w-full rounded-xl border border-white/15 bg-[#0b1218] px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#62f5c4]">
+                        <select value={backgroundMode} onChange={(event) => setBackgroundMode(event.target.value)} aria-label="選擇背景效果" className="mt-1.5 min-h-11 w-full rounded-xl border border-white/15 bg-[#0b1218] px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#62f5c4]">
                           {['latent', 'common', 'fluid', 'monet', 'nomand', 'sora', 'url'].map((value) => <option key={value} value={value}>{value === 'common' ? 'Geometric' : value === 'url' ? 'Image URL' : value[0].toUpperCase() + value.slice(1)}</option>)}
                         </select>
                       </label>
-                      <button type="button" onClick={() => { setShowStageSettings(false); setShowTuning(true); }} className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-white/10">開啟進階舞台調校</button>
+                      <button type="button" onClick={() => { setShowStageSettings(false); setShowTuning(true); }} className="mt-3 min-h-11 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-white/10">開啟進階舞台調校</button>
                     </div>
                     <div className="mt-3 rounded-xl border border-white/10 bg-black/15 px-3 py-2">
                       <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">歌詞狀態</p>
@@ -650,13 +656,13 @@ export default function Player() {
                           <p className="mt-0.5 text-[11px] text-slate-400">每次 {LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒 · 目前 <span className="font-semibold text-[#b8ffe2]">{lyricsOffsetLabel}</span></p>
                         </div>
                         <div className="grid grid-cols-3 gap-1.5">
-                          <button type="button" onClick={() => adjustStageLyricsOffset(-LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/15 bg-white/10 px-2 py-2 text-[11px] font-bold text-white hover:bg-white/20" aria-label={`歌詞提前 ${LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒`}>提前</button>
-                          <button type="button" onClick={() => setLyricsOffsetSeconds(0)} className="rounded-lg border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-2 py-2 text-[11px] font-bold text-[#b8ffe2]" aria-label="重設歌詞同步">同步</button>
-                          <button type="button" onClick={() => adjustStageLyricsOffset(LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/15 bg-white/10 px-2 py-2 text-[11px] font-bold text-white hover:bg-white/20" aria-label={`歌詞延後 ${LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒`}>延後</button>
+                          <button type="button" onClick={() => adjustStageLyricsOffset(-LYRICS_OFFSET_STEP_SECONDS)} className="min-h-11 rounded-lg border border-white/15 bg-white/10 px-2 py-2 text-[11px] font-bold text-white hover:bg-white/20" aria-label={`歌詞提前 ${LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒`}>提前</button>
+                          <button type="button" onClick={() => setLyricsOffsetSeconds(0)} className="min-h-11 rounded-lg border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-2 py-2 text-[11px] font-bold text-[#b8ffe2]" aria-label="重設歌詞同步">同步</button>
+                          <button type="button" onClick={() => adjustStageLyricsOffset(LYRICS_OFFSET_STEP_SECONDS)} className="min-h-11 rounded-lg border border-white/15 bg-white/10 px-2 py-2 text-[11px] font-bold text-white hover:bg-white/20" aria-label={`歌詞延後 ${LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒`}>延後</button>
                         </div>
                       </div>
                     </div>
-                    <button type="button" onClick={() => void leaveImmersiveStage()} className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-white/10">退出全螢幕，回到雙欄</button>
+                    <button type="button" onClick={() => void leaveImmersiveStage()} className="mt-3 min-h-11 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-white/10">退出全螢幕，回到雙欄</button>
                   </div>
                 )}
               </div>
@@ -664,7 +670,8 @@ export default function Player() {
           )}
 
           {/* Bottom controls are intentionally absent in immersive mode. */}
-          <div className={`${displayMode === 'stage' ? 'hidden' : 'block'} z-20 glass-panel p-4 sm:p-5 md:p-6 rounded-3xl border border-white/15 shadow-2xl space-y-3.5`}>
+                      <div aria-hidden={displayMode === 'stage'} className={`${displayMode === 'stage' ? 'hidden' : 'block'} z-20 glass-panel p-4 sm:p-5 md:p-6 rounded-3xl border border-white/15 shadow-2xl space-y-3.5`}>
+
             {/* Interactive Progress Bar */}
             <div className="space-y-1.5">
               <input
@@ -702,32 +709,36 @@ export default function Player() {
               <div className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-2 md:w-auto">
                 <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">目前舞台</p><p className="text-xs font-extrabold text-[#b8ffe2]">{activeVisualizer}</p></div>
                 <div className="flex items-center gap-1.5">
-                  <button type="button" onClick={() => void enterImmersiveStage()} className="shrink-0 rounded-xl bg-[#62f5c4] px-3 py-2 text-xs font-extrabold text-black transition hover:brightness-110">Stage</button>
-                  <button type="button" onClick={() => setShowCalibration(value => !value)} className={`shrink-0 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${showCalibration ? 'border-[#62f5c4]/50 bg-[#62f5c4]/20 text-[#62f5c4]' : 'border-white/10 bg-white/[0.05] text-slate-300 hover:text-white'}`} aria-expanded={showCalibration} aria-controls="desktop-calibration">更多</button>
+                  <button type="button" onClick={() => void enterImmersiveStage()} className="min-h-11 shrink-0 rounded-xl bg-[#62f5c4] px-3 py-2 text-xs font-extrabold text-black transition hover:brightness-110" aria-label="進入沉浸舞台">Stage</button>
+                  <button type="button" onClick={() => setShowCalibration(value => !value)} className={`min-h-11 shrink-0 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${showCalibration ? 'border-[#62f5c4]/50 bg-[#62f5c4]/20 text-[#62f5c4]' : 'border-white/10 bg-white/[0.05] text-slate-300 hover:text-white'}`} aria-expanded={showCalibration} aria-controls="desktop-calibration" aria-label={showCalibration ? '關閉更多播放設定' : '開啟更多播放設定'}>更多</button>
                 </div>
               </div>
 
               {/* Media Controls */}
               <div className="flex items-center gap-5 sm:gap-6">
                 <button
+                  type="button"
                   onClick={prev}
-                  className="p-3 rounded-full hover:bg-white/10 btn-spring text-white text-lg"
+                  className="min-h-11 min-w-11 rounded-full p-3 hover:bg-white/10 btn-spring text-white text-lg"
                   aria-label="上一首"
                 >
                   <SkipBack aria-hidden="true" className="h-5 w-5" />
                 </button>
                 <button
+                  type="button"
                   onClick={handlePlayPause}
-                  className={`p-4 rounded-full bg-gradient-to-r from-[#62f5c4] to-teal-400 text-black shadow-xl hover:scale-105 btn-spring text-xl font-bold ${
+                  className={`min-h-14 min-w-14 rounded-full p-4 bg-gradient-to-r from-[#62f5c4] to-teal-400 text-black shadow-xl hover:scale-105 btn-spring text-xl font-bold ${
                     isPlaying ? 'playing-pulse-glow' : ''
                   }`}
-                  aria-label={isPlaying ? '暫停' : '播放'}
+                  aria-label={isPlaying ? '暫停音訊' : '播放音訊'}
+                  aria-pressed={isPlaying}
                 >
                   {isPlaying ? <Pause aria-hidden="true" className="h-6 w-6" fill="currentColor" /> : <Play aria-hidden="true" className="h-6 w-6" fill="currentColor" />}
                 </button>
                 <button
+                  type="button"
                   onClick={next}
-                  className="p-3 rounded-full hover:bg-white/10 btn-spring text-white text-lg"
+                  className="min-h-11 min-w-11 rounded-full p-3 hover:bg-white/10 btn-spring text-white text-lg"
                   aria-label="下一首"
                 >
                   <SkipForward aria-hidden="true" className="h-5 w-5" />

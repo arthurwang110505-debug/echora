@@ -37,11 +37,11 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
 
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#07090e] p-6 text-slate-100">
-        <section className="w-full max-w-md rounded-3xl border border-white/15 bg-[#111720] p-7 text-center shadow-2xl">
+        <section role="alert" className="w-full max-w-md rounded-3xl border border-white/15 bg-[#111720] p-7 text-center shadow-2xl">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#62f5c4]">Echora recovery</p>
           <h1 className="mt-3 text-2xl font-black text-white">舞台沒有順利載入</h1>
           <p className="mt-3 text-sm leading-6 text-slate-300">這通常是更新中的舊快取或暫時載入失敗所致。你可以安全地重新載入最新版本。</p>
-          <button type="button" onClick={this.recover} className="mt-6 rounded-xl bg-[#62f5c4] px-5 py-3 text-sm font-extrabold text-black transition hover:brightness-110">重新載入最新版</button>
+          <button type="button" onClick={this.recover} className="mt-6 min-h-11 rounded-xl bg-[#62f5c4] px-5 py-3 text-sm font-extrabold text-black transition hover:brightness-110">重新載入最新版</button>
         </section>
       </main>
     );

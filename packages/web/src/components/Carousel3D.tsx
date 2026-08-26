@@ -49,12 +49,15 @@ const CarouselItem: React.FC<CarouselItemProps> = ({
 
   return (
     <motion.div
-      className="absolute cursor-pointer select-none"
+              className="group absolute cursor-pointer select-none outline-none"
+
       initial={false}
-      role="button"
-      tabIndex={isActive ? 0 : -1}
-      aria-label={`${item.title}，${isActive ? '目前選取，按 Enter 播放' : '按 Enter 選取'}`}
-      aria-current={isActive ? 'true' : undefined}
+              role="button"
+        tabIndex={isActive ? 0 : -1}
+        aria-label={`${item.title}，${isActive ? '目前選取，按 Enter 播放' : '按 Enter 選取'}`}
+        aria-current={isActive ? 'true' : undefined}
+        aria-describedby={isActive ? 'carousel-selection-hint' : undefined}
+
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
@@ -188,20 +191,22 @@ export const Carousel3D: React.FC<Carousel3DProps> = ({
     : '';
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full flex flex-col items-center justify-center py-6 select-none overflow-hidden"
-      style={{ perspective: 1100 }}
-      role="group"
-      aria-label="3D 歌曲輪播"
-    >
+          <div
+        ref={containerRef}
+        className="relative w-full flex flex-col items-center justify-center py-6 select-none overflow-hidden"
+        style={{ perspective: 1100 }}
+        role="group"
+        aria-label="3D 歌曲輪播"
+        aria-roledescription="carousel"
+      >
+
       {/* Navigation Arrows */}
       <div className="absolute inset-y-0 left-2 right-2 flex items-center justify-between pointer-events-none z-30">
         <button
           type="button"
           onClick={prevCover}
           disabled={focusedIndex === 0}
-          className="p-3 rounded-full bg-black/40 border border-white/10 text-white backdrop-blur-xl pointer-events-auto hover:bg-white/20 disabled:opacity-20 disabled:cursor-not-allowed transition-all active:scale-90"
+          className="min-h-11 min-w-11 rounded-full p-3 bg-black/40 border border-white/10 text-white backdrop-blur-xl pointer-events-auto hover:bg-white/20 disabled:opacity-20 disabled:cursor-not-allowed transition-all active:scale-90"
           aria-label="前一張專輯"
         >
           <ChevronLeft size={22} />
@@ -210,7 +215,7 @@ export const Carousel3D: React.FC<Carousel3DProps> = ({
           type="button"
           onClick={nextCover}
           disabled={focusedIndex === items.length - 1}
-          className="p-3 rounded-full bg-black/40 border border-white/10 text-white backdrop-blur-xl pointer-events-auto hover:bg-white/20 disabled:opacity-20 disabled:cursor-not-allowed transition-all active:scale-90"
+          className="min-h-11 min-w-11 rounded-full p-3 bg-black/40 border border-white/10 text-white backdrop-blur-xl pointer-events-auto hover:bg-white/20 disabled:opacity-20 disabled:cursor-not-allowed transition-all active:scale-90"
           aria-label="後一張專輯"
         >
           <ChevronRight size={22} />
@@ -256,6 +261,8 @@ export const Carousel3D: React.FC<Carousel3DProps> = ({
         })}
       </div>
 
+      <p id="carousel-selection-hint" className="sr-only" aria-live="polite">目前選取第 {focusedIndex + 1} 首，共 {items.length} 首；按 Enter 播放，方向鍵切換歌曲。</p>
+
       {/* Focused Song Details with AnimatePresence */}
       <AnimatePresence mode="wait">
         {currentSong && (
@@ -277,7 +284,7 @@ export const Carousel3D: React.FC<Carousel3DProps> = ({
               <button
                 type="button"
                 onClick={() => onSelect(currentSong)}
-                className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#62f5c4] to-teal-400 text-black text-xs font-black shadow-[0_0_20px_rgba(98,245,196,0.35)] hover:brightness-110 active:scale-95 transition-all"
+                className="min-h-11 px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#62f5c4] to-teal-400 text-black text-xs font-black shadow-[0_0_20px_rgba(98,245,196,0.35)] hover:brightness-110 active:scale-95 transition-all"
               >
                 立即播放舞台 <ArrowRight aria-hidden="true" className="ml-1.5 inline-block h-3.5 w-3.5 align-[-2px]" />
               </button>

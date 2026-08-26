@@ -146,3 +146,13 @@
 - [x] UI-005：Settings 不顯示任何特定 AI 供應商名稱、專屬金鑰名稱或供應商品牌文案，改用中性的 AI 主題服務描述。
 - [x] UI-006：將「像 App 一樣使用」改為顯示目前產品版本 `vX.Y.Z`，來源與 web package version 一致。
 - [x] UI-007：完成 Settings mobile／iPad／desktop screenshot smoke、tests、typecheck、lint、build、GitHub push 與 Vercel production verification。
+
+## Quality scan implementation follow-up
+- [x] REC-P1-01：來源切換與搜尋 query 狀態一致；切換來源後不產生無法理解的舊 query＋新來源混合結果，且可清楚恢復。
+- [x] REC-P1-02：Library 將未連線的個人歌單與本機展示／這台裝置內容清楚分層，未登入首屏仍可理解可做的事。
+- [x] REC-P1-03：Stage accessibility tree 只保留 active transport；inactive player-shell controls 不可重複取得 focus，播放狀態與 aria 資訊一致。
+- [x] REC-P1-04：Stage、source、view、search、Settings 等主要互動控制符合 touch target、focus ring 與 safe-area 基線。
+- [x] REC-P2-01：縮短 mobile 首屏到可選歌曲／展示曲目的 discovery path，保留 hero 與主要 CTA hierarchy。
+- [x] REC-P2-02：不可用來源以清楚且一致的 disabled／說明模式呈現，避免干擾可用來源。
+- [x] REC-P2-03：建立效能與 failure recovery 驗證，並避免不必要的 Stage runtime 早期載入；補足 audio／service worker／API 失敗提示。
+- [ ] REC-RELEASE：完成 tests、typecheck、lint、build、browser screenshots、GitHub master push 與 Vercel production verification。
