@@ -13,7 +13,6 @@ export default function Library() {
     youtubeConnectionState,
     youtubeProfile,
     userPlaylists,
-    recentSongs,
     favoriteSongs,
     isSyncingLibrary,
     libraryError,
@@ -42,9 +41,6 @@ export default function Library() {
   const syncLabel = lastLibrarySyncAt
     ? `上次同步：${new Intl.DateTimeFormat('zh-TW', { hour: '2-digit', minute: '2-digit' }).format(lastLibrarySyncAt)}`
     : '尚未同步';
-  const favoriteKeys = new Set(favoriteSongs.map(song => `${song.source}-${song.id}`));
-  const recentOnlySongs = recentSongs.filter(song => !favoriteKeys.has(`${song.source}-${song.id}`));
-  const hiddenRecentCount = recentSongs.length - recentOnlySongs.length;
 
   return (
     <div className="min-h-screen bg-[#07090e] pb-[calc(8rem+env(safe-area-inset-bottom))] font-sans text-white selection:bg-[#62f5c4] selection:text-black sm:pb-32">
@@ -58,7 +54,7 @@ export default function Library() {
           >
             <ArrowLeft aria-hidden="true" className="h-5 w-5" strokeWidth={2.5} />
           </button>
-          <div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#62f5c4] via-teal-400 to-indigo-500 text-xs font-black text-black shadow-[0_0_12px_rgba(98,245,196,0.3)]">E</span><div><h1 className="font-heading text-lg font-extrabold text-white">我的音樂庫</h1><p className="text-[10px] font-semibold text-slate-500">最近播放、收藏與你的歌單</p></div></div>
+          <div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#62f5c4] via-teal-400 to-indigo-500 text-xs font-black text-black shadow-[0_0_12px_rgba(98,245,196,0.3)]">E</span><div><h1 className="font-heading text-lg font-extrabold text-white">我的音樂庫</h1><p className="text-[10px] font-semibold text-slate-500">收藏與你的歌單</p></div></div>
         </div>
         {youtubeConnected && <button type="button" onClick={() => void loadSourcePlaylists()} disabled={isSyncingLibrary} className="rounded-xl border border-[#62f5c4]/30 bg-[#62f5c4]/10 px-3 py-2 text-xs font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/20 disabled:cursor-wait disabled:opacity-60">{isSyncingLibrary ? '同步中…' : '重新同步'}</button>}
       </header>
@@ -77,7 +73,7 @@ export default function Library() {
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-200">尚未連線</p>
                 <h2 id="library-connect-heading" className="mt-1 text-lg font-extrabold text-white">把你的音樂帶進舞台</h2>
-                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">你可以先探索本機展示曲目；最近播放與收藏會留在這台裝置。連線後，個人歌單才會出現在下方。</p>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">你可以先探索本機展示曲目；收藏會留在這台裝置。連線後，個人歌單才會出現在下方。</p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
                 <button type="button" onClick={() => navigate('/?source=local#explore-library')} className="min-h-11 rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3 text-xs font-extrabold text-white transition hover:bg-white/10">先探索本機展示</button>
@@ -106,8 +102,7 @@ export default function Library() {
           </div>
         </section>
 
-        {recentSongs.length ? <section aria-labelledby="recent-heading"><div className="mb-4"><div className="flex flex-wrap items-center gap-2"><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#F9F871]">Continue listening</p><span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-bold text-slate-400">這台裝置</span></div><h2 id="recent-heading" className="mt-1 text-2xl font-extrabold text-white">最近播放</h2><p className="mt-1 text-xs text-slate-500">只顯示這台裝置最近聽過的歌曲；個人歌單請查看上方「我的歌單」。</p></div>{recentOnlySongs.length ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{recentOnlySongs.map(song => <button key={`${song.source}-${song.id}`} type="button" onClick={() => { play(song, recentOnlySongs); navigate('/player'); }} className="flex min-h-18 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3 text-left transition hover:border-[#62f5c4]/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F9F871]"><img src={song.coverUrl || createCoverPlaceholder(song.title, 'artist')} alt="" className="h-12 w-12 rounded-xl object-cover" /><span className="min-w-0"><span className="block truncate text-sm font-bold text-white">{song.title}</span><span className="block truncate text-xs text-slate-500">{typeof song.artists[0] === 'string' ? song.artists[0] : song.artists[0]?.name || 'Unknown artist'}</span></span></button>)}</div> : <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-4 text-sm text-slate-400">{hiddenRecentCount ? '最近播放的曲目已在收藏區塊保留。' : '尚未有最近播放紀錄。'}</div>}</section> : null}
-        {favoriteSongs.length ? <section><div className="mb-4"><div className="flex flex-wrap items-center gap-2"><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#F9F871]">Your collection</p><span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-bold text-slate-400">為你保留</span></div><h2 className="mt-1 text-2xl font-extrabold text-white">收藏曲目</h2><p className="mt-1 text-xs text-slate-500">把想再聽的歌留在這裡；若也剛播放過，會以標籤註記。</p></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{favoriteSongs.map(song => <div key={`favorite-${song.source}-${song.id}`} className="flex items-center gap-3 rounded-2xl border border-[#F9F871]/15 bg-[#F9F871]/[0.035] p-3"><button type="button" onClick={() => { play(song, favoriteSongs); navigate('/player'); }} className="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F9F871]"><img src={song.coverUrl || createCoverPlaceholder(song.title, 'artist')} alt="" className="h-12 w-12 rounded-xl object-cover" /><span className="min-w-0"><span className="flex items-center gap-2"><span className="truncate text-sm font-bold text-white">{song.title}</span>{recentSongs.some(item => item.source === song.source && item.id === song.id) ? <span className="shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-bold text-slate-300">最近播放</span> : null}</span><span className="block truncate text-xs text-slate-500">{typeof song.artists[0] === 'string' ? song.artists[0] : song.artists[0]?.name || 'Unknown artist'}</span></span></button><button type="button" onClick={() => toggleFavoriteSong(song)} className="rounded-xl px-2 py-2 text-lg text-[#F9F871] transition hover:bg-white/10" aria-label={`取消收藏 ${song.title}`}><Star aria-hidden="true" className="h-4 w-4" fill="currentColor" /></button>
+        {favoriteSongs.length ? <section><div className="mb-4"><div className="flex flex-wrap items-center gap-2"><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#F9F871]">Your collection</p><span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-bold text-slate-400">為你保留</span></div><h2 className="mt-1 text-2xl font-extrabold text-white">收藏曲目</h2><p className="mt-1 text-xs text-slate-500">把想再聽的歌留在這裡。</p></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{favoriteSongs.map(song => <div key={`favorite-${song.source}-${song.id}`} className="flex items-center gap-3 rounded-2xl border border-[#F9F871]/15 bg-[#F9F871]/[0.035] p-3"><button type="button" onClick={() => { play(song, favoriteSongs); navigate('/player'); }} className="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F9F871]"><img src={song.coverUrl || createCoverPlaceholder(song.title, 'artist')} alt="" className="h-12 w-12 rounded-xl object-cover" /><span className="min-w-0"><span className="flex items-center gap-2"><span className="truncate text-sm font-bold text-white">{song.title}</span></span><span className="block truncate text-xs text-slate-500">{typeof song.artists[0] === 'string' ? song.artists[0] : song.artists[0]?.name || 'Unknown artist'}</span></span></button><button type="button" onClick={() => toggleFavoriteSong(song)} className="rounded-xl px-2 py-2 text-lg text-[#F9F871] transition hover:bg-white/10" aria-label={`取消收藏 ${song.title}`}><Star aria-hidden="true" className="h-4 w-4" fill="currentColor" /></button>
 </div>)}</div></section> : null}
       </main>
     </div>

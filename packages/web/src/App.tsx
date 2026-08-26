@@ -19,7 +19,7 @@ function RouteLoader() {
 
 function AppShell() {
   const location = useLocation();
-  const showPersistentMiniPlayer = location.pathname !== '/settings';
+  const showPersistentMiniPlayer = location.pathname !== '/settings' && location.pathname !== '/library';
 
   return <><Outlet />{showPersistentMiniPlayer ? <PersistentMiniPlayer /> : null}</>;
 }

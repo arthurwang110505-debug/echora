@@ -159,3 +159,6 @@
 
 ## Mobile Library entry follow-up
 - [x] MOBILE-LIBRARY-001：在 desktop nav 於 mobile breakpoint 隱藏時，保留 44px 的「我的音樂庫」header 入口；完成 390×844 screenshot、regression test、release gate、GitHub master push 與 Vercel production verification。
+
+## Library route density follow-up
+- [x] LIBRARY-DENSITY-001：保留手機 Home 的「我的音樂庫」入口，移除右上角「接入」按鈕；`/library` 不顯示 PersistentMiniPlayer，也不顯示最近播放區塊；完成 regression test、390×844 visual smoke、GitHub master push 與 Vercel production verification。

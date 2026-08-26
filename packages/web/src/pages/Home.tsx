@@ -163,8 +163,6 @@ export default function Home() {
     setActiveSource(source);
   };
 
-  const sourceIsConnected = activeSource === 'ytmusic' ? youtubeConnected : activeSource === 'spotify' ? spotifyConnected : false;
-  const connectLabel = activeSource === 'ytmusic' ? (youtubeConnected ? 'YouTube 已連線' : '連接 YouTube Music') : activeSource === 'local' ? '本機展示' : spotifyConnected ? 'Spotify 已連線' : 'Spotify 尚未啟用';
   const syncCopy = youtubeConnectionState === 'syncing' || isSyncingLibrary
     ? '歌單同步中…'
     : youtubeConnectionState === 'expired'
@@ -251,10 +249,6 @@ export default function Home() {
             {deferredPrompt && <button type="button" onClick={handleInstall} className="hidden rounded-xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-3 py-2 text-xs font-bold text-[#62f5c4] transition hover:bg-[#62f5c4]/20 sm:block">加到主畫面</button>}
             <button type="button" onClick={() => navigate('/library')} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-slate-300 transition hover:border-[#62f5c4]/40 hover:bg-[#62f5c4]/10 hover:text-[#62f5c4] active:scale-95 md:hidden" aria-label="我的音樂庫">
               <Library aria-hidden="true" className="h-4 w-4" />
-            </button>
-            <button type="button" onClick={() => setShowConnectModal(true)} className="flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-slate-200 transition hover:border-[#62f5c4]/40 hover:bg-[#62f5c4]/10 hover:text-[#62f5c4] sm:px-4 active:scale-95" aria-label="開啟音樂來源連線設定">
-              <span className={`h-2 w-2 rounded-full ${sourceIsConnected ? 'bg-emerald-400 shadow-[0_0_9px_#34d399]' : 'bg-slate-500'}`} />
-              <span className="hidden sm:inline">{connectLabel}</span><span className="sm:hidden">接入</span>
             </button>
             <button type="button" onClick={() => navigate('/settings')} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-slate-400 transition hover:border-white/20 hover:text-white active:scale-90" aria-label="設定"><Settings2 aria-hidden="true" className="h-4 w-4" /></button>
           </div>

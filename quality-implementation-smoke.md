@@ -46,3 +46,8 @@
 ## Mobile Library entry regression
 - At a real 390×844 headless viewport, Home now renders a visible 44×44 Library icon button in the mobile header with the accessible label `我的音樂庫`; the existing desktop nav remains breakpoint-scoped.
 - The same 390×844 screenshot preserves the primary showcase CTA, compact discovery link, source/view/search controls, and no horizontal overflow.
+
+## Library route density follow-up
+- The Home header keeps the mobile `我的音樂庫` entry while its separate right-side `接入` control is removed; connection actions remain inside Library and the existing page CTAs.
+- Library no longer renders the recent-listening section or its recent-listening copy, and AppShell no longer mounts PersistentMiniPlayer on `/library`, so a currently playing demo cannot create a bottom overlay on that page.
+- A fresh 390×844 local screenshot shows Home with only the Library and Settings icons in the top-right; the Library screenshot shows the showcase and playlist hierarchy without a recent-listening block or bottom player banner.
