@@ -156,3 +156,6 @@
 - [x] REC-P2-02：不可用來源以清楚且一致的 disabled／說明模式呈現，避免干擾可用來源。
 - [x] REC-P2-03：建立效能與 failure recovery 驗證，並避免不必要的 Stage runtime 早期載入；補足 audio／service worker／API 失敗提示。
 - [x] REC-RELEASE：完成 tests、typecheck、lint、build、browser screenshots、GitHub master push 與 Vercel production verification。
+
+## Mobile Library entry follow-up
+- [x] MOBILE-LIBRARY-001：在 desktop nav 於 mobile breakpoint 隱藏時，保留 44px 的「我的音樂庫」header 入口；完成 390×844 screenshot、regression test、release gate、GitHub master push 與 Vercel production verification。

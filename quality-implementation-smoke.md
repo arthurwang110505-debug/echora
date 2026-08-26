@@ -42,3 +42,7 @@
 ## Stage focus isolation regression
 - After entering Stage from the demo player, the rendered control set contains exactly five active controls: playlist return, previous, play/pause, next, and settings.
 - A DOM focusability assertion reported `activeFocusableCount: 5`, `hiddenFocusableCount: 0`, and the live status `目前已暫停`. The full-player header and bottom transport are now conditionally unrendered in Stage rather than merely hidden with ARIA.
+
+## Mobile Library entry regression
+- At a real 390×844 headless viewport, Home now renders a visible 44×44 Library icon button in the mobile header with the accessible label `我的音樂庫`; the existing desktop nav remains breakpoint-scoped.
+- The same 390×844 screenshot preserves the primary showcase CTA, compact discovery link, source/view/search controls, and no horizontal overflow.

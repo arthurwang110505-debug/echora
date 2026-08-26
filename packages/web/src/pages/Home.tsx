@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, Check, LayoutGrid, Orbit, Play, Search, Settings2, Sparkles, X } from 'lucide-react';
+import { ArrowRight, Check, LayoutGrid, Library, Orbit, Play, Search, Settings2, Sparkles, X } from 'lucide-react';
 import { usePlayer } from '../contexts/PlayerContext';
 import { type Song } from '@echora/core';
 import { spotifyClientId } from '../integrations/spotifyAuth';
@@ -249,6 +249,9 @@ export default function Home() {
           <div className="flex items-center gap-2">
             {youtubeConnected && youtubeProfile && <div className="hidden items-center gap-2 rounded-full border border-[#ff3d57]/30 bg-[#ff3d57]/10 px-2 py-1 sm:flex"><span className="relative"><img src={youtubeProfile.avatarUrl} alt="YouTube 頭像" className="h-7 w-7 rounded-full object-cover" /><span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 animate-pulse rounded-full bg-emerald-400 ring-2 ring-[#111720]" /></span><span className="max-w-24 truncate text-[11px] font-bold text-white">{youtubeProfile.name}</span></div>}
             {deferredPrompt && <button type="button" onClick={handleInstall} className="hidden rounded-xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-3 py-2 text-xs font-bold text-[#62f5c4] transition hover:bg-[#62f5c4]/20 sm:block">加到主畫面</button>}
+            <button type="button" onClick={() => navigate('/library')} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-slate-300 transition hover:border-[#62f5c4]/40 hover:bg-[#62f5c4]/10 hover:text-[#62f5c4] active:scale-95 md:hidden" aria-label="我的音樂庫">
+              <Library aria-hidden="true" className="h-4 w-4" />
+            </button>
             <button type="button" onClick={() => setShowConnectModal(true)} className="flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-slate-200 transition hover:border-[#62f5c4]/40 hover:bg-[#62f5c4]/10 hover:text-[#62f5c4] sm:px-4 active:scale-95" aria-label="開啟音樂來源連線設定">
               <span className={`h-2 w-2 rounded-full ${sourceIsConnected ? 'bg-emerald-400 shadow-[0_0_9px_#34d399]' : 'bg-slate-500'}`} />
               <span className="hidden sm:inline">{connectLabel}</span><span className="sm:hidden">接入</span>
