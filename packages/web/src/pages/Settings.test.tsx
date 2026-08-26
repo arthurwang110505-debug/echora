@@ -24,13 +24,6 @@ vi.mock('../contexts/ThemeProvider', () => ({
     setMotionPreference: vi.fn(),
   }),
 }));
-vi.mock('../lib/diagnostics', () => ({
-  clearDiagnosticEvents: vi.fn(),
-  createDiagnosticSummary: vi.fn(),
-  getDiagnosticLabel: vi.fn(),
-  readDiagnosticEvents: () => [],
-}));
-
 describe('Settings AI stage experience', () => {
   it('asks the listener to choose a song before generating a stage', () => {
     mocks.currentSong = null;
@@ -41,6 +34,7 @@ describe('Settings AI stage experience', () => {
     expect(markup).toContain('為這首歌生成舞台');
     expect(markup).toContain('先播放一首歌，再來設計它的舞台');
     expect(markup).toContain('選一首展示曲目');
+    expect(markup).not.toContain('本機診斷紀錄');
   });
 
   it('shows the currently playing song as the stage-generation context', () => {
@@ -57,6 +51,9 @@ describe('Settings AI stage experience', () => {
     expect(markup).toContain('正在設計');
     expect(markup).toContain('Night Signals');
     expect(markup).toContain('會參考目前可用的歌詞與歌曲氛圍');
-    expect(markup).toContain('生成 Agnes 舞台預覽');
+    expect(markup).toContain('生成 AI 舞台預覽');
+    expect(markup).not.toContain('Agnes');
+    expect(markup).not.toContain('本機診斷紀錄');
+    expect(markup).toContain('v0.1.0');
   });
 });

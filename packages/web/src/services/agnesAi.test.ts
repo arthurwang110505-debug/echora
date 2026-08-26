@@ -48,8 +48,8 @@ describe('Agnes AI client', () => {
   });
 
   it('surfaces server error messages to Settings', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockJsonResponse({ error: 'Agnes AI 尚未設定。' }, 503)));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockJsonResponse({ error: 'AI 主題服務尚未設定。' }, 503)));
 
-    await expect(getAgnesApiStatus()).rejects.toThrow('Agnes AI 尚未設定。');
+    await expect(getAgnesApiStatus()).rejects.toThrow('AI 主題服務尚未設定。');
   });
 });

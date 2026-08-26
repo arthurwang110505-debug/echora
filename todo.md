@@ -140,3 +140,9 @@
 - [x] PLAY-001：舞台播放控制清楚顯示 Play／Pause icon 與 aria-label，且 local、YouTube Music、Spotify 的 pause action 都能與實際播放來源同步。
 - [x] PLAY-002：檢查頁面進入背景、離開 fullscreen、route 切換與 Media Session 後的播放／暫停狀態，補回歸測試。
 - [x] UI-003：完成 390×844、768×1024 iPad portrait、1024×768 iPad landscape 與 desktop browser smoke，通過 release gate、GitHub master push 與 Vercel production 驗證。
+
+## Settings information density and branding follow-up
+- [x] UI-004：從 Settings 移除本機診斷紀錄整個 UI 區塊，避免佔用設定頁主要垂直空間；保留其他設定功能不受影響。
+- [x] UI-005：Settings 不顯示任何特定 AI 供應商名稱、專屬金鑰名稱或供應商品牌文案，改用中性的 AI 主題服務描述。
+- [x] UI-006：將「像 App 一樣使用」改為顯示目前產品版本 `vX.Y.Z`，來源與 web package version 一致。
+- [ ] UI-007：完成 Settings mobile／iPad／desktop screenshot smoke、tests、typecheck、lint、build、GitHub push 與 Vercel production verification。

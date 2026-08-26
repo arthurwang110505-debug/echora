@@ -43,12 +43,12 @@ const requestJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
       },
     });
   } catch {
-    throw new Error('無法連線到 Echora AI 服務，請檢查網路或稍後再試。');
+    throw new Error('無法連線到 AI 主題服務，請檢查網路或稍後再試。');
   }
 
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(parseErrorMessage(payload, `Agnes AI 服務暫時無法使用（HTTP ${response.status}）。`));
+    throw new Error(parseErrorMessage(payload, `AI 主題服務暫時無法使用（HTTP ${response.status}）。`));
   }
   return payload as T;
 };

@@ -19,7 +19,6 @@ type ThemeSide = {
   wordColors?: { word: string; color: string }[];
   lyricsIcons?: string[];
   fontStyle?: 'sans' | 'serif' | 'mono';
-  provider: string;
 };
 
 type ThemeResponse = { light: ThemeSide; dark: ThemeSide };
@@ -37,22 +36,20 @@ const MAX_LYRICS_LENGTH = 2_000;
 
 const FALLBACK_THEME: ThemeResponse = {
   light: {
-    name: 'Agnes Light',
+    name: 'AI Light',
     backgroundColor: '#f6f3ef',
     primaryColor: '#231f20',
     accentColor: '#c96e4f',
     secondaryColor: '#5c4d48',
     fontStyle: 'sans',
-    provider: 'Agnes AI',
   },
   dark: {
-    name: 'Agnes Dark',
+    name: 'AI Dark',
     backgroundColor: '#101217',
     primaryColor: '#f6f3ef',
     accentColor: '#d88d6e',
     secondaryColor: '#b9aea7',
     fontStyle: 'sans',
-    provider: 'Agnes AI',
   },
 };
 
@@ -92,16 +89,16 @@ const parseJsonContent = (content: string): unknown => {
     .trim();
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
-  if (start < 0 || end <= start) throw new Error('Agnes 回傳的主題格式無法解析。');
+  if (start < 0 || end <= start) throw new Error('AI 主題服務回傳的格式無法解析。');
   try {
     return JSON.parse(cleaned.slice(start, end + 1));
   } catch {
-    throw new Error('Agnes 回傳的主題不是有效的 JSON。');
+    throw new Error('AI 主題服務回傳的內容不是有效的 JSON。');
   }
 };
 
 const normalizeSide = (value: unknown, fallback: ThemeSide): ThemeSide => {
-  if (!value || typeof value !== 'object') throw new Error('Agnes 回傳缺少完整的 light/dark 主題。');
+  if (!value || typeof value !== 'object') throw new Error('AI 主題服務回傳缺少完整的 light/dark 主題。');
   const source = value as Record<string, unknown>;
   const fontStyle = source.fontStyle === 'serif' || source.fontStyle === 'mono' ? source.fontStyle : 'sans';
   const wordColors = Array.isArray(source.wordColors)
@@ -127,12 +124,11 @@ const normalizeSide = (value: unknown, fallback: ThemeSide): ThemeSide => {
     ...(wordColors?.length ? { wordColors } : {}),
     ...(lyricsIcons?.length ? { lyricsIcons } : {}),
     fontStyle,
-    provider: 'Agnes AI',
   };
 };
 
 const normalizeTheme = (value: unknown): ThemeResponse => {
-  if (!value || typeof value !== 'object') throw new Error('Agnes 回傳缺少主題資料。');
+  if (!value || typeof value !== 'object') throw new Error('AI 主題服務回傳缺少主題資料。');
   const source = value as Record<string, unknown>;
   return {
     light: normalizeSide(source.light, FALLBACK_THEME.light),
@@ -169,7 +165,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
   const apiKey = process.env.AGNES_API_KEY;
   if (!apiKey) {
-    sendJson(response, 503, { error: 'Agnes AI 尚未完成伺服器設定，請在 Vercel Environment Variables 加入 AGNES_API_KEY。' });
+    sendJson(response, 503, { error: 'AI 主題服務尚未完成設定，請稍後再試。' });
     return;
   }
 
@@ -192,19 +188,19 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     const payload = await upstream.json().catch(() => null);
     if (!upstream.ok) {
       console.error('[Agnes AI] upstream request failed', { status: upstream.status });
-      sendJson(response, 502, { error: `Agnes AI 請求失敗（HTTP ${upstream.status}），請稍後再試。` });
+      sendJson(response, 502, { error: `AI 主題服務請求失敗（HTTP ${upstream.status}），請稍後再試。` });
       return;
     }
 
     const content = getContent(payload);
     if (!content) {
-      sendJson(response, 502, { error: 'Agnes AI 沒有回傳可用的主題內容。' });
+      sendJson(response, 502, { error: 'AI 主題服務沒有回傳可用的主題內容。' });
       return;
     }
 
     sendJson(response, 200, normalizeTheme(parseJsonContent(content)));
   } catch (error) {
     console.error('[Agnes AI] theme proxy error', error instanceof Error ? error.message : error);
-    sendJson(response, 400, { error: error instanceof Error ? error.message : 'Agnes AI 主題生成失敗。' });
+    sendJson(response, 400, { error: error instanceof Error ? error.message : 'AI 主題生成失敗。' });
   }
 }

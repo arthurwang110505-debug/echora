@@ -21,7 +21,6 @@ export default function handler(request: ApiRequest, response: ApiResponse) {
   }
 
   sendJson(response, 200, {
-    provider: 'agnes',
     configured: Boolean(process.env.AGNES_API_KEY),
   });
 }

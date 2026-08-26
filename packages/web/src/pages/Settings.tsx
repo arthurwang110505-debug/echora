@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import packageJson from '../../package.json';
 import { ArrowLeft, CheckCircle2, CircleAlert, LoaderCircle, Sparkles } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeProvider';
 import { usePlayer } from '../contexts/PlayerContext';
 import { getAgnesApiStatus, generateAgnesTheme, type AgnesApiStatus } from '../services/agnesAi';
 import type { ThemeConfig } from '@echora/core';
 import type { MotionPreference } from '../store/themeStore';
-import { clearDiagnosticEvents, createDiagnosticSummary, getDiagnosticLabel, readDiagnosticEvents, type DiagnosticEvent } from '../lib/diagnostics';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -16,8 +16,6 @@ export default function Settings() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedTheme, setGeneratedTheme] = useState<ThemeConfig | null>(null);
   const [systemReducedMotion, setSystemReducedMotion] = useState(false);
-  const [diagnosticEvents, setDiagnosticEvents] = useState<DiagnosticEvent[]>([]);
-  const [copyFeedback, setCopyFeedback] = useState('');
   const [generationError, setGenerationError] = useState('');
 
   const refreshAgnesStatus = async () => {
@@ -33,7 +31,6 @@ export default function Settings() {
     const updateSystemPreference = () => setSystemReducedMotion(mediaQuery.matches);
     updateSystemPreference();
     mediaQuery.addEventListener?.('change', updateSystemPreference);
-    setDiagnosticEvents(readDiagnosticEvents());
     void refreshAgnesStatus();
     return () => mediaQuery.removeEventListener?.('change', updateSystemPreference);
   }, []);
@@ -59,7 +56,7 @@ export default function Settings() {
       return;
     }
     if (agnesStatus !== 'configured') {
-      setGenerationError('Agnes AI 尚未完成伺服器設定，請在 Vercel Environment Variables 加入 AGNES_API_KEY 後重新部署。');
+      setGenerationError('AI 主題服務尚未完成設定，請稍後再試。');
       return;
     }
 
@@ -73,7 +70,7 @@ export default function Settings() {
       setGeneratedTheme(response[activeTheme]);
     } catch (error) {
       console.error('Failed to generate Agnes theme:', error);
-      setGenerationError(error instanceof Error ? error.message : 'Agnes AI 主題生成失敗，請稍後再試。');
+      setGenerationError(error instanceof Error ? error.message : 'AI 主題生成失敗，請稍後再試。');
     } finally {
       setIsGenerating(false);
     }
@@ -86,23 +83,11 @@ export default function Settings() {
     setGeneratedTheme(null);
   };
 
-  const handleCopyDiagnostics = async () => {
-    const summary = createDiagnosticSummary(diagnosticEvents);
-    if (!summary) return;
-    try {
-      if (!navigator.clipboard) throw new Error('Clipboard unavailable');
-      await navigator.clipboard.writeText(summary);
-      setCopyFeedback('已複製不含敏感資料的診斷摘要。');
-    } catch {
-      setCopyFeedback('這個瀏覽器無法直接複製；請在支援剪貼簿權限的瀏覽器重試。');
-    }
-  };
-
   const agnesStatusLabel = agnesStatus === 'configured'
-    ? 'Agnes AI 已就緒'
+    ? 'AI 主題服務已就緒'
     : agnesStatus === 'missing'
-      ? 'Agnes AI 尚未設定金鑰'
-      : '暫時無法確認 Agnes AI 狀態';
+      ? 'AI 主題服務尚未設定'
+      : '暫時無法確認 AI 主題服務狀態';
 
   return (
     <div className="settings-page min-h-screen bg-[#07090e] pb-8 font-sans text-white selection:bg-[#62f5c4] selection:text-black">
@@ -170,26 +155,26 @@ export default function Settings() {
             )}
 
             <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/15 p-4">
-              <span><span className="block text-sm font-bold text-white">使用生成的舞台配色</span><span className="mt-0.5 block text-xs text-slate-400">由 Agnes AI 生成；一般播放不需要啟用。</span></span>
+              <span><span className="block text-sm font-bold text-white">使用生成的舞台配色</span><span className="mt-0.5 block text-xs text-slate-400">由 AI 生成；一般播放不需要啟用。</span></span>
               <input type="checkbox" checked={aiThemeEnabled} onChange={(event) => { enableAiTheme(event.target.checked); setGenerationError(''); }} aria-label="允許 AI 動態生成主題" className="h-5 w-5 cursor-pointer rounded accent-[#62f5c4]" />
             </label>
 
             <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-bold text-white">Agnes AI 主題服務</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-400">API key 只在 server-side proxy 使用，不會出現在瀏覽器、URL、診斷摘要或 GitHub。</p>
+                  <p className="text-sm font-bold text-white">AI 主題服務</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">服務金鑰只在伺服器端使用，不會出現在瀏覽器、URL 或程式碼庫。</p>
                 </div>
                 <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[10px] font-bold text-slate-300" role="status" aria-live="polite">
                   {agnesStatus === 'configured' ? <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5 text-[#62f5c4]" /> : agnesStatus === 'missing' ? <CircleAlert aria-hidden="true" className="h-3.5 w-3.5 text-amber-300" /> : <LoaderCircle aria-hidden="true" className="h-3.5 w-3.5 animate-spin text-slate-400" />}
                   <span>{agnesStatusLabel}</span>
                 </div>
               </div>
-              {agnesStatus !== 'configured' ? <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><p className="text-[11px] leading-5 text-slate-400">{agnesStatus === 'missing' ? '請由部署管理者在 Vercel 設定 AGNES_API_KEY 後重新部署。' : '請確認 production API route 已部署，或稍後重試。'}</p><button type="button" onClick={() => void refreshAgnesStatus()} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-bold text-slate-300 transition hover:bg-white/10">重新檢查</button></div> : <p className="mt-3 text-[11px] leading-5 text-slate-400">提示只會包含目前歌曲的歌名、歌詞或純音樂狀態；不會送出私人歌單或本機診斷紀錄。</p>}
+              {agnesStatus !== 'configured' ? <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><p className="text-[11px] leading-5 text-slate-400">{agnesStatus === 'missing' ? '請由部署管理者完成服務設定後重新部署。' : '請確認服務已部署，或稍後重試。'}</p><button type="button" onClick={() => void refreshAgnesStatus()} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-bold text-slate-300 transition hover:bg-white/10">重新檢查</button></div> : <p className="mt-3 text-[11px] leading-5 text-slate-400">提示只會包含目前歌曲的歌名、歌詞或純音樂狀態；不會送出私人歌單。</p>}
             </div>
 
             <button type="button" onClick={() => void handleGenerateTheme()} disabled={isGenerating || !aiThemeEnabled || agnesStatus !== 'configured' || !currentSong} className="w-full rounded-xl bg-gradient-to-r from-[#62f5c4] to-teal-400 py-3 text-xs font-extrabold text-black shadow-lg transition-all hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40">
-              {isGenerating ? <><LoaderCircle aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 animate-spin align-[-3px]" />正在為這首歌設計舞台…</> : <><Sparkles aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />生成 Agnes 舞台預覽</>}
+              {isGenerating ? <><LoaderCircle aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 animate-spin align-[-3px]" />正在為這首歌設計舞台…</> : <><Sparkles aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />生成 AI 舞台預覽</>}
             </button>
             {generationError ? <p className="rounded-xl border border-rose-300/25 bg-rose-300/10 p-3 text-xs leading-5 text-rose-200" role="alert">{generationError}</p> : null}
 
@@ -205,15 +190,10 @@ export default function Settings() {
         </div>
         <div className="space-y-8 lg:sticky lg:top-24">
         <section className="space-y-3">
-          <div className="flex items-center justify-between gap-4"><h2 className="font-mono text-xs font-extrabold uppercase tracking-widest text-[#62f5c4]">連線與隱私</h2><button type="button" onClick={() => { clearDiagnosticEvents(); setDiagnosticEvents([]); setCopyFeedback(''); }} disabled={!diagnosticEvents.length} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-bold text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40">清除紀錄</button></div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs text-slate-300 glass-card"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold text-white">本機診斷紀錄</p><p className="mt-1 leading-5 text-slate-400">僅保留在這台裝置最近 30 筆播放與錯誤事件；不含帳號、token、歌名或歌詞，不會傳送至外部服務。</p></div>{diagnosticEvents.length ? <button type="button" onClick={() => void handleCopyDiagnostics()} className="rounded-lg border border-[#62f5c4]/30 bg-[#62f5c4]/10 px-3 py-1.5 text-[11px] font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/20">複製診斷摘要</button> : null}</div>{copyFeedback ? <p className="mt-3 text-[11px] text-[#b8ffe2]" role="status">{copyFeedback}</p> : null}{diagnosticEvents.length ? <ul className="mt-3 space-y-2">{diagnosticEvents.slice(0, 5).map(event => <li key={event.id} className="flex items-center justify-between gap-3 rounded-xl bg-black/20 px-3 py-2"><span className="text-[#b8ffe2]">{getDiagnosticLabel(event.name)}</span><time className="text-slate-500">{new Date(event.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time></li>)}</ul> : <p className="mt-3 text-slate-500">目前沒有可顯示的本機診斷紀錄。</p>}</div>
-        </section>
-
-        <section className="space-y-3">
           <h2 className="font-mono text-xs font-extrabold uppercase tracking-widest text-[#62f5c4]">關於 Echora Stage</h2>
           <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs">
             <div><p className="font-bold text-white">Echora 隨身動態歌詞舞台</p><p className="mt-0.5 text-[11px] text-slate-500">Breathe with music · Motion Design System v2.0</p></div>
-            <span className="rounded-xl border border-[#62f5c4]/20 bg-[#62f5c4]/10 px-2.5 py-1 font-bold text-[#62f5c4]">像 App 一樣使用</span>
+            <span className="rounded-xl border border-[#62f5c4]/20 bg-[#62f5c4]/10 px-2.5 py-1 font-bold text-[#62f5c4]">v{packageJson.version}</span>
           </div>
         </section>
         </div>
