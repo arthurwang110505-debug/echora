@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, ClipboardList, Pause, Play, Settings2, SkipBack, SkipForward, Smartphone, Sparkles, X } from 'lucide-react';
 import { usePlayer } from '../contexts/PlayerContext';
@@ -11,9 +11,16 @@ import { useDialogFocus } from '../hooks/useDialogFocus';
 import LyriclessSoundscapeStage from '../components/LyriclessSoundscapeStage';
 import { CoverImage, PanelSkeleton, PlayerSkeleton, StageSkeleton } from '../components/LoadingSkeletons';
 import { adjustLyricsOffset, getActiveLyricIndex, LYRICS_OFFSET_STEP_SECONDS } from '../utils/lyrics/activeLine';
+import { lazyWithRetry } from '../utils/recovery';
 
-const OriginalFoliaVisualizerStage = lazy(() => import('../components/OriginalFoliaVisualizerStage'));
-const OriginalFoliaTuningPanel = lazy(() => import('../components/OriginalFoliaTuningPanel'));
+const OriginalFoliaVisualizerStage = lazyWithRetry(
+  () => import('../components/OriginalFoliaVisualizerStage'),
+  'stage-visualizer',
+);
+const OriginalFoliaTuningPanel = lazyWithRetry(
+  () => import('../components/OriginalFoliaTuningPanel'),
+  'stage-tuning-panel',
+);
 
 export default function Player() {
   const navigate = useNavigate();
@@ -165,18 +172,6 @@ export default function Player() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handlePlayPause]);
-
-  useEffect(() => {
-    const handleVisualizerFallback = (event: Event) => {
-      const mode = (event as CustomEvent<{ mode?: string }>).detail?.mode;
-      if (!mode || mode !== activeVisualizer) return;
-      setAutoVisualizer(false);
-      setShowTuning(false);
-      setActiveVisualizer('classic');
-    };
-    window.addEventListener('echora:visualizer-fallback', handleVisualizerFallback);
-    return () => window.removeEventListener('echora:visualizer-fallback', handleVisualizerFallback);
-  }, [activeVisualizer]);
 
   useEffect(() => {
     setLyricsOffsetSeconds(0);

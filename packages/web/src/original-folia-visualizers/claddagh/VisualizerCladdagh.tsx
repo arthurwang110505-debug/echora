@@ -12,6 +12,7 @@ import { colorWithAlpha, mixColors } from '../colorMix';
 import VisualizerShell from '../VisualizerShell';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import { buildWordColorRanges } from '../wordColoring';
+import { useCompactStageProfile } from '../../utils/stagePerformance';
 
 // src/components/visualizer/claddagh/VisualizerCladdagh.tsx
 
@@ -325,6 +326,7 @@ interface RingLineProps {
     ellipseTiltDeg?: number;
     textSpacingScale?: number;
     letterSpacingOffset?: number;
+    compactPerformance?: boolean;
 }
 
 /**
@@ -350,6 +352,7 @@ const RingLine: React.FC<RingLineProps> = ({
     ellipseTiltDeg,
     textSpacingScale = 1,
     letterSpacingOffset = 0,
+    compactPerformance = false,
 }) => {
     const fontStack = resolveThemeFontStack(theme);
     const baseFontSize = 72 * lyricsFontScale;
@@ -396,11 +399,17 @@ const RingLine: React.FC<RingLineProps> = ({
     }, [line, theme.wordColors, fontSpec, baseFontSize, Rx, textSpacingScale, letterSpacingOffset]);
 
     const charRefs = useRef<(HTMLSpanElement | null)[]>([]);
+    const styleCacheRef = useRef<Array<{ transform: string; opacity: string; filter: string; color: string; textShadow: string }>>([]);
     const previousTimeRef = useRef(currentTime.get());
     const holdResetFrameRef = useRef(false);
+    const lastMobileUpdateAtRef = useRef(-Infinity);
 
     useLayoutEffect(() => {
         const handler = (latestTime: number) => {
+            const updateNow = performance.now();
+            if (compactPerformance && updateNow - lastMobileUpdateAtRef.current < 32) return;
+            lastMobileUpdateAtRef.current = updateNow;
+
             if (shouldHoldCladdaghFrameForPlaybackReset(previousTimeRef.current, latestTime, centerLineIndex)) {
                 holdResetFrameRef.current = true;
             }
@@ -606,9 +615,8 @@ const RingLine: React.FC<RingLineProps> = ({
                 const blur = 8.0 * (1 - D) * (1 - 0.5 * F);
                 const tiltAngle = clamp(tangentAngle * (0.4 + 0.6 * D), -38, 38);
 
-                el.style.transform = `translate3d(calc(-50% + ${x.toFixed(1)}px), calc(-50% + ${y.toFixed(1)}px), 0px) rotate(${tiltAngle.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
-                el.style.opacity = finalOpacity.toFixed(3);
-                el.style.filter = blur < 0.2 ? 'none' : `blur(${blur.toFixed(2)}px)`;
+                const transform = `translate3d(calc(-50% + ${x.toFixed(1)}px), calc(-50% + ${y.toFixed(1)}px), 0px) rotate(${tiltAngle.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
+                const opacity = finalOpacity.toFixed(3);
 
                 // Update text color and text shadow (glow) progressively based on character playback status
                 let charProgress = 0;
@@ -648,32 +656,46 @@ const RingLine: React.FC<RingLineProps> = ({
                 }
 
                 const currentGlowRadius = baseGlow * (1.0 + flashPop);
+                const filter = compactPerformance ? 'none' : (blur < 0.2 ? 'none' : `blur(${blur.toFixed(2)}px)`);
+                let textShadow = 'none';
 
-                el.style.color = targetColor;
+                if (!compactPerformance) {
+                    // Calculate a smooth fade-out factor so the shadow doesn't abruptly pop when it hits the 0.5px threshold.
+                    // At radius 2.5+, it's 1.0 (full original intensity). At 0.5, it's 0.0 (completely transparent).
+                    const shadowFade = clamp((currentGlowRadius - 0.5) / 2.0, 0, 1);
 
-                // Calculate a smooth fade-out factor so the shadow doesn't abruptly pop when it hits the 0.5px threshold.
-                // At radius 2.5+, it's 1.0 (full original intensity). At 0.5, it's 0.0 (completely transparent).
-                const shadowFade = clamp((currentGlowRadius - 0.5) / 2.0, 0, 1);
+                    if (currentGlowRadius > 0.5 && shadowFade > 0.01) {
+                        // Fade the target color's alpha to ensure the outer shadow vanishes seamlessly
+                        const fadedTargetColor = mixColors(targetColor, targetColor, 0, currentAlpha * shadowFade);
 
-                if (currentGlowRadius > 0.5 && shadowFade > 0.01) {
-                    // Fade the target color's alpha to ensure the outer shadow vanishes seamlessly
-                    const fadedTargetColor = mixColors(targetColor, targetColor, 0, currentAlpha * shadowFade);
+                        if (line.isChorus) {
+                            // Blend targetColor with the theme's primary text color to create a bright inner core.
+                            // We use shadowFade directly as the alpha so it blooms beautifully at 1.0 near the center,
+                            // but fades to invisible at the edges.
+                            const innerGlowColor = mixColors(targetColor, theme.primaryColor || '#ffffff', 0.65, shadowFade);
 
-                    if (line.isChorus) {
-                        // Blend targetColor with the theme's primary text color to create a bright inner core.
-                        // We use shadowFade directly as the alpha so it blooms beautifully at 1.0 near the center,
-                        // but fades to invisible at the edges.
-                        const innerGlowColor = mixColors(targetColor, theme.primaryColor || '#ffffff', 0.65, shadowFade);
-                        
-                        // Restored exact multiplier ratios from Image 1 (0.35, 1.0, 1.6)
-                        el.style.textShadow = `0 0 ${(currentGlowRadius * 0.35).toFixed(1)}px ${innerGlowColor}, 0 0 ${currentGlowRadius.toFixed(1)}px ${fadedTargetColor}, 0 0 ${(currentGlowRadius * 1.6).toFixed(1)}px ${fadedTargetColor}`;
-                    } else {
-                        // Restored exact multiplier ratio from Image 1
-                        el.style.textShadow = `0 0 ${currentGlowRadius.toFixed(1)}px ${fadedTargetColor}`;
+                            // Restored exact multiplier ratios from Image 1 (0.35, 1.0, 1.6)
+                            textShadow = `0 0 ${(currentGlowRadius * 0.35).toFixed(1)}px ${innerGlowColor}, 0 0 ${currentGlowRadius.toFixed(1)}px ${fadedTargetColor}, 0 0 ${(currentGlowRadius * 1.6).toFixed(1)}px ${fadedTargetColor}`;
+                        } else {
+                            // Restored exact multiplier ratio from Image 1
+                            textShadow = `0 0 ${currentGlowRadius.toFixed(1)}px ${fadedTargetColor}`;
+                        }
                     }
-                } else {
-                    el.style.textShadow = 'none';
                 }
+
+                const cached = styleCacheRef.current[i];
+                if (cached?.transform !== transform) el.style.transform = transform;
+                if (cached?.opacity !== opacity) el.style.opacity = opacity;
+                if (cached?.filter !== filter) el.style.filter = filter;
+                if (cached?.color !== targetColor) el.style.color = targetColor;
+                if (cached?.textShadow !== textShadow) el.style.textShadow = textShadow;
+                styleCacheRef.current[i] = {
+                    transform,
+                    opacity,
+                    filter,
+                    color: targetColor,
+                    textShadow,
+                };
             }
         };
 
@@ -689,7 +711,7 @@ const RingLine: React.FC<RingLineProps> = ({
             unsubscribeTime();
             unsubscribeOffset();
         };
-    }, [spacingInfo, lineIndex, centerLineIndex, lineOffset, Rx, Ry, audioPower, currentTime, containerWidth, containerHeight, activeSpacingInfo, renderBaseIndex, highlightColor, baseColor, focusScaleRatio, ellipseTiltDeg, lines, line]);
+    }, [spacingInfo, lineIndex, centerLineIndex, lineOffset, Rx, Ry, audioPower, currentTime, containerWidth, containerHeight, activeSpacingInfo, renderBaseIndex, highlightColor, baseColor, focusScaleRatio, ellipseTiltDeg, lines, line, compactPerformance]);
 
     return (
         <div className="absolute inset-0 pointer-events-none w-full h-full">
@@ -704,7 +726,7 @@ const RingLine: React.FC<RingLineProps> = ({
                         opacity: 0,
                         transform: 'translate3d(-50%, -50%, 0px) scale(0.2)',
                         transformOrigin: 'center center',
-                        willChange: 'transform, opacity, filter, color, text-shadow',
+                        willChange: compactPerformance ? 'transform, opacity, color' : 'transform, opacity, filter, color, text-shadow',
                         fontFamily: fontStack,
                         fontSize: `${baseFontSize}px`,
                         fontWeight,
@@ -742,6 +764,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
     } = props;
 
     const centerNormalTiltDeg = 90 - claddaghTuning.ellipseTiltDeg;
+    const isCompactStage = useCompactStageProfile();
 
     const isRawScaleRef = useRef(false);
     const glowIntensityRef = useRef(0);
@@ -784,8 +807,15 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
         if (!lineEl) return;
 
         let frameId = 0;
+        let lastUpdateAt = -Infinity;
 
-        const updateColors = () => {
+        const updateColors = (timestamp?: number) => {
+            const now = timestamp ?? performance.now();
+            if (isCompactStage && now - lastUpdateAt < 32) {
+                frameId = requestAnimationFrame(updateColors);
+                return;
+            }
+            lastUpdateAt = now;
             const bassPower = paused ? 0 : normalizePower(smoothedBass.get());
             const vocalPower = paused ? 0 : normalizePower(smoothedVocal.get());
             const fromColor = theme.primaryColor || '#ffffff';
@@ -832,7 +862,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
             }
 
             const glowIntensity = glowIntensityRef.current;
-            if (glowIntensity > 0.001) {
+            if (!isCompactStage && glowIntensity > 0.001) {
                 const glowSize = (4 + bassPower * 12) * glowIntensity;
                 const glowColor = colorWithAlpha(mixed, glowIntensity);
                 lineEl.style.filter = `drop-shadow(0 0 ${glowSize.toFixed(1)}px ${glowColor})`;
@@ -840,7 +870,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
                 lineEl.style.filter = 'none';
             }
 
-            frameId = requestAnimationFrame(updateColors);
+            if (!paused) frameId = requestAnimationFrame(updateColors);
         };
 
         frameId = requestAnimationFrame(updateColors);
@@ -848,7 +878,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
         return () => {
             cancelAnimationFrame(frameId);
         };
-    }, [smoothedBass, smoothedVocal, theme.primaryColor, theme.accentColor, theme.secondaryColor, centerNormalTiltDeg, paused, isChorus, claddaghTuning.showAxisLine]);
+    }, [smoothedBass, smoothedVocal, theme.primaryColor, theme.accentColor, theme.secondaryColor, centerNormalTiltDeg, paused, isChorus, claddaghTuning.showAxisLine, isCompactStage]);
 
     // Initialize dimensions on mount to avoid zero size on first render
     useEffect(() => {
@@ -933,7 +963,8 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
     const lineIndicesToRender = useMemo(() => {
         const indices = [];
         if (lines.length === 0) return [];
-        for (let i = renderBaseIndex - 1; i <= renderBaseIndex + 2; i++) {
+        const renderAhead = isCompactStage ? 1 : 2;
+        for (let i = renderBaseIndex - 1; i <= renderBaseIndex + renderAhead; i++) {
             if (i >= 0 && i < lines.length) {
                 indices.push(i);
             }
@@ -942,7 +973,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
             indices.push(Math.max(0, Math.min(centerLineIndex, lines.length - 1)));
         }
         return indices;
-    }, [centerLineIndex, lines.length, renderBaseIndex]);
+    }, [centerLineIndex, isCompactStage, lines.length, renderBaseIndex]);
 
     return (
         <VisualizerShell
@@ -1002,6 +1033,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
                             ellipseTiltDeg={claddaghTuning.ellipseTiltDeg}
                             textSpacingScale={activeTextSpacingScale}
                             letterSpacingOffset={claddaghTuning.letterSpacingOffset}
+                            compactPerformance={isCompactStage}
                         />
                     ))}
                 </div>

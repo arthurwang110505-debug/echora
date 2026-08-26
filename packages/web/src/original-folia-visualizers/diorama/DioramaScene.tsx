@@ -87,6 +87,8 @@ interface DioramaSceneProps {
     motion: DioramaMotionParams;
     /** Master lyric visibility (the shared subtitle toggle): hides all 3D text but keeps the world flying. */
     showLyrics: boolean;
+    /** Compact touch viewport profile; only trims resident lyric/raster budgets. */
+    performanceTier?: 'full' | 'compact';
     /** Background particle-mote layer toggle (from the diorama tuning panel). */
     showParticles: boolean;
     /** Background dust shell's two independent axes; the field clamps each to its cap and multiplies them
@@ -411,6 +413,7 @@ const DioramaScene: React.FC<DioramaSceneProps> = ({
     audioBands,
     motion,
     showLyrics,
+    performanceTier = 'full',
     showParticles,
     backgroundParticleCircumference,
     backgroundParticleRadial,
@@ -499,6 +502,12 @@ const DioramaScene: React.FC<DioramaSceneProps> = ({
     // identity. `total` covers a lyric load that changes the LINE COUNT; this covers one that does not
     // (a reprocess, a provider swap, a translation landing) - same key, same span, different words.
     const linesEpoch = activeSeg?.linesEpoch ?? 0;
+    const compactPerformance = performanceTier === 'compact';
+    const liveLinesBehind = compactPerformance ? 1 : LINES_BEHIND;
+    const liveLinesAhead = compactPerformance ? 2 : LINES_AHEAD;
+    const outgoingLinesBehind = compactPerformance ? 1 : OUTGOING_LINES_BEHIND;
+    const outgoingLinesAhead = compactPerformance ? 1 : OUTGOING_LINES_AHEAD;
+    const neighborRasterBudget = compactPerformance ? 1 : NEIGHBOR_RASTER_BUDGET;
 
     // Which GLOBAL indices to mount. Normally a small forward-weighted window around the current line;
     // during a transition ALSO a tighter window around the outgoing line, so the departing corridor stays
@@ -512,10 +521,10 @@ const DioramaScene: React.FC<DioramaSceneProps> = ({
             const end = Math.min(center + ahead, total - 1);
             for (let i = start; i <= end; i += 1) indices.add(i);
         };
-        addWindow(globalIndex, LINES_BEHIND, LINES_AHEAD);
-        if (transitionOutgoingIndex != null) addWindow(transitionOutgoingIndex, OUTGOING_LINES_BEHIND, OUTGOING_LINES_AHEAD);
+        addWindow(globalIndex, liveLinesBehind, liveLinesAhead);
+        if (transitionOutgoingIndex != null) addWindow(transitionOutgoingIndex, outgoingLinesBehind, outgoingLinesAhead);
         return Array.from(indices).sort((a, b) => a - b);
-    }, [globalIndex, transitionOutgoingIndex, total]);
+    }, [globalIndex, liveLinesAhead, liveLinesBehind, outgoingLinesAhead, outgoingLinesBehind, transitionOutgoingIndex, total]);
 
     const visibleLines = useMemo(() => {
         const result: VisibleLineEntry[] = [];
@@ -565,16 +574,22 @@ const DioramaScene: React.FC<DioramaSceneProps> = ({
         // index (one as a real line, the other as its own extension) and that is correct: they are
         // TRANSITION_DISTANCE apart in the world.
         const live = buildDioramaParticleCorridorWindow(
-            sequencer, globalIndex, CORRIDOR_LINES_BEHIND, CORRIDOR_LINES_AHEAD,
+            sequencer,
+            globalIndex,
+            compactPerformance ? 4 : CORRIDOR_LINES_BEHIND,
+            compactPerformance ? 5 : CORRIDOR_LINES_AHEAD,
         );
         if (transitionOutgoingIndex == null) return live;
         return [
             ...buildDioramaParticleCorridorWindow(
-                sequencer, transitionOutgoingIndex, CORRIDOR_LINES_BEHIND, CORRIDOR_LINES_AHEAD,
+                sequencer,
+                transitionOutgoingIndex,
+                compactPerformance ? 4 : CORRIDOR_LINES_BEHIND,
+                compactPerformance ? 5 : CORRIDOR_LINES_AHEAD,
             ),
             ...live,
         ];
-    }, [geometryVisibility.enabled, geometryMode, globalIndex, transitionOutgoingIndex, sequencer, linesEpoch]);
+    }, [compactPerformance, geometryVisibility.enabled, geometryMode, globalIndex, transitionOutgoingIndex, sequencer, linesEpoch]);
 
     // Clouds mode only: per-line point-cloud anchors matched to each camera move and kept outside the
     // lyric/camera rail. The stable particleSeed excludes GLOBAL indices so a loop rebuilds the same
@@ -798,7 +813,7 @@ const DioramaScene: React.FC<DioramaSceneProps> = ({
         let qi = 0;
         const buildBatch = () => {
             if (cancelled) return;
-            for (let n = 0; n < NEIGHBOR_RASTER_BUDGET && qi < missing.length; n += 1, qi += 1) {
+            for (let n = 0; n < neighborRasterBudget && qi < missing.length; n += 1, qi += 1) {
                 const entry = visibleLines.find((e) => e.index === missing[qi]);
                 if (entry?.line?.fullText && !cache.has(missing[qi])) {
                     cache.set(missing[qi], rasterDioramaLine(entry.line.fullText, fontStack, fontWeight));

@@ -53,7 +53,6 @@ export default defineConfig({
         // stay network-loaded until the user enters the player, so a homepage refresh
         // does not download the whole application before first paint.
         globPatterns: [
-          'index.html',
           'registerSW.js',
           'echora-icon.svg',
           'echora-icon-192.png',
@@ -61,7 +60,6 @@ export default defineConfig({
           'echora-icon-maskable.png',
           'assets/index-*.{js,css}',
           'assets/Home-*.js',
-          'assets/coverPlaceholders-*.js',
         ],
         runtimeCaching: [
           {

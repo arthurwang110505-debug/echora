@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { DEFAULT_DIORAMA_TUNING, type Line } from '../../../types';
@@ -18,6 +18,7 @@ import {
     updateActiveSegmentLines,
 } from './dioramaSequencer';
 import { pickTransitionOffset, TRANSITION_DURATION } from './dioramaTransition';
+import { resolveCompactDioramaTuning, useCompactStageProfile } from '../../utils/stagePerformance';
 
 // src/components/visualizer/diorama/VisualizerDiorama.tsx
 // A 3D "flythrough" style: lyric lines are actual staged text objects along a winding path in world
@@ -38,6 +39,19 @@ import { pickTransitionOffset, TRANSITION_DURATION } from './dioramaTransition';
 // from the fog while the outgoing scene it is leaving recedes back into the fog: one continuous take, the
 // picture never hidden. During the ~2s flight BOTH scenes are mounted (see transitionOutgoingIndex).
 type VisualizerDioramaProps = VisualizerSharedProps;
+
+const DioramaFrameLimiter: React.FC<{ enabled: boolean }> = ({ enabled }) => {
+    const invalidate = useThree(state => state.invalidate);
+
+    useEffect(() => {
+        if (!enabled) return undefined;
+        invalidate();
+        const intervalId = window.setInterval(invalidate, 1000 / 30);
+        return () => window.clearInterval(intervalId);
+    }, [enabled, invalidate]);
+
+    return null;
+};
 
 // The mounted window reaches this far behind the current line (mirrors DioramaScene's LINES_BEHIND with
 // margin): segments whose lines are all further behind than this are safe to prune - but never while a
@@ -116,6 +130,11 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
         dioramaTuning,
     } = props;
     const { t } = useTranslation();
+    const isCompactStage = useCompactStageProfile();
+    const effectiveDioramaTuning = useMemo(
+        () => resolveCompactDioramaTuning(dioramaTuning ?? DEFAULT_DIORAMA_TUNING, isCompactStage),
+        [dioramaTuning, isCompactStage],
+    );
 
     const { activeLine, recentCompletedLine, nextLines } = useVisualizerRuntime({
         currentTime,
@@ -133,8 +152,8 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
     // visualizer style); the tuning sliders multiply on top. Named motionParams (not `motion`) so it
     // cannot shadow framer-motion's `motion` import above.
     const motionParams = useMemo(
-        () => resolveDioramaMotionParams(dioramaTuning, theme.animationIntensity),
-        [dioramaTuning, theme.animationIntensity]
+        () => resolveDioramaMotionParams(effectiveDioramaTuning, theme.animationIntensity),
+        [effectiveDioramaTuning, theme.animationIntensity]
     );
 
     // ── "Wait until ready" gate ───────────────────────────────────────────────────────────────────
@@ -385,10 +404,12 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
             <div className="absolute inset-0 z-0">
                 <Canvas
                     camera={{ position: [0, 0.6, 9], fov: 55 }}
-                    dpr={[1, 2]}
-                    gl={{ alpha: true, antialias: true }}
+                    frameloop={isCompactStage ? 'demand' : 'always'}
+                    dpr={isCompactStage ? 1 : [1, 2]}
+                    gl={{ alpha: true, antialias: !isCompactStage, powerPreference: 'high-performance' }}
                     style={{ background: 'transparent' }}
                 >
+                    <DioramaFrameLimiter enabled={isCompactStage} />
                     <CameraRig
                         currentTime={currentTime}
                         sequencer={seq}
@@ -410,31 +431,23 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
                         audioBands={audioBands}
                         motion={motionParams}
                         showLyrics={showText}
-                        geometryVisibility={dioramaTuning?.geometryVisibility ?? DEFAULT_DIORAMA_TUNING.geometryVisibility}
-                        particleDensity={dioramaTuning?.particleDensity ?? DEFAULT_DIORAMA_TUNING.particleDensity}
-                        particleScale={dioramaTuning?.particleScale ?? DEFAULT_DIORAMA_TUNING.particleScale}
-                        particleGlowEnabled={dioramaTuning?.particleGlowEnabled ?? DEFAULT_DIORAMA_TUNING.particleGlowEnabled}
-                        particleGlowIntensity={dioramaTuning?.particleGlowIntensity ?? DEFAULT_DIORAMA_TUNING.particleGlowIntensity}
-                        showParticles={dioramaTuning?.showParticles ?? true}
-                        backgroundParticleCircumference={
-                            dioramaTuning?.backgroundParticleCircumference ?? DEFAULT_DIORAMA_TUNING.backgroundParticleCircumference
-                        }
-                        backgroundParticleRadial={
-                            dioramaTuning?.backgroundParticleRadial ?? DEFAULT_DIORAMA_TUNING.backgroundParticleRadial
-                        }
+                        performanceTier={isCompactStage ? 'compact' : 'full'}
+                        geometryVisibility={effectiveDioramaTuning.geometryVisibility}
+                        particleDensity={effectiveDioramaTuning.particleDensity}
+                        particleScale={effectiveDioramaTuning.particleScale}
+                        particleGlowEnabled={effectiveDioramaTuning.particleGlowEnabled}
+                        particleGlowIntensity={effectiveDioramaTuning.particleGlowIntensity}
+                        showParticles={effectiveDioramaTuning.showParticles}
+                        backgroundParticleCircumference={effectiveDioramaTuning.backgroundParticleCircumference}
+                        backgroundParticleRadial={effectiveDioramaTuning.backgroundParticleRadial}
                         lyricsFontScale={lyricsFontScale}
                         // Each follow-sing effect resolves to an EFFECTIVE strength here (0 when its
                         // toggle is off) - the scene renders the three effects on fully separate paths.
-                        glowIntensity={(dioramaTuning?.glowEnabled ?? DEFAULT_DIORAMA_TUNING.glowEnabled)
-                            ? (dioramaTuning?.glowIntensity ?? DEFAULT_DIORAMA_TUNING.glowIntensity) : 0}
-                        soulIntensity={(dioramaTuning?.soulEnabled ?? DEFAULT_DIORAMA_TUNING.soulEnabled)
-                            ? (dioramaTuning?.soulIntensity ?? DEFAULT_DIORAMA_TUNING.soulIntensity) : 0}
-                        soulActiveEnabled={(dioramaTuning?.soulEnabled ?? DEFAULT_DIORAMA_TUNING.soulEnabled)
-                            && (dioramaTuning?.soulActiveEnabled ?? DEFAULT_DIORAMA_TUNING.soulActiveEnabled)}
-                        gradientIntensity={(dioramaTuning?.gradientEnabled ?? DEFAULT_DIORAMA_TUNING.gradientEnabled)
-                            ? (dioramaTuning?.gradientIntensity ?? DEFAULT_DIORAMA_TUNING.gradientIntensity) : 0}
-                        keywordColoringEnabled={dioramaTuning?.keywordColoringEnabled
-                            ?? DEFAULT_DIORAMA_TUNING.keywordColoringEnabled}
+                        glowIntensity={effectiveDioramaTuning.glowEnabled ? effectiveDioramaTuning.glowIntensity : 0}
+                        soulIntensity={effectiveDioramaTuning.soulEnabled ? effectiveDioramaTuning.soulIntensity : 0}
+                        soulActiveEnabled={effectiveDioramaTuning.soulEnabled && effectiveDioramaTuning.soulActiveEnabled}
+                        gradientIntensity={effectiveDioramaTuning.gradientEnabled ? effectiveDioramaTuning.gradientIntensity : 0}
+                        keywordColoringEnabled={effectiveDioramaTuning.keywordColoringEnabled}
                     />
                 </Canvas>
             </div>

@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { recordDiagnostic } from '../lib/diagnostics';
+import { recoverFromStaleBuild } from '../utils/recovery';
 
 interface AppErrorBoundaryProps {
   children: ReactNode;
@@ -21,15 +22,8 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
     recordDiagnostic('render_error', { name: error.name || 'Error' });
   }
 
-  private recover = async () => {
-    try {
-      const registrations = await navigator.serviceWorker?.getRegistrations();
-      await Promise.all(registrations?.map(registration => registration.unregister()) || []);
-      const cacheKeys = await caches.keys();
-      await Promise.all(cacheKeys.filter(key => key.startsWith('workbox-')).map(key => caches.delete(key)));
-    } finally {
-      window.location.replace(`${window.location.pathname}?recovered=${Date.now()}`);
-    }
+  private recover = () => {
+    void recoverFromStaleBuild();
   };
 
   render() {

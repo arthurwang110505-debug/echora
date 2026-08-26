@@ -59,6 +59,7 @@ export interface SonnetRuntimeOptions {
     lyricsFontScale: number;
     staticMode: boolean;
     paused: boolean;
+    performanceTier?: 'full' | 'compact';
     songTitle?: string | null;
     songArtist?: string | null;
     songAlbum?: string | null;
@@ -104,6 +105,10 @@ export class SonnetPixiRuntime {
             preference: 'webgl',
             powerPreference: 'high-performance',
         });
+        if (options.performanceTier === 'compact') {
+            // Keep the lyric renderer responsive on touch-sized screens without changing its scene identity.
+            app.ticker.maxFPS = 30;
+        }
         const runtime = new SonnetPixiRuntime(pixi, options, app);
         runtime.sceneContainer = new pixi.Container();
         runtime.creditsContainer = new pixi.Container();
@@ -531,28 +536,33 @@ export class SonnetPixiRuntime {
                 glyph.display.scale.set(scale * depthScale);
                 glyph.display.position.set(x + parallaxX, y + parallaxY);
                 glyph.display.rotation = rotation;
+                const decorativeGlyphEffectsEnabled = this.options.performanceTier !== 'compact';
                 if (glyph.halo) {
-                    glyph.halo.alpha = haloAlpha;
-                    glyph.halo.scale.set(scale * (1.08 - glyphProgress * 0.08));
-                    glyph.halo.position.set(x, y);
-                    glyph.halo.rotation = rotation;
+                    glyph.halo.visible = decorativeGlyphEffectsEnabled && glyphVisible;
+                    if (decorativeGlyphEffectsEnabled) {
+                        glyph.halo.alpha = haloAlpha;
+                        glyph.halo.scale.set(scale * (1.08 - glyphProgress * 0.08));
+                        glyph.halo.position.set(x, y);
+                        glyph.halo.rotation = rotation;
+                    }
                 }
 
-                // Animate Chromatic Aberration separation and merging
+                // Animate Chromatic Aberration separation and merging only on the full profile.
                 if (glyph.caCyan && glyph.caRed && glyph.caOffset) {
-                    glyph.caCyan.visible = glyphVisible && !this.options.tuning.showOnlyText;
-                    glyph.caRed.visible = glyphVisible && !this.options.tuning.showOnlyText;
-                    // Starts separated (impact), and gently merges to a very subtle base offset
-                    const mergeEased = easeSonnetInOut(glyphProgress);
-                    const currentOffset = glyph.caOffset * (1 - mergeEased * 0.8); // 1.0 -> 0.2
+                    glyph.caCyan.visible = decorativeGlyphEffectsEnabled && glyphVisible && !this.options.tuning.showOnlyText;
+                    glyph.caRed.visible = decorativeGlyphEffectsEnabled && glyphVisible && !this.options.tuning.showOnlyText;
+                    if (decorativeGlyphEffectsEnabled) {
+                        // Starts separated (impact), and gently merges to a very subtle base offset
+                        const mergeEased = easeSonnetInOut(glyphProgress);
+                        const currentOffset = glyph.caOffset * (1 - mergeEased * 0.8); // 1.0 -> 0.2
 
-                    glyph.caCyan.position.set(-currentOffset, currentOffset * 0.5);
-                    glyph.caRed.position.set(currentOffset, -currentOffset * 0.5);
+                        glyph.caCyan.position.set(-currentOffset, currentOffset * 0.5);
+                        glyph.caRed.position.set(currentOffset, -currentOffset * 0.5);
+                    }
                 }
 
-                // Semi-hero echo ghosts: split along the layout normal on glyph entry,
-                // fade in over the first quarter, then quickly vanish. One-shot.
-                if (glyph.ghosts && glyph.ghostDuration) {
+                // Semi-hero echo ghosts are optional decoration and are skipped on compact mobile.
+                if (decorativeGlyphEffectsEnabled && glyph.ghosts && glyph.ghostDuration) {
                     const ghostProgress = clamp01((time - glyph.startTime) / glyph.ghostDuration);
                     const ghostActive = glyphVisible && ghostProgress > 0 && ghostProgress < 1;
                     // Quick fade-in, then a squared falloff so the echo dies fast.

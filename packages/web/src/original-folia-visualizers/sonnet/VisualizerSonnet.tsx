@@ -11,6 +11,7 @@ import VisualizerShell from '../VisualizerShell';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import type { SonnetPixiRuntime, SonnetSongMetadata } from './createSonnetPixiRuntime';
 import { compileSonnetProgram } from './sonnetProgram';
+import { resolveCompactSonnetTuning, useCompactStageProfile } from '../../utils/stagePerformance';
 
 // src/components/visualizer/sonnet/VisualizerSonnet.tsx
 // Mounts the lazily loaded Pixi director while React retains shell and subtitle responsibilities.
@@ -43,6 +44,11 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
         sonnetTuning = DEFAULT_SONNET_TUNING,
     } = props;
     const { t } = useTranslation();
+    const isCompactStage = useCompactStageProfile();
+    const effectiveSonnetTuning = useMemo(
+        () => resolveCompactSonnetTuning(sonnetTuning, isCompactStage),
+        [isCompactStage, sonnetTuning],
+    );
     const hostRef = useRef<HTMLDivElement>(null);
     const runtimeRef = useRef<SonnetPixiRuntime | null>(null);
     const pausedRef = useRef(paused);
@@ -132,13 +138,14 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
                     host,
                     program,
                     theme,
-                    tuning: sonnetTuning,
+                    tuning: effectiveSonnetTuning,
                     currentTime,
                     audioPower,
                     audioBands,
                     lyricsFontScale,
                     staticMode,
                     paused: pausedRef.current,
+                    performanceTier: isCompactStage ? 'compact' : 'full',
                     songTitle: metadata.title,
                     songArtist: metadata.artist,
                     songAlbum: metadata.album,
@@ -177,7 +184,7 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
         currentTime,
         lyricsFontScale,
         program,
-        sonnetTuning,
+        effectiveSonnetTuning,
         staticMode,
         theme,
     ]);

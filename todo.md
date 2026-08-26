@@ -162,3 +162,9 @@
 
 ## Library route density follow-up
 - [x] LIBRARY-DENSITY-001：保留手機 Home 的「我的音樂庫」入口，移除右上角「接入」按鈕；`/library` 不顯示 PersistentMiniPlayer，也不顯示最近播放區塊；完成 regression test、390×844 visual smoke、GitHub master push 與 Vercel production verification。
+
+## Stage performance and recovery follow-up
+- [x] STAGE-PERF-001：Sonnet、Claddagh、Diorama 在 390×844／393×852 手機 viewport 的播放與歌詞更新保持流暢，並完成 frame／long-task／resource evidence。
+- [x] STAGE-FRAME-001：Fume 在 mobile viewport 內正確 framing，不出現過度放大、錯誤裁切或內容溢出；desktop／tablet 不回歸。
+- [x] STAGE-RECOVERY-001：lazy scene／chunk／service-worker cache failure 有可操作且可重試的 recovery path，不落入不可操作白頁。
+- [ ] STAGE-RELEASE-001：完成 regression tests、typecheck、lint、build、mobile／tablet／desktop browser smoke、GitHub master push 與 Vercel production verification。

@@ -13,6 +13,7 @@ import { getRecentCompletedLine, getUpcomingLines } from '../runtime';
 import VisualizerShell from '../VisualizerShell';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import { resolveWordColor } from '../wordColoring';
+import { resolveFumeCameraScaleForViewport, resolveFumeCameraXForViewport, resolveFumeCameraYForViewport, resolveFumeCanvasDpr, useCompactStageProfile } from '../../utils/stagePerformance';
 
 // This mode is basically "turn the whole lyric into an article, then move a camera through it".
 // So the pipeline is much bigger than the others: prebuild the article layout, split it into blocks/render lines/graphemes,
@@ -1647,10 +1648,15 @@ const createStaticBlockSnapshot = (
 const resolveCameraScaleForBlock = (
     block: FumeBlock,
     viewport: ViewportSize,
+    compact = false,
 ) => {
-    const minViewportSide = Math.max(Math.min(viewport.width, viewport.height), 1);
-    const targetLineHeight = clamp(minViewportSide * 0.115, 64, 124);
-    return clamp(targetLineHeight / Math.max(block.lineHeight, 1), 0.88, 2.2);
+    const widestRenderLine = Math.max(0, ...block.renderLines.map(renderLine => renderLine.width));
+    return resolveFumeCameraScaleForViewport(
+        block.lineHeight,
+        viewport,
+        compact,
+        widestRenderLine,
+    );
 };
 
 const resolveCameraRetargetDuration = (line: Line) => {
@@ -1868,6 +1874,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
         subtitleContentMode,
         paused = false,
     } = props;
+    const isCompactStage = useCompactStageProfile();
     const viewportRef = useRef<HTMLDivElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const currentLineIndexRef = useRef(currentLineIndex);
@@ -2056,6 +2063,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
         () => (article ? resolveArticleOverviewCamera(article, viewport) : null),
         [article, viewport],
     );
+    const defaultCameraScale = isCompactStage ? 0.84 : 1.18;
     const cameraSpeed = resolvedFumeTuning.cameraSpeed;
     const glowIntensity = resolvedFumeTuning.glowIntensity;
     const backgroundObjectOpacity = resolvedFumeTuning.backgroundObjectOpacity;
@@ -2099,7 +2107,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
 
         const width = Math.max(Math.floor(viewport.width), 1);
         const height = Math.max(Math.floor(viewport.height), 1);
-        const dpr = window.devicePixelRatio || 1;
+        const dpr = resolveFumeCanvasDpr(window.devicePixelRatio || 1, isCompactStage);
 
         if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
             canvas.width = Math.floor(width * dpr);
@@ -2119,9 +2127,9 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                 velocityY: 0,
                 focusX: article.width * 0.5,
                 focusY: article.height * 0.5,
-                scale: 1.18,
+                scale: defaultCameraScale,
                 velocityScale: 0,
-                focusScale: 1.18,
+                focusScale: defaultCameraScale,
             };
             cameraInitializedRef.current = true;
         } else if (article) {
@@ -2146,7 +2154,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
 
             const currentWidth = Math.max(Math.floor(viewport.width), 1);
             const currentHeight = Math.max(Math.floor(viewport.height), 1);
-            const currentDpr = window.devicePixelRatio || 1;
+            const currentDpr = resolveFumeCanvasDpr(window.devicePixelRatio || 1, isCompactStage);
 
             if (canvas.width !== Math.floor(currentWidth * currentDpr) || canvas.height !== Math.floor(currentHeight * currentDpr)) {
                 canvas.width = Math.floor(currentWidth * currentDpr);
@@ -2202,7 +2210,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
             const shouldShowOverview = overviewCamera !== null && time >= overviewStartTime;
             let targetCameraX = article.width * 0.5;
             let targetCameraY = article.height * 0.5;
-            let targetCameraScale = 1.18;
+            let targetCameraScale = defaultCameraScale;
             let entryFocusPoint: { x: number; y: number; } | null = null;
             let didRetargetThisFrame = false;
 
@@ -2250,7 +2258,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                 entryFocusPoint = resolveBlockEntryFocusPoint(focusBlock);
                 targetCameraX = focusPoint.x;
                 targetCameraY = focusPoint.y;
-                targetCameraScale = resolveCameraScaleForBlock(focusBlock, viewport);
+                targetCameraScale = resolveCameraScaleForBlock(focusBlock, viewport, isCompactStage);
 
                 if (cameraRetargetRef.current.sourceLineIndex !== focusBlock.sourceLineIndex) {
                     cameraRetargetRef.current = {
@@ -2327,6 +2335,25 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                     targetCameraScale * (1 + Math.sin(floatPhase + 0.9) * floatConfig.scaleAmplitude * overviewAttenuation),
                     CAMERA_SCALE_MIN,
                     CAMERA_SCALE_MAX,
+                );
+            }
+
+            if (isCompactStage && focusBlock && !shouldShowOverview) {
+                targetCameraX = resolveFumeCameraXForViewport(
+                    targetCameraX,
+                    focusBlock.x,
+                    focusBlock.x + focusBlock.width,
+                    viewport.width,
+                    targetCameraScale,
+                    true,
+                );
+                targetCameraY = resolveFumeCameraYForViewport(
+                    targetCameraY,
+                    focusBlock.y,
+                    focusBlock.y + focusBlock.height,
+                    viewport.height,
+                    targetCameraScale,
+                    true,
                 );
             }
 
@@ -2972,6 +2999,8 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
         theme,
         viewport.height,
         viewport.width,
+        defaultCameraScale,
+        isCompactStage,
     ]);
 
     return (
