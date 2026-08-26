@@ -293,8 +293,8 @@ export default function Player() {
         </div>
       </div>
 
-      {/* Top Navigation Header */}
-      <header aria-hidden={displayMode === 'stage'} className={`relative z-20 items-center justify-between px-5 md:px-8 py-3.5 glass-panel border-b border-white/[0.08] ${displayMode === 'stage' ? 'hidden' : 'flex'}`}>
+      {/* Top Navigation Header — not rendered in immersive mode so it cannot become a hidden tab stop. */}
+      {displayMode !== 'stage' && <header className="relative z-20 flex items-center justify-between px-5 md:px-8 py-3.5 glass-panel border-b border-white/[0.08]">
         <div className="flex items-center gap-3 md:gap-5">
           <button
             onClick={() => navigate('/')}
@@ -316,21 +316,13 @@ export default function Player() {
           <div className="flex p-1 rounded-2xl bg-white/[0.06] border border-white/[0.08] backdrop-blur-md">
             <button
               onClick={() => void leaveImmersiveStage()}
-              className={`px-3 md:px-4 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 btn-spring ${
-                displayMode === 'full'
-                  ? 'bg-gradient-to-r from-[#62f5c4] to-teal-400 text-black shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
+              className="px-3 md:px-4 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 btn-spring bg-gradient-to-r from-[#62f5c4] to-teal-400 text-black shadow-md"
             >
               <Smartphone aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />播放器
             </button>
             <button
               onClick={() => void enterImmersiveStage()}
-              className={`px-3 md:px-4 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 btn-spring ${
-                displayMode === 'stage'
-                  ? 'bg-gradient-to-r from-[#62f5c4] to-teal-400 text-black shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
+              className="px-3 md:px-4 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 btn-spring text-slate-400 hover:text-white"
             >
               <Sparkles aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />進入 Stage
             </button>
@@ -365,7 +357,7 @@ export default function Player() {
             </button>
           )}
         </div>
-      </header>
+      </header>}
 
       {/* Main Content Area */}
       <div className="relative z-30 flex min-h-0 min-w-0 flex-1 overflow-hidden">
@@ -484,8 +476,8 @@ export default function Player() {
 
         {/* Center Hero Stage View */}
         <main className={`min-w-0 flex-1 h-full flex flex-col justify-between overflow-hidden relative z-10 ${displayMode === 'stage' ? 'p-0' : 'p-4 sm:p-6 md:p-8'}`}>
-          {/* Track Header Card */}
-          <div className={`${displayMode === 'stage' ? 'hidden' : 'flex'} items-center gap-4 sm:gap-5 z-10 glass-card p-3.5 sm:p-4 rounded-3xl border border-white/10 w-fit backdrop-blur-2xl shadow-xl transition-all`}>
+          {/* Track Header Card — not rendered in immersive mode so it cannot become a hidden tab stop. */}
+          {displayMode !== 'stage' && <div className="flex items-center gap-4 sm:gap-5 z-10 glass-card p-3.5 sm:p-4 rounded-3xl border border-white/10 w-fit backdrop-blur-2xl shadow-xl transition-all">
             <div className="relative">
               <CoverImage
                 src={currentSong.coverUrl}
@@ -510,7 +502,7 @@ export default function Player() {
               </p>
               {demoMode && <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b8ffe2]">{currentSong.source === 'local' ? 'Echora 本機音檔展示 · 不需登入或 YouTube' : 'Echora 展示模式 · 不需登入即可體驗'}</p>}
             </div>
-          </div>
+          </div>}
 
           {/* Echora Kinetic Lyrics Animation Stage */}
           {currentSong.source === 'ytmusic' && <YouTubePlayer immersive={displayMode === 'stage'} concealed={displayMode === 'full' && showPlaylistDrawer} />}
@@ -669,8 +661,8 @@ export default function Player() {
             </div>
           )}
 
-          {/* Bottom controls are intentionally absent in immersive mode. */}
-                      <div aria-hidden={displayMode === 'stage'} className={`${displayMode === 'stage' ? 'hidden' : 'block'} z-20 glass-panel p-4 sm:p-5 md:p-6 rounded-3xl border border-white/15 shadow-2xl space-y-3.5`}>
+          {/* Bottom controls are intentionally not rendered in immersive mode. */}
+          {displayMode !== 'stage' && <div className="z-20 glass-panel p-4 sm:p-5 md:p-6 rounded-3xl border border-white/15 shadow-2xl space-y-3.5">
 
             {/* Interactive Progress Bar */}
             <div className="space-y-1.5">
@@ -746,7 +738,7 @@ export default function Player() {
               </div>
             </div>
             {showCalibration && <div id="desktop-calibration" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-3"><div><p className="text-xs font-bold text-white">歌詞對齊</p><p className="mt-0.5 text-[11px] text-slate-400">每次調整 {LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒 · 目前 <span className="font-semibold text-[#b8ffe2]">{lyricsOffsetLabel}</span></p></div><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => adjustStageLyricsOffset(-LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[11px] font-bold text-slate-300 hover:text-white">提前 {LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒</button><button type="button" onClick={() => setLyricsOffsetSeconds(0)} className="rounded-lg border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-2.5 py-2 text-[11px] font-bold text-[#b8ffe2]">同步回原點</button><button type="button" onClick={() => adjustStageLyricsOffset(LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[11px] font-bold text-slate-300 hover:text-white">延後 {LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒</button><button type="button" onClick={() => setShowTuning(value => !value)} className="rounded-xl border border-white/[0.12] bg-white/[0.05] px-3 py-2 text-xs font-bold text-slate-300 hover:text-white">視覺與舞台設定</button></div></div>}
-          </div>
+          </div>}
         </main>
       </div>
 
