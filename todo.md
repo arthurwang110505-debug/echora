@@ -172,4 +172,4 @@
 ## YouTube OAuth account switching follow-up
 - [x] YOUTUBE-OAUTH-001：OAuth callback 讀取並保留來源 route、query、hash，避免第二階段選擇後被固定導回首頁；callback page 是唯一消費 token 的入口，避免 provider restore race。
 - [x] YOUTUBE-OAUTH-002：Home、Player、Library 的已連線 YouTube UI 提供「登出 YouTube」與「切換帳號」；登出清除 Echora 的 YouTube session／profile／playlist state，保留播放快照、收藏、最近播放與其他服務；切換帳號要求 Google account chooser。
-- [ ] YOUTUBE-OAUTH-003：完成 OAuth helper／route regression tests、typecheck、lint、build、非登入 browser recovery smoke、GitHub master push 與 Vercel production verification；真實 Google account chooser／consent 留由使用者接手驗證。
+- [x] YOUTUBE-OAUTH-003：完成 OAuth helper／route regression tests、typecheck、lint、build、非登入 browser recovery smoke、GitHub master push 與 Vercel production verification；真實 Google account chooser／consent 留由使用者接手驗證。
