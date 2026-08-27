@@ -168,6 +168,52 @@ export const resolveFumeCameraYForViewport = (
     return Math.min(Math.max(targetY, minCameraY), maxCameraY);
 };
 
+export interface FumeRenderableLineBounds {
+    left: number;
+    top: number;
+    width: number;
+}
+
+export interface FumeContentFrameBounds {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+}
+
+/** Resolve the actual rendered text bounds used for compact Fume camera safety. */
+export const resolveFumeContentFrameBounds = (
+    block: { x: number; y: number; width: number; height: number },
+    renderLines: ReadonlyArray<FumeRenderableLineBounds>,
+    lineHeight: number,
+): FumeContentFrameBounds => {
+    const fallback = {
+        left: block.x,
+        top: block.y,
+        right: block.x + block.width,
+        bottom: block.y + block.height,
+    };
+    const finiteLines = renderLines.filter(line => (
+        Number.isFinite(line.left)
+        && Number.isFinite(line.top)
+        && Number.isFinite(line.width)
+        && line.width >= 0
+    ));
+
+    if (finiteLines.length === 0) {
+        return fallback;
+    }
+
+    const bounds = {
+        left: Math.min(...finiteLines.map(line => block.x + line.left)),
+        top: Math.min(...finiteLines.map(line => block.y + line.top)),
+        right: Math.max(...finiteLines.map(line => block.x + line.left + line.width)),
+        bottom: Math.max(...finiteLines.map(line => block.y + line.top + Math.max(lineHeight, 0))),
+    };
+
+    return Object.values(bounds).every(Number.isFinite) ? bounds : fallback;
+};
+
 export const resolveFumeCanvasDpr = (devicePixelRatio: number, compact: boolean): number => {
     const safeDpr = Number.isFinite(devicePixelRatio) && devicePixelRatio > 0 ? devicePixelRatio : 1;
     return compact ? Math.min(safeDpr, 2) : safeDpr;

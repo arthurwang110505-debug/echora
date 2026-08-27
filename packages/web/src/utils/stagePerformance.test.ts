@@ -7,6 +7,7 @@ import {
     resolveFumeCameraXForViewport,
     resolveFumeCameraYForViewport,
     resolveFumeCanvasDpr,
+    resolveFumeContentFrameBounds,
     shouldUseCompactStageProfile,
 } from './stagePerformance';
 
@@ -77,6 +78,31 @@ describe('stage performance profile', () => {
         expect(resolveFumeCameraYForViewport(400, 100, 500, 390, 1, true)).toBe(300);
         expect(resolveFumeCameraYForViewport(100, 100, 700, 390, 1, true)).toBe(400);
         expect(resolveFumeCameraYForViewport(100, 100, 500, 390, 1, false)).toBe(100);
+    });
+
+    it('resolves compact Fume safety from rendered line bounds instead of layout whitespace', () => {
+        const block = { x: 120, y: 480, width: 900, height: 120 };
+        const contentFrame = resolveFumeContentFrameBounds(block, [
+            { left: 24, top: 12, width: 210 },
+            { left: 8, top: 58, width: 302 },
+        ], 38);
+
+        expect(contentFrame).toEqual({ left: 128, top: 492, right: 430, bottom: 576 });
+        expect(resolveFumeCameraXForViewport(240, contentFrame.left, contentFrame.right, 390, 0.84, true)).toBeCloseTo(240, 5);
+        expect(resolveFumeCameraXForViewport(240, block.x, block.x + block.width, 390, 0.84, true)).toBeCloseTo(570, 5);
+    });
+
+    it('falls back to the block bounds when a Fume block has no rendered lines', () => {
+        expect(resolveFumeContentFrameBounds(
+            { x: 120, y: 480, width: 900, height: 120 },
+            [],
+            38,
+        )).toEqual({ left: 120, top: 480, right: 1020, bottom: 600 });
+        expect(resolveFumeContentFrameBounds(
+            { x: 120, y: 480, width: 900, height: 120 },
+            [{ left: Number.NaN, top: 0, width: 240 }],
+            38,
+        )).toEqual({ left: 120, top: 480, right: 1020, bottom: 600 });
     });
 
     it('caps only compact Fume canvas DPR', () => {

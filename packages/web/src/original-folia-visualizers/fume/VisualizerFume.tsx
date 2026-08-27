@@ -13,7 +13,7 @@ import { getRecentCompletedLine, getUpcomingLines } from '../runtime';
 import VisualizerShell from '../VisualizerShell';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import { resolveWordColor } from '../wordColoring';
-import { resolveFumeCameraScaleForViewport, resolveFumeCameraXForViewport, resolveFumeCameraYForViewport, resolveFumeCanvasDpr, useCompactStageProfile } from '../../utils/stagePerformance';
+import { resolveFumeCameraScaleForViewport, resolveFumeCameraXForViewport, resolveFumeCameraYForViewport, resolveFumeCanvasDpr, resolveFumeContentFrameBounds, useCompactStageProfile } from '../../utils/stagePerformance';
 
 // This mode is basically "turn the whole lyric into an article, then move a camera through it".
 // So the pipeline is much bigger than the others: prebuild the article layout, split it into blocks/render lines/graphemes,
@@ -1650,7 +1650,12 @@ const resolveCameraScaleForBlock = (
     viewport: ViewportSize,
     compact = false,
 ) => {
-    const widestRenderLine = Math.max(0, ...block.renderLines.map(renderLine => renderLine.width));
+    const widestRenderLine = Math.max(
+        0,
+        ...block.renderLines
+            .map(renderLine => renderLine.width)
+            .filter(width => Number.isFinite(width)),
+    );
     return resolveFumeCameraScaleForViewport(
         block.lineHeight,
         viewport,
@@ -2339,18 +2344,19 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
             }
 
             if (isCompactStage && focusBlock && !shouldShowOverview) {
+                const contentFrame = resolveFumeContentFrameBounds(focusBlock, focusBlock.renderLines, focusBlock.lineHeight);
                 targetCameraX = resolveFumeCameraXForViewport(
                     targetCameraX,
-                    focusBlock.x,
-                    focusBlock.x + focusBlock.width,
+                    contentFrame.left,
+                    contentFrame.right,
                     viewport.width,
                     targetCameraScale,
                     true,
                 );
                 targetCameraY = resolveFumeCameraYForViewport(
                     targetCameraY,
-                    focusBlock.y,
-                    focusBlock.y + focusBlock.height,
+                    contentFrame.top,
+                    contentFrame.bottom,
                     viewport.height,
                     targetCameraScale,
                     true,
@@ -2501,38 +2507,39 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
             // frame contract so long CJK lines never escape the mobile Stage frame.
             if (isCompactStage && focusBlock && !shouldShowOverview) {
                 const frameScale = resolveCameraScaleForBlock(focusBlock, viewport, true);
+                const contentFrame = resolveFumeContentFrameBounds(focusBlock, focusBlock.renderLines, focusBlock.lineHeight);
                 const safeScale = Math.min(cameraRef.current.scale, frameScale);
                 cameraRef.current.scale = safeScale;
                 cameraRef.current.focusScale = Math.min(cameraRef.current.focusScale, frameScale);
                 cameraRef.current.velocityScale = Math.min(cameraRef.current.velocityScale, 0);
                 cameraRef.current.x = resolveFumeCameraXForViewport(
                     cameraRef.current.x,
-                    focusBlock.x,
-                    focusBlock.x + focusBlock.width,
+                    contentFrame.left,
+                    contentFrame.right,
                     viewport.width,
                     safeScale,
                     true,
                 );
                 cameraRef.current.y = resolveFumeCameraYForViewport(
                     cameraRef.current.y,
-                    focusBlock.y,
-                    focusBlock.y + focusBlock.height,
+                    contentFrame.top,
+                    contentFrame.bottom,
                     viewport.height,
                     safeScale,
                     true,
                 );
                 cameraRef.current.focusX = resolveFumeCameraXForViewport(
                     cameraRef.current.focusX,
-                    focusBlock.x,
-                    focusBlock.x + focusBlock.width,
+                    contentFrame.left,
+                    contentFrame.right,
                     viewport.width,
                     safeScale,
                     true,
                 );
                 cameraRef.current.focusY = resolveFumeCameraYForViewport(
                     cameraRef.current.focusY,
-                    focusBlock.y,
-                    focusBlock.y + focusBlock.height,
+                    contentFrame.top,
+                    contentFrame.bottom,
                     viewport.height,
                     safeScale,
                     true,
@@ -3031,6 +3038,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
         backgroundScene,
         backgroundObjectOpacity,
         cameraSpeed,
+        resolvedFumeTuning.cameraTrackingMode,
         currentTime,
         glowIntensity,
         passedFadeDuration,
