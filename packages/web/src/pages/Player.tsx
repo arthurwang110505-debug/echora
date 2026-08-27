@@ -12,6 +12,7 @@ import LyriclessSoundscapeStage from '../components/LyriclessSoundscapeStage';
 import { CoverImage, PanelSkeleton, PlayerSkeleton, StageSkeleton } from '../components/LoadingSkeletons';
 import { adjustLyricsOffset, getActiveLyricIndex, LYRICS_OFFSET_STEP_SECONDS } from '../utils/lyrics/activeLine';
 import { lazyWithRetry } from '../utils/recovery';
+import { isYouTubeVideo } from '../utils/youtubePlayback';
 
 const OriginalFoliaVisualizerStage = lazyWithRetry(
   () => import('../components/OriginalFoliaVisualizerStage'),
@@ -82,6 +83,7 @@ export default function Player() {
   const stageRootRef = useRef<HTMLDivElement>(null);
   const spotifyAvailable = Boolean(spotifyClientId);
   const demoMode = location.state?.demo === true || new URLSearchParams(location.search).get('demo') === '1';
+  const isYouTubeVideoMode = isYouTubeVideo(currentSong);
   const [hasHydrated, setHasHydrated] = useState(false);
 
   useEffect(() => {
@@ -103,8 +105,13 @@ export default function Player() {
     // Snapshots intentionally omit lyric payloads; recover them after the route
     // hydrates so a direct /player visit never falls into the lyricless stage.
     if (!hasHydrated || !currentSong || currentLyrics || isLoadingLyrics) return;
+    if (isYouTubeVideo(currentSong)) return;
     void fetchLyrics(currentSong);
   }, [currentSong, currentLyrics, fetchLyrics, hasHydrated, isLoadingLyrics]);
+
+  useEffect(() => {
+    if (isYouTubeVideoMode && displayMode === 'stage') setDisplayMode('full');
+  }, [displayMode, isYouTubeVideoMode, setDisplayMode]);
 
   const handlePlayPause = () => {
     // Playback must not reset a user-selected Folia renderer. YouTube transport
@@ -271,11 +278,11 @@ export default function Player() {
   return (
     <div
       ref={stageRootRef}
-      className="echora-immersive-stage relative flex h-screen w-full select-none flex-col overflow-hidden font-sans transition-colors duration-700 ambient-grain"
-      style={{ backgroundColor: currentTheme.backgroundColor || '#07090e' }}
+      className={`echora-immersive-stage relative flex h-screen w-full select-none flex-col overflow-hidden font-sans transition-colors duration-700 ${isYouTubeVideoMode ? 'bg-[#07090e]' : 'ambient-grain'}`}
+      style={{ backgroundColor: isYouTubeVideoMode ? '#07090e' : (currentTheme.backgroundColor || '#07090e') }}
     >
       {/* Dynamic Music-Reactive Blurred Backdrop with 800ms Crossfade */}
-      <div
+      {!isYouTubeVideoMode && <div
         className={`absolute inset-0 z-0 overflow-hidden pointer-events-none transition-all duration-700 ${
           isChangingTrack ? 'opacity-30 scale-105 blur-2xl' : 'opacity-100 scale-100'
         }`}
@@ -297,14 +304,14 @@ export default function Player() {
             style={{ background: currentTheme.primaryColor || '#6366f1' }}
           />
         </div>
-      </div>
+      </div>}
 
       {/* Top Navigation Header — not rendered in immersive mode so it cannot become a hidden tab stop. */}
-      {displayMode !== 'stage' && <header className="relative z-20 flex items-center justify-between px-5 md:px-8 py-3.5 glass-panel border-b border-white/[0.08]">
-        <div className="flex items-center gap-3 md:gap-5">
+      {displayMode !== 'stage' && <header className="relative z-20 flex flex-wrap items-center justify-between gap-3 px-3 py-3 glass-panel border-b border-white/[0.08] sm:px-5 sm:py-3.5 md:flex-nowrap md:gap-0 md:px-8">
+        <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-5">
           <button
             onClick={() => navigate('/')}
-            className="p-2.5 rounded-2xl bg-white/[0.05] hover:bg-white/[0.12] btn-spring backdrop-blur-md text-white border border-white/10"
+            className="min-h-11 min-w-11 shrink-0 rounded-2xl bg-white/[0.05] p-2.5 text-white backdrop-blur-md btn-spring hover:bg-white/[0.12]"
             title="返回主頁"
             aria-label="返回主頁"
           >
@@ -319,27 +326,27 @@ export default function Player() {
           </div>
 
           {/* Responsive Segmented Mode Controller */}
-          <div className="flex p-1 rounded-2xl bg-white/[0.06] border border-white/[0.08] backdrop-blur-md">
+          <div className="flex min-w-0 flex-1 rounded-2xl border border-white/[0.08] bg-white/[0.06] p-1 backdrop-blur-md sm:flex-none">
             <button
               onClick={() => void leaveImmersiveStage()}
-              className="px-3 md:px-4 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 btn-spring bg-gradient-to-r from-[#62f5c4] to-teal-400 text-black shadow-md"
+              className="min-h-11 min-w-0 flex-1 rounded-xl px-2 py-1.5 text-[11px] font-bold text-black shadow-md transition-all duration-200 btn-spring bg-gradient-to-r from-[#62f5c4] to-teal-400 sm:flex-none sm:px-4 sm:text-xs"
             >
               <Smartphone aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />播放器
             </button>
-            <button
+            {!isYouTubeVideoMode && <button
               onClick={() => void enterImmersiveStage()}
-              className="px-3 md:px-4 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 btn-spring text-slate-400 hover:text-white"
+              className="min-h-11 min-w-0 flex-1 rounded-xl px-2 py-1.5 text-[11px] font-bold text-slate-400 transition-all duration-200 btn-spring hover:text-white sm:flex-none sm:px-4 sm:text-xs"
             >
               <Sparkles aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />進入 Stage
-            </button>
+            </button>}
           </div>
         </div>
 
         {/* Music Source Connector & Playlist Drawer Toggle */}
-        <div className="flex items-center gap-2 md:gap-3">
+        <div className="flex w-full min-w-0 items-center gap-2 md:w-auto md:gap-3">
           <button
             onClick={() => setShowConnectModal(true)}
-            className="flex items-center gap-2 px-3 md:px-4 py-1.5 rounded-2xl bg-[#62f5c4]/15 border border-[#62f5c4]/30 hover:bg-[#62f5c4]/25 text-[#62f5c4] text-xs font-bold transition-all btn-spring"
+            className="flex min-h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl border border-[#62f5c4]/30 bg-[#62f5c4]/15 px-2 py-1.5 text-[11px] font-bold text-[#62f5c4] transition-all btn-spring hover:bg-[#62f5c4]/25 sm:flex-none sm:px-4 sm:text-xs"
           >
             <span className={`w-2 h-2 rounded-full ${(activeSource === 'spotify' ? spotifyConnected : youtubeConnected) ? 'bg-[#62f5c4] shadow-[0_0_8px_#62f5c4]' : 'bg-slate-500'} `} />
             <span className="hidden sm:inline">{activeSource === 'spotify' ? (spotifyConnected ? 'Spotify 已連線' : '我的音樂') : (youtubeConnected ? 'YouTube 已連線' : '我的音樂')}</span>
@@ -349,7 +356,7 @@ export default function Player() {
           {displayMode === 'full' && (
             <button
               onClick={() => setShowPlaylistDrawer(!showPlaylistDrawer)}
-              className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-xs font-bold transition-all btn-spring ${
+              className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-2xl border px-3 py-2 text-xs font-bold transition-all btn-spring ${
                 showPlaylistDrawer
                   ? 'border-white/20 bg-white/15 text-white shadow-sm'
                   : 'border-white/10 bg-white/[0.05] text-slate-400 hover:text-white'
@@ -481,7 +488,7 @@ export default function Player() {
         )}
 
         {/* Center Hero Stage View */}
-        <main className={`min-w-0 flex-1 h-full flex flex-col justify-between overflow-hidden relative z-10 ${displayMode === 'stage' ? 'p-0' : 'p-4 sm:p-6 md:p-8'}`}>
+        <main className={`min-h-0 min-w-0 flex-1 flex flex-col justify-between overflow-hidden relative z-10 ${displayMode === 'stage' ? 'p-0' : 'p-4 sm:p-6 md:p-8'}`}>
           {/* Track Header Card — not rendered in immersive mode so it cannot become a hidden tab stop. */}
           {displayMode !== 'stage' && <div className="flex items-center gap-4 sm:gap-5 z-10 glass-card p-3.5 sm:p-4 rounded-3xl border border-white/10 w-fit backdrop-blur-2xl shadow-xl transition-all">
             <div className="relative">
@@ -511,41 +518,51 @@ export default function Player() {
           </div>}
 
           {/* Echora Kinetic Lyrics Animation Stage */}
-          {currentSong.source === 'ytmusic' && <YouTubePlayer immersive={displayMode === 'stage'} concealed={displayMode === 'full' && showPlaylistDrawer} />}
-          {displayMode === 'full' && showPlaylistDrawer && currentSong.source === 'ytmusic' && (
-            <p className="pointer-events-none absolute bottom-6 right-6 z-20 hidden rounded-xl border border-white/10 bg-[#07090e]/80 px-3 py-2 text-[11px] font-semibold text-slate-300 backdrop-blur md:block">選歌時已隱藏 YouTube 播放器；關閉歌單側欄後即可操作。</p>
-          )}
-          {isLoadingLyrics ? (
-            <StageSkeleton />
-          ) : showLyriclessSoundscape ? (
-            <LyriclessSoundscapeStage
-              coverUrl={currentSong.coverUrl}
-              songTitle={currentSong.title}
-              songArtist={activeArtist}
-              displayedTime={displayedLyricsTime}
-              isPlaying={isPlaying}
-              theme={currentTheme}
-            />
+          {isYouTubeVideoMode ? (
+            <div className="flex min-h-0 flex-1 items-center justify-center px-0 py-4 sm:px-4 sm:py-6">
+              <YouTubePlayer videoMode />
+            </div>
           ) : (
-            <Suspense fallback={<StageSkeleton />}>
-              <OriginalFoliaVisualizerStage
-                lines={currentLyrics?.lines || []}
-                activeLineIndex={activeLineIndex}
-                displayedTime={displayedLyricsTime}
-                isPlaying={isPlaying}
-                theme={currentTheme}
-                visualizerMode={activeVisualizer}
+            <>
+              {currentSong.source === 'ytmusic' && <YouTubePlayer immersive={displayMode === 'stage'} concealed={displayMode === 'full' && showPlaylistDrawer} />}
+              {displayMode === 'full' && showPlaylistDrawer && currentSong.source === 'ytmusic' && (
+                <p className="pointer-events-none absolute bottom-6 right-6 z-20 hidden rounded-xl border border-white/10 bg-[#07090e]/80 px-3 py-2 text-[11px] font-semibold text-slate-300 backdrop-blur md:block">選歌時已隱藏 YouTube 播放器；關閉歌單側欄後即可操作。</p>
+              )}
+            </>
+          )}
+          {!isYouTubeVideoMode && <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+            {isLoadingLyrics ? (
+              <StageSkeleton />
+            ) : showLyriclessSoundscape ? (
+              <LyriclessSoundscapeStage
                 coverUrl={currentSong.coverUrl}
                 songTitle={currentSong.title}
                 songArtist={activeArtist}
-                onSeekLine={seek}
-                backgroundMode={backgroundMode}
-                visualizerTunings={visualizerTunings}
-                isPlayerChromeHidden={false}
-                settingsOpen={displayMode === 'stage' && (showStageSettings || showTuning)}
+                displayedTime={displayedLyricsTime}
+                isPlaying={isPlaying}
+                theme={currentTheme}
               />
-            </Suspense>
-          )}
+            ) : (
+              <Suspense fallback={<StageSkeleton />}>
+                <OriginalFoliaVisualizerStage
+                  lines={currentLyrics?.lines || []}
+                  activeLineIndex={activeLineIndex}
+                  displayedTime={displayedLyricsTime}
+                  isPlaying={isPlaying}
+                  theme={currentTheme}
+                  visualizerMode={activeVisualizer}
+                  coverUrl={currentSong.coverUrl}
+                  songTitle={currentSong.title}
+                  songArtist={activeArtist}
+                  onSeekLine={seek}
+                  backgroundMode={backgroundMode}
+                  visualizerTunings={visualizerTunings}
+                  isPlayerChromeHidden={false}
+                  settingsOpen={displayMode === 'stage' && (showStageSettings || showTuning)}
+                />
+              </Suspense>
+            )}
+          </div>}
 
           {showTuning && (
             <Suspense fallback={<PanelSkeleton />}>
@@ -668,7 +685,7 @@ export default function Player() {
           )}
 
           {/* Bottom controls are intentionally not rendered in immersive mode. */}
-          {displayMode !== 'stage' && <div className="z-20 glass-panel p-4 sm:p-5 md:p-6 rounded-3xl border border-white/15 shadow-2xl space-y-3.5">
+          {displayMode !== 'stage' && <div className={`z-20 glass-panel p-4 sm:p-5 md:p-6 rounded-3xl border border-white/15 shadow-2xl space-y-3.5 ${isYouTubeVideoMode ? 'flex justify-center' : ''}`}>
 
             {/* Interactive Progress Bar */}
             <div className="space-y-1.5">
@@ -703,14 +720,14 @@ export default function Player() {
             </div>
 
             {/* Primary playback controls and secondary stage controls */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-2 md:w-auto">
+            <div className={`flex flex-col items-center gap-4 md:flex-row ${isYouTubeVideoMode ? 'justify-center' : 'justify-between'}`}>
+              {!isYouTubeVideoMode && <div className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-2 md:w-auto">
                 <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">目前舞台</p><p className="text-xs font-extrabold text-[#b8ffe2]">{activeVisualizer}</p></div>
                 <div className="flex items-center gap-1.5">
                   <button type="button" onClick={() => void enterImmersiveStage()} className="min-h-11 shrink-0 rounded-xl bg-[#62f5c4] px-3 py-2 text-xs font-extrabold text-black transition hover:brightness-110" aria-label="進入沉浸舞台">Stage</button>
                   <button type="button" onClick={() => setShowCalibration(value => !value)} className={`min-h-11 shrink-0 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${showCalibration ? 'border-[#62f5c4]/50 bg-[#62f5c4]/20 text-[#62f5c4]' : 'border-white/10 bg-white/[0.05] text-slate-300 hover:text-white'}`} aria-expanded={showCalibration} aria-controls="desktop-calibration" aria-label={showCalibration ? '關閉更多播放設定' : '開啟更多播放設定'}>更多</button>
                 </div>
-              </div>
+              </div>}
 
               {/* Media Controls */}
               <div className="flex items-center gap-5 sm:gap-6">
@@ -743,7 +760,7 @@ export default function Player() {
                 </button>
               </div>
             </div>
-            {showCalibration && <div id="desktop-calibration" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-3"><div><p className="text-xs font-bold text-white">歌詞對齊</p><p className="mt-0.5 text-[11px] text-slate-400">每次調整 {LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒 · 目前 <span className="font-semibold text-[#b8ffe2]">{lyricsOffsetLabel}</span></p></div><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => adjustStageLyricsOffset(-LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[11px] font-bold text-slate-300 hover:text-white">提前 {LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒</button><button type="button" onClick={() => setLyricsOffsetSeconds(0)} className="rounded-lg border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-2.5 py-2 text-[11px] font-bold text-[#b8ffe2]">同步回原點</button><button type="button" onClick={() => adjustStageLyricsOffset(LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[11px] font-bold text-slate-300 hover:text-white">延後 {LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒</button><button type="button" onClick={() => setShowTuning(value => !value)} className="rounded-xl border border-white/[0.12] bg-white/[0.05] px-3 py-2 text-xs font-bold text-slate-300 hover:text-white">視覺與舞台設定</button></div></div>}
+            {!isYouTubeVideoMode && showCalibration && <div id="desktop-calibration" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-3"><div><p className="text-xs font-bold text-white">歌詞對齊</p><p className="mt-0.5 text-[11px] text-slate-400">每次調整 {LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒 · 目前 <span className="font-semibold text-[#b8ffe2]">{lyricsOffsetLabel}</span></p></div><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => adjustStageLyricsOffset(-LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[11px] font-bold text-slate-300 hover:text-white">提前 {LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒</button><button type="button" onClick={() => setLyricsOffsetSeconds(0)} className="rounded-lg border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-2.5 py-2 text-[11px] font-bold text-[#b8ffe2]">同步回原點</button><button type="button" onClick={() => adjustStageLyricsOffset(LYRICS_OFFSET_STEP_SECONDS)} className="rounded-lg border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[11px] font-bold text-slate-300 hover:text-white">延後 {LYRICS_OFFSET_STEP_SECONDS.toFixed(2)} 秒</button><button type="button" onClick={() => setShowTuning(value => !value)} className="rounded-xl border border-white/[0.12] bg-white/[0.05] px-3 py-2 text-xs font-bold text-slate-300 hover:text-white">視覺與舞台設定</button></div></div>}
           </div>}
         </main>
       </div>

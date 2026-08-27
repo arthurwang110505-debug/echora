@@ -81,6 +81,9 @@ export type MusicSource =
   | 'qq'
   | 'kugou';
 
+/** YouTube Data API category used for conservative player-mode routing. */
+export type YouTubeVideoKind = 'music' | 'video' | 'unknown';
+
 // ============ LEGACY LYRICS TYPES (kept for compatibility) ============
 
 // Original lyrics types (more complex)
@@ -259,6 +262,8 @@ export interface Song {
   audioUrl?: string;
   lyrics?: LyricData;
   source: MusicSource;
+  /** Present only for YouTube-backed songs; unknown never guesses a video mode. */
+  youtubeVideoKind?: YouTubeVideoKind;
   isPureMusic?: boolean;
   matchedLyricsSource?: LyricProviderSource;
 }

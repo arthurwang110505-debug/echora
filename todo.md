@@ -173,3 +173,12 @@
 - [x] YOUTUBE-OAUTH-001：OAuth callback 讀取並保留來源 route、query、hash，避免第二階段選擇後被固定導回首頁；callback page 是唯一消費 token 的入口，避免 provider restore race。
 - [x] YOUTUBE-OAUTH-002：Home、Player、Library 的已連線 YouTube UI 提供「登出 YouTube」與「切換帳號」；登出清除 Echora 的 YouTube session／profile／playlist state，保留播放快照、收藏、最近播放與其他服務；切換帳號要求 Google account chooser。
 - [x] YOUTUBE-OAUTH-003：完成 OAuth helper／route regression tests、typecheck、lint、build、非登入 browser recovery smoke、GitHub master push 與 Vercel production verification；真實 Google account chooser／consent 留由使用者接手驗證。
+
+## YouTube playlist playback, mobile controls, video modes and Fume framing follow-up
+- [x] YOUTUBE-PLAYLIST-001：YouTube 連線並完成同步後，首頁 3D 輪播使用目前同步／選取的使用者歌單，不再顯示原本三首 hard-coded 示範歌曲；未連線仍保留本機展示曲目。
+- [x] YOUTUBE-PLAYLIST-002：補齊 YouTube playlist loading、empty、error、retry 與 refresh 狀態，避免同步未完成時誤把 demo 當成使用者歌單。
+- [x] YOUTUBE-MOBILE-001：修正 Player／YouTube 上方來源、播放器／Stage、歌單與返回控制在 390×844／393×852 的排列、safe-area、文字裁切與觸控高度，不產生水平溢出或重疊。
+- [x] YOUTUBE-MOBILE-002：修正 YouTube 播放狀態下 pause／play 控制偶發點不到的 layering、pointer-events、z-index 與 hit-area 問題，並保留 iframe 原生互動。
+- [x] YOUTUBE-VIDEO-001：依可靠 YouTube metadata 分流一般影片與音樂影片；一般影片直接播放原影片且不啟用歌詞／音樂 Stage，音樂影片維持歌詞與漂亮背景舞台，metadata 不足時採安全 fallback。
+- [x] FUME-FRAME-002：修正 Fume 在 mobile viewport 的 canvas／scene framing、縮放與容器溢出，確保完整在 Stage frame 內；desktop、tablet 與其他舞台場景不回歸。
+- [ ] YOUTUBE-FUME-RELEASE-001：完成本輪 focused／full tests、typecheck、lint、build、390／393px、tablet／desktop browser smoke，提交並推送 GitHub master，驗證 Vercel production；真實 Google 帳號與私人歌單互動留由使用者接手驗證。

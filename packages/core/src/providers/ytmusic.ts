@@ -1,5 +1,5 @@
 // YouTube Music Provider for Echora
-import type { Song } from '../types';
+import type { Song, YouTubeVideoKind } from '../types';
 import type { Playlist } from './types';
 
 const YOUTUBE_VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
@@ -23,6 +23,23 @@ export const extractYouTubeVideoId = (value?: string | null): string | null => {
   }
 };
 
+/** Converts the ISO 8601 duration returned by YouTube Data API into milliseconds. */
+export const parseYouTubeDuration = (value?: string | null): number | undefined => {
+  if (!value) return undefined;
+  const match = value.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$/i);
+  if (!match) return undefined;
+  const hours = Number(match[1] || 0);
+  const minutes = Number(match[2] || 0);
+  const seconds = Number(match[3] || 0);
+  const durationMs = (hours * 3600 + minutes * 60 + seconds) * 1000;
+  return Number.isFinite(durationMs) && durationMs > 0 ? Math.round(durationMs) : undefined;
+};
+
+/** Uses the official YouTube category when available; missing metadata never guesses music. */
+export const resolveYouTubeVideoKind = (categoryId?: string | null): YouTubeVideoKind => (
+  categoryId === '10' ? 'music' : categoryId ? 'video' : 'unknown'
+);
+
 export interface YTTrack {
   videoId: string;
   title: string;
@@ -33,6 +50,13 @@ export interface YTTrack {
 }
 
 export interface YouTubeProfile { name: string; avatarUrl?: string; channelId?: string; }
+
+interface YouTubeVideoMetadata {
+  videoId: string;
+  categoryId?: string;
+  duration?: string;
+  embeddable?: boolean;
+}
 
 export class YouTubeMusicProvider {
   private accessToken: string | null = null;
@@ -68,6 +92,25 @@ export class YouTubeMusicProvider {
     return item ? { channelId: item.id, name: item.snippet?.title || 'YouTube Music', avatarUrl: item.snippet?.thumbnails?.default?.url } : null;
   }
 
+  private async getVideoMetadata(videoIds: string[]): Promise<Map<string, YouTubeVideoMetadata>> {
+    const metadata = new Map<string, YouTubeVideoMetadata>();
+    for (let start = 0; start < videoIds.length; start += 50) {
+      const ids = videoIds.slice(start, start + 50);
+      if (ids.length === 0) continue;
+      type VideosResponse = { items?: Array<{ id: string; snippet?: { categoryId?: string }; contentDetails?: { duration?: string }; status?: { embeddable?: boolean } }> };
+      const data = await this.authorized<VideosResponse>(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,status&id=${encodeURIComponent(ids.join(','))}`);
+      for (const item of data.items || []) {
+        metadata.set(item.id, {
+          videoId: item.id,
+          categoryId: item.snippet?.categoryId,
+          duration: item.contentDetails?.duration,
+          embeddable: item.status?.embeddable,
+        });
+      }
+    }
+    return metadata;
+  }
+
   async getPlaylistTracks(playlistId: string): Promise<Song[]> {
     type PlaylistItemsResponse = { nextPageToken?: string; items?: Array<{ snippet: { title: string; channelTitle?: string; thumbnails?: { high?: { url: string }; medium?: { url: string } }; resourceId: { videoId: string } } }> };
     const items: NonNullable<PlaylistItemsResponse['items']> = [];
@@ -81,7 +124,7 @@ export class YouTubeMusicProvider {
       if (!pageToken) break;
     }
 
-    return items.filter(item => item.snippet.resourceId?.videoId).map(item => ({
+    const baseTracks = items.filter(item => item.snippet.resourceId?.videoId).map(item => ({
       id: item.snippet.resourceId.videoId,
       title: item.snippet.title,
       artists: [{ id: item.snippet.channelTitle || 'youtube', name: item.snippet.channelTitle || 'YouTube Music' }],
@@ -89,7 +132,25 @@ export class YouTubeMusicProvider {
       source: 'ytmusic' as const,
       audioUrl: item.snippet.resourceId.videoId,
     }));
+
+    let metadata = new Map<string, YouTubeVideoMetadata>();
+    try {
+      metadata = await this.getVideoMetadata(baseTracks.map(track => track.id));
+    } catch {
+      // Playlist items remain usable when the optional metadata request is unavailable.
+      // The resulting `unknown` kind intentionally avoids treating an ordinary video as music.
+    }
+
+    return baseTracks.map(track => {
+      const video = metadata.get(track.id);
+      return {
+        ...track,
+        durationMs: parseYouTubeDuration(video?.duration),
+        youtubeVideoKind: resolveYouTubeVideoKind(video?.categoryId),
+      };
+    });
   }
+
   // YouTube does not expose a public YouTube Music playback/account API.
   // Use the official YouTube Data API for public search, then hand playback to YouTube Music.
   async searchTracks(query: string): Promise<Song[]> {
@@ -105,6 +166,7 @@ export class YouTubeMusicProvider {
         artists: [{ id: item.snippet.channelId, name: item.snippet.channelTitle || 'YouTube Music' }],
         coverUrl: item.snippet.thumbnails?.high?.url || `https://i.ytimg.com/vi/${item.id.videoId}/hqdefault.jpg`,
         source: 'ytmusic' as const,
+        youtubeVideoKind: 'music' as const,
         // IFrame Player requires the 11-character video ID, not a full watch URL.
         audioUrl: item.id.videoId,
       }));
@@ -122,5 +184,4 @@ export class YouTubeMusicProvider {
   async getFeaturedPlaylists(): Promise<Playlist[]> {
     return [];
   }
-
 }

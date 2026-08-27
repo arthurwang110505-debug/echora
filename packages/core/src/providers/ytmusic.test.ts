@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { extractYouTubeVideoId, YouTubeMusicProvider } from './ytmusic';
+import { extractYouTubeVideoId, parseYouTubeDuration, resolveYouTubeVideoKind, YouTubeMusicProvider } from './ytmusic';
 
 afterEach(() => { vi.unstubAllGlobals(); });
 
@@ -22,7 +22,47 @@ describe('extractYouTubeVideoId', () => {
   });
 });
 
-describe('YouTubeMusicProvider pagination', () => {
+describe('YouTube video metadata helpers', () => {
+  it('parses ISO 8601 durations and keeps invalid values unknown', () => {
+    expect(parseYouTubeDuration('PT1H2M3.5S')).toBe(3723500);
+    expect(parseYouTubeDuration('PT4M12S')).toBe(252000);
+    expect(parseYouTubeDuration('')).toBeUndefined();
+    expect(parseYouTubeDuration('not-a-duration')).toBeUndefined();
+  });
+
+  it('classifies only the official music category as music', () => {
+    expect(resolveYouTubeVideoKind('10')).toBe('music');
+    expect(resolveYouTubeVideoKind('22')).toBe('video');
+    expect(resolveYouTubeVideoKind(undefined)).toBe('unknown');
+  });
+});
+
+describe('YouTubeMusicProvider metadata and pagination', () => {
+  it('maps playlist tracks with official video metadata without guessing missing categories', async () => {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        items: [{ snippet: { title: 'Music track', channelTitle: 'Artist', resourceId: { videoId: 'by4SYYWlhEs' } } }, { snippet: { title: 'Ordinary video', channelTitle: 'Channel', resourceId: { videoId: 'ZRtdQ81jPUQ' } } }],
+      })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        items: [
+          { id: 'by4SYYWlhEs', snippet: { categoryId: '10' }, contentDetails: { duration: 'PT3M5S' }, status: { embeddable: true } },
+          { id: 'ZRtdQ81jPUQ', snippet: { categoryId: '22' }, contentDetails: { duration: 'PT1M' }, status: { embeddable: true } },
+        ],
+      })));
+    vi.stubGlobal('fetch', fetch);
+
+    const provider = new YouTubeMusicProvider();
+    provider.setAccessToken('token');
+    const tracks = await provider.getPlaylistTracks('playlist-1');
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch.mock.calls[1]?.[0]).toContain('/videos?part=snippet,contentDetails,status');
+    expect(tracks).toMatchObject([
+      { id: 'by4SYYWlhEs', durationMs: 185000, youtubeVideoKind: 'music' },
+      { id: 'ZRtdQ81jPUQ', durationMs: 60000, youtubeVideoKind: 'video' },
+    ]);
+  });
+
   it('collects every returned playlist page before mapping the shared library', async () => {
     const fetch = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({

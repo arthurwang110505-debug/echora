@@ -19,6 +19,7 @@ import { beginYouTubeLogin, clearYouTubeSession, finishYouTubeLogin, getStoredYo
 import { getBundledDemoLyrics } from './demoLyrics';
 import { LOCAL_DEMO_LYRICS, LOCAL_DEMO_SONGS } from './localDemoSongs';
 import { recordDiagnostic } from '../lib/diagnostics';
+import { isYouTubeVideo } from '../utils/youtubePlayback';
 
 const RECENT_SONGS_STORAGE_KEY = 'echora.recent-songs';
 const FAVORITE_SONGS_STORAGE_KEY = 'echora.favorite-songs';
@@ -130,6 +131,8 @@ interface PlayerState {
   spotifyProvider: SpotifyProvider;
   ytProvider: YouTubeMusicProvider;
   userPlaylists: Playlist[];
+  selectedPlaylistId: string | null;
+  loadedPlaylistId: string | null;
   recentSongs: Song[];
   favoriteSongs: Song[];
   isSyncingLibrary: boolean;
@@ -169,7 +172,7 @@ interface PlayerState {
   fetchLyrics: (song: Song) => Promise<void>;
   loadSourcePlaylists: () => Promise<void>;
   loadSpotifyPlaylist: (playlistId: string) => Promise<void>;
-  loadYouTubePlaylist: (playlistId: string) => Promise<void>;
+  loadYouTubePlaylist: (playlistId: string, options?: { autoplay?: boolean }) => Promise<void>;
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -200,6 +203,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   spotifyProvider: new SpotifyProvider(),
   ytProvider: new YouTubeMusicProvider(),
   userPlaylists: [],
+  selectedPlaylistId: null,
+  loadedPlaylistId: null,
   recentSongs: readRecentSongs(),
   favoriteSongs: readFavoriteSongs(),
   isSyncingLibrary: false,
@@ -263,6 +268,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           }
         }).catch(error => set({ isPlaying: false, playbackState: 'error', youtubeError: getYouTubeErrorMessage(error, '搜尋 YouTube 影片失敗') }));
       }
+    }
+    if (isYouTubeVideo(song)) {
+      set({ currentLyrics: null, isLoadingLyrics: false, lyricsStatus: 'unavailable' });
+      return;
     }
     get().fetchLyrics(song);
   },
@@ -432,7 +441,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       const session = finishYouTubeLogin() || getStoredYouTubeSession();
       if (!session) {
         ytProvider.setAccessToken(null);
-        set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: 'disconnected', youtubeError: null, youtubeProfile: null, userPlaylists: [], libraryError: null, isSyncingLibrary: false });
+        set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: 'disconnected', youtubeError: null, youtubeProfile: null, userPlaylists: [], selectedPlaylistId: null, loadedPlaylistId: null, libraryError: null, isSyncingLibrary: false });
         return;
       }
       ytProvider.setAccessToken(session.accessToken);
@@ -444,7 +453,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       clearYouTubeSession();
       ytProvider.setAccessToken(null);
       const message = getYouTubeErrorMessage(error);
-      set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: message.includes('授權已失效') ? 'expired' : 'error', youtubeProfile: null, userPlaylists: [], libraryError: message, isSyncingLibrary: false, youtubeError: message });
+      set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: message.includes('授權已失效') ? 'expired' : 'error', youtubeProfile: null, userPlaylists: [], selectedPlaylistId: null, loadedPlaylistId: null, libraryError: message, isSyncingLibrary: false, youtubeError: message });
     }
   },
 
@@ -453,7 +462,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     void revokeYouTubeAccessToken(accessToken);
     clearYouTubeSession();
     get().ytProvider.setAccessToken(null);
-    set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: 'disconnected', youtubeError: null, youtubeProfile: null, userPlaylists: [], libraryError: null, isSyncingLibrary: false, lastLibrarySyncAt: null });
+    set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: 'disconnected', youtubeError: null, youtubeProfile: null, userPlaylists: [], selectedPlaylistId: null, loadedPlaylistId: null, libraryError: null, isSyncingLibrary: false, lastLibrarySyncAt: null });
   },
 
   restoreSpotifySession: async () => {
@@ -548,7 +557,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         set({ userPlaylists: playlists, isSyncingLibrary: false, libraryError: null, lastLibrarySyncAt: Date.now() });
       } else if (activeSource === 'ytmusic' && youtubeToken) {
         const playlists = await ytProvider.getUserPlaylists();
-        set({ userPlaylists: playlists, isSyncingLibrary: false, libraryError: playlists.length ? null : 'YouTube 已登入，但 API 沒有回傳可用歌單。請確認這些歌單存在於同一個 YouTube 帳戶。', lastLibrarySyncAt: Date.now(), youtubeConnectionState: 'synced', youtubeError: playlists.length ? null : 'YouTube 已登入，但 API 沒有回傳可用歌單。請確認這些歌單存在於同一個 YouTube 帳戶。' });
+        const selectedPlaylistId = get().selectedPlaylistId;
+        const nextSelectedPlaylistId = selectedPlaylistId && playlists.some(playlist => playlist.id === selectedPlaylistId)
+          ? selectedPlaylistId
+          : playlists[0]?.id || null;
+        set({ userPlaylists: playlists, selectedPlaylistId: nextSelectedPlaylistId, isSyncingLibrary: false, libraryError: playlists.length ? null : 'YouTube 已登入，但 API 沒有回傳可用歌單。請確認這些歌單存在於同一個 YouTube 帳戶。', lastLibrarySyncAt: Date.now(), youtubeConnectionState: 'synced', youtubeError: playlists.length ? null : 'YouTube 已登入，但 API 沒有回傳可用歌單。請確認這些歌單存在於同一個 YouTube 帳戶。' });
+        if (nextSelectedPlaylistId) {
+          await get().loadYouTubePlaylist(nextSelectedPlaylistId, { autoplay: false });
+        }
       } else {
         set({ userPlaylists: [], isSyncingLibrary: false, libraryError: null });
       }
@@ -557,7 +573,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       if (message.includes('授權已失效')) {
         clearYouTubeSession();
         ytProvider.setAccessToken(null);
-        set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: 'expired', youtubeProfile: null, isSyncingLibrary: false, libraryError: message, youtubeError: message });
+        set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: 'expired', youtubeProfile: null, userPlaylists: [], selectedPlaylistId: null, loadedPlaylistId: null, isSyncingLibrary: false, libraryError: message, youtubeError: message });
       } else {
         set({ isSyncingLibrary: false, libraryError: message, youtubeConnectionState: 'error', youtubeError: message });
       }
@@ -572,12 +588,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (tracks[0]) get().play(tracks[0], tracks);
   },
 
-  loadYouTubePlaylist: async (playlistId) => {
+  loadYouTubePlaylist: async (playlistId, options = {}) => {
     const { ytProvider, youtubeToken } = get();
     if (!youtubeToken) return;
     const tracks = await ytProvider.getPlaylistTracks(playlistId);
-    set({ playlist: tracks, currentIndex: 0 });
-    if (tracks[0]) get().play(tracks[0], tracks);
+    set({ playlist: tracks, currentIndex: 0, selectedPlaylistId: playlistId, loadedPlaylistId: playlistId });
+    if (tracks[0] && options.autoplay !== false) get().play(tracks[0], tracks);
   },
 }));
 

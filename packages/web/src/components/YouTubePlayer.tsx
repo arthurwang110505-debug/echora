@@ -8,10 +8,14 @@ declare global { interface Window { YT?: any; onYouTubeIframeAPIReady?: () => vo
 export function getYouTubeSurfaceClass(immersive: boolean) {
   return immersive
     ? 'fixed bottom-[max(6rem,env(safe-area-inset-bottom))] left-1/2 z-[60] w-[min(356px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-2xl border border-[#62f5c4]/45 bg-black shadow-2xl md:bottom-20 md:left-auto md:right-5 md:translate-x-0'
-    : 'fixed bottom-5 right-5 z-[60] w-[min(356px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[#62f5c4]/45 bg-black shadow-2xl';
+    : 'fixed bottom-[max(7rem,calc(env(safe-area-inset-bottom)+6rem))] right-3 z-[60] w-[min(356px,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-[#62f5c4]/45 bg-black shadow-2xl sm:right-5 sm:bottom-5';
 }
 
-export default function YouTubePlayer({ immersive = false, concealed = false }: { immersive?: boolean; concealed?: boolean }) {
+export function getYouTubeVideoSurfaceClass() {
+  return 'relative z-20 w-full max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-black shadow-2xl aspect-video';
+}
+
+export default function YouTubePlayer({ immersive = false, concealed = false, videoMode = false }: { immersive?: boolean; concealed?: boolean; videoMode?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
@@ -24,14 +28,15 @@ export default function YouTubePlayer({ immersive = false, concealed = false }: 
     if (!hostRef.current && containerRef.current) {
       const host = document.createElement('div');
       hostRef.current = host;
+      host.className = videoMode ? 'h-full w-full' : '';
       containerRef.current.replaceChildren(host);
     }
     const create = () => {
       if (disposedRef.current || !hostRef.current || !window.YT?.Player || playerRef.current) return;
       playerRef.current = new window.YT.Player(hostRef.current, {
-        width: '356',
-        height: '200',
-        playerVars: { playsinline: 1, origin: window.location.origin, controls: 0, rel: 0 },
+        width: videoMode ? '100%' : '356',
+        height: videoMode ? '100%' : '200',
+        playerVars: { playsinline: 1, origin: window.location.origin, controls: videoMode ? 1 : 0, rel: 0 },
         events: {
           onReady: (event: any) => {
             const state = usePlayer.getState();
@@ -87,7 +92,7 @@ export default function YouTubePlayer({ immersive = false, concealed = false }: 
       hostRef.current = null;
       if (containerRef.current) containerRef.current.replaceChildren();
     };
-  }, [currentSong?.source]);
+  }, [currentSong?.source, videoMode]);
 
   useEffect(() => {
     const onLoad = (event: Event) => {
@@ -126,13 +131,15 @@ export default function YouTubePlayer({ immersive = false, concealed = false }: 
   const awaitingUserGesture = currentSong?.source === 'ytmusic' && !isPlaying;
   const playerMessage = youtubeError
     || (playbackState === 'buffering' ? 'YouTube 正在緩衝，請稍候。' : '請按 YouTube 原生播放鍵以啟動音訊；若瀏覽器要求驗證，請在 YouTube 播放器內完成。');
-  const visibleSurfaceClass = getYouTubeSurfaceClass(immersive);
-  return <div className={concealed
+  const visibleSurfaceClass = videoMode ? getYouTubeVideoSurfaceClass() : getYouTubeSurfaceClass(immersive);
+  const surfaceClass = concealed
     ? `${visibleSurfaceClass} pointer-events-none opacity-0`
-    : awaitingUserGesture
-    ? visibleSurfaceClass
-    : 'pointer-events-none fixed -left-[10000px] top-0 h-[200px] w-[356px] overflow-hidden'} aria-hidden={concealed || !awaitingUserGesture} aria-label={concealed ? undefined : 'YouTube 原生播放器'}>
-    {awaitingUserGesture && !concealed && <div role={youtubeError ? 'alert' : 'status'} className={`${immersive && !youtubeError ? 'sr-only' : 'pointer-events-none absolute inset-x-0 top-0 z-10 px-3 py-2 text-center text-xs font-semibold'} ${youtubeError ? 'bg-rose-950/90 text-rose-100' : 'bg-black/70 text-white'}`}>{playerMessage}</div>}
-    <div ref={containerRef} />
+    : awaitingUserGesture || videoMode
+      ? visibleSurfaceClass
+      : 'pointer-events-none fixed -left-[10000px] top-0 h-[200px] w-[356px] overflow-hidden';
+  return <div className={surfaceClass} aria-hidden={concealed || (!awaitingUserGesture && !videoMode)} aria-label={concealed ? undefined : 'YouTube 原生播放器'}>
+    {awaitingUserGesture && !concealed &&         <div role={youtubeError ? 'alert' : 'status'} className={`${immersive && !youtubeError ? 'sr-only' : 'pointer-events-none absolute inset-x-0 top-0 z-10 px-3 py-2 text-center text-xs font-semibold'} ${youtubeError ? 'bg-rose-950/90 text-rose-100' : 'bg-black/70 text-white'}`}>{playerMessage}</div>}
+
+    <div ref={containerRef} className={videoMode ? 'h-full w-full aspect-video' : undefined} />
   </div>;
 }

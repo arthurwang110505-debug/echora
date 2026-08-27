@@ -8,6 +8,9 @@ const mocks = vi.hoisted(() => ({
     currentSong: null,
     play: vi.fn(),
     setPlaylist: vi.fn(),
+    playlist: [],
+    selectedPlaylistId: null,
+    loadedPlaylistId: null,
     activeSource: 'local',
     setActiveSource: vi.fn(),
     spotifyConnected: false,
@@ -45,6 +48,31 @@ describe('Home mobile navigation', () => {
     expect(markup).toContain('aria-label="我的音樂庫"');
     expect(markup).toContain('md:hidden');
     expect(markup).toContain('h-11 w-11');
+  });
+
+  it('renders loaded connected YouTube playlist tracks instead of the demo catalog', () => {
+    Object.assign(mocks.player, {
+      activeSource: 'ytmusic',
+      youtubeConnected: true,
+      youtubeConnectionState: 'synced',
+      selectedPlaylistId: 'playlist-1',
+      loadedPlaylistId: 'playlist-1',
+      userPlaylists: [{ id: 'playlist-1', name: '我的夜間歌單', source: 'ytmusic', trackCount: 1 }],
+      playlist: [{
+        id: 'user-video-1',
+        title: '我的真實歌曲',
+        artists: [{ id: 'channel-1', name: '我的頻道' }],
+        source: 'ytmusic',
+        audioUrl: 'user-video-1',
+        youtubeVideoKind: 'music',
+      }],
+    });
+
+    const markup = renderToStaticMarkup(<Home />);
+
+    expect(markup).toContain('我的真實歌曲');
+    expect(markup).toContain('你的歌單 · 我的夜間歌單');
+    expect(markup).not.toContain('YouTube Music 示範歌曲');
   });
 
 });

@@ -104,14 +104,17 @@ export const resolveFumeCameraScaleForViewport = (
     const targetLineHeight = compact
         ? Math.max(Math.min(minViewportSide * 0.0725, 64), 36)
         : Math.max(Math.min(minViewportSide * 0.115, 124), 64);
-    const minScale = compact ? 0.36 : 0.88;
+    const minScale = compact ? 0.12 : 0.88;
     const maxScale = compact ? 1.16 : 2.2;
     const safeMargin = compact ? Math.min(Math.max(viewport.width * 0.06, 16), 24) : 0;
     const widthFitScale = compact && contentWidth > 0
-        ? Math.max((Math.max(viewport.width, 1) - safeMargin * 2) / contentWidth, minScale)
+        ? (Math.max(viewport.width, 1) - safeMargin * 2) / contentWidth
         : maxScale;
-    const effectiveMaxScale = Math.min(maxScale, widthFitScale);
-    return Math.max(minScale, Math.min(
+    const effectiveMaxScale = Math.min(maxScale, Math.max(widthFitScale, minScale));
+    const effectiveMinScale = compact && contentWidth > 0
+        ? Math.min(minScale, effectiveMaxScale)
+        : minScale;
+    return Math.max(effectiveMinScale, Math.min(
         targetLineHeight / Math.max(lineHeight, 1),
         effectiveMaxScale,
     ));

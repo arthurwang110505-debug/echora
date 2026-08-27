@@ -61,6 +61,7 @@ describe('stage performance profile', () => {
         expect(resolveFumeCameraScaleForViewport(50, viewport, true)).toBeCloseTo(0.72, 3);
         expect(resolveFumeCameraScaleForViewport(50, viewport, false)).toBeCloseTo(1.28, 3);
         expect(resolveFumeCameraScaleForViewport(40, viewport, true, 700)).toBeCloseTo(343.2 / 700, 3);
+        expect(resolveFumeCameraScaleForViewport(40, viewport, true, 2600)).toBeCloseTo(343.2 / 2600, 3);
         expect(resolveFumeCameraScaleForViewport(40, viewport, false, 700)).toBeCloseTo(1.6, 2);
     });
 

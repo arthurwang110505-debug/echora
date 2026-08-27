@@ -720,6 +720,7 @@
   .echora-skeleton-hero-art { display: none; }
   .echora-carousel-skeleton-side { display: none; }
   .echora-carousel-skeleton { min-height: 355px; }
+  .echora-stage-skeleton { min-height: 0; }
   .echora-queue { max-width: none; }
 }
 

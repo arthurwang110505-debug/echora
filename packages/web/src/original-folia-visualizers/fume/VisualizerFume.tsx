@@ -2496,6 +2496,49 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                 cameraRef.current.scale = clamp(cameraRef.current.scale, CAMERA_SCALE_MIN, CAMERA_SCALE_MAX);
             }
 
+            // Spring interpolation can overshoot a compact viewport even when the target
+            // camera is safe. Clamp the rendered camera after interpolation as a final
+            // frame contract so long CJK lines never escape the mobile Stage frame.
+            if (isCompactStage && focusBlock && !shouldShowOverview) {
+                const frameScale = resolveCameraScaleForBlock(focusBlock, viewport, true);
+                const safeScale = Math.min(cameraRef.current.scale, frameScale);
+                cameraRef.current.scale = safeScale;
+                cameraRef.current.focusScale = Math.min(cameraRef.current.focusScale, frameScale);
+                cameraRef.current.velocityScale = Math.min(cameraRef.current.velocityScale, 0);
+                cameraRef.current.x = resolveFumeCameraXForViewport(
+                    cameraRef.current.x,
+                    focusBlock.x,
+                    focusBlock.x + focusBlock.width,
+                    viewport.width,
+                    safeScale,
+                    true,
+                );
+                cameraRef.current.y = resolveFumeCameraYForViewport(
+                    cameraRef.current.y,
+                    focusBlock.y,
+                    focusBlock.y + focusBlock.height,
+                    viewport.height,
+                    safeScale,
+                    true,
+                );
+                cameraRef.current.focusX = resolveFumeCameraXForViewport(
+                    cameraRef.current.focusX,
+                    focusBlock.x,
+                    focusBlock.x + focusBlock.width,
+                    viewport.width,
+                    safeScale,
+                    true,
+                );
+                cameraRef.current.focusY = resolveFumeCameraYForViewport(
+                    cameraRef.current.focusY,
+                    focusBlock.y,
+                    focusBlock.y + focusBlock.height,
+                    viewport.height,
+                    safeScale,
+                    true,
+                );
+            }
+
             const screenScale = cameraRef.current.scale;
 
             if (!staticMode) {
@@ -3029,10 +3072,10 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                             scale: article && showText ? (hasPrintedContent ? 1 : 0.985) : 1,
                         }}
                         transition={{ duration: 0.45, ease: 'easeOut' }}
-                        className="absolute left-1/2 top-0 -translate-x-1/2"
+                        className="absolute inset-0"
                         style={{
-                            width: viewport.width,
-                            height: viewport.height,
+                            width: '100%',
+                            height: '100%',
                         }}
                     >
                         <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />

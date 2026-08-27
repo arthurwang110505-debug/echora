@@ -30,12 +30,12 @@ const FEATURED_SONGS: Song[] = [
   {
     id: 'yt_1', title: '夜に駆ける', artists: [{ id: '2', name: 'YOASOBI' }],
     album: { id: 'alb_3', name: 'THE BOOK' }, durationMs: 261000,
-    source: 'ytmusic', audioUrl: 'by4SYYWlhEs',
+    source: 'ytmusic', audioUrl: 'by4SYYWlhEs', youtubeVideoKind: 'music',
   },
   {
     id: 'yt_2', title: 'First Love', artists: [{ id: '3', name: 'Utada Hikaru' }],
     album: { id: 'alb_4', name: 'First Love' }, durationMs: 257000,
-    source: 'ytmusic', audioUrl: 'o1sUaVJUeB0',
+    source: 'ytmusic', audioUrl: 'o1sUaVJUeB0', youtubeVideoKind: 'music',
   },
   {
     id: 'sp_3', title: 'Die With A Smile', artists: [{ id: '4', name: 'Lady Gaga, Bruno Mars' }],
@@ -45,7 +45,7 @@ const FEATURED_SONGS: Song[] = [
   {
     id: 'yt_3', title: 'アイドル', artists: [{ id: '2', name: 'YOASOBI' }],
     album: { id: 'alb_6', name: 'Idol' }, durationMs: 213000,
-    source: 'ytmusic', audioUrl: 'ZRtdQ81jPUQ',
+    source: 'ytmusic', audioUrl: 'ZRtdQ81jPUQ', youtubeVideoKind: 'music',
   },
   ...LOCAL_DEMO_SONGS,
 ];
@@ -60,7 +60,7 @@ export default function Home() {
   const navigate = useNavigate();
   const location = useLocation();
   const {
-    currentSong, play, setPlaylist,
+    currentSong, play, setPlaylist, playlist, selectedPlaylistId, loadedPlaylistId,
     activeSource, setActiveSource, spotifyConnected, spotifyError, connectSpotify, disconnectSpotify,
     youtubeConnected, youtubeError, youtubeConnectionState, youtubeProfile, userPlaylists, isSyncingLibrary, libraryError, lastLibrarySyncAt, loadSourcePlaylists, connectYouTube, switchYouTubeAccount, disconnectYouTube,
   } = usePlayer();
@@ -123,13 +123,19 @@ export default function Home() {
     if (typeof window !== 'undefined') window.localStorage.setItem('echora.song-view-mode', songViewMode);
   }, [songViewMode]);
 
-  const filteredSongs = useMemo(() => FEATURED_SONGS.filter(song => {
-    if (song.source !== activeSource) return false;
+  const sourceSongs = useMemo(() => {
+    if (activeSource !== 'ytmusic') return FEATURED_SONGS.filter(song => song.source === activeSource);
+    if (!youtubeConnected) return FEATURED_SONGS.filter(song => song.source === 'ytmusic');
+    if (!selectedPlaylistId || loadedPlaylistId !== selectedPlaylistId) return [];
+    return playlist.filter(song => song.source === 'ytmusic');
+  }, [activeSource, loadedPlaylistId, playlist, selectedPlaylistId, youtubeConnected]);
+
+  const filteredSongs = useMemo(() => sourceSongs.filter(song => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     const artist = typeof song.artists[0] === 'string' ? song.artists[0] : song.artists[0]?.name || '';
     return `${song.title} ${artist} ${song.album?.name || ''}`.toLowerCase().includes(query);
-  }), [activeSource, searchQuery]);
+  }), [searchQuery, sourceSongs]);
 
   useEffect(() => {
     setFocusedSongIndex(index => Math.min(index, Math.max(0, filteredSongs.length - 1)));
@@ -160,7 +166,7 @@ export default function Home() {
   };
 
   const handlePlaySong = (song: Song) => {
-    const sourcePlaylist = FEATURED_SONGS.filter(item => item.source === song.source);
+    const sourcePlaylist = sourceSongs.filter(item => item.source === song.source);
     setPlaylist(sourcePlaylist);
     play(song, sourcePlaylist);
     navigate(song.source === 'local' ? '/player?demo=1' : '/player', song.source === 'local' ? { state: { demo: true } } : undefined);
@@ -178,8 +184,9 @@ export default function Home() {
       : lastLibrarySyncAt
         ? `已同步 ${userPlaylists.length} 個歌單`
         : '尚未同步歌單';
+  const selectedPlaylist = userPlaylists.find(item => item.id === selectedPlaylistId);
   const heroSong = activeSource === 'ytmusic'
-    ? FEATURED_SONGS.find(song => song.source === 'ytmusic')
+    ? sourceSongs[0]
     : activeSource === 'spotify' && spotifyAvailable
       ? FEATURED_SONGS.find(song => song.source === 'spotify')
       : activeSource === 'local'
@@ -187,7 +194,7 @@ export default function Home() {
         : undefined;
   const heroContent = activeSource === 'ytmusic'
     ? youtubeConnected
-      ? { eyebrow: '你的 YouTube Music', title: '從你的歌單，', accent: '開啟自己的光。', description: '你的私人歌單已可與音樂庫及播放器共用。選一首歌後，使用 YouTube 原生播放與同步歌詞舞台。', primary: currentSong ? '返回播放舞台' : '開啟我的音樂庫', secondary: '同步我的音樂庫' }
+      ? { eyebrow: '你的 YouTube Music', title: '從你的歌單，', accent: '開啟自己的光。', description: selectedPlaylist ? `目前顯示「${selectedPlaylist.name}」；選一首歌後，使用 YouTube 原生播放與同步歌詞舞台。` : '你的私人歌單正在同步；完成後會直接出現在下方 3D 輪播。', primary: currentSong ? '返回播放舞台' : '開啟我的音樂庫', secondary: '同步我的音樂庫' }
       : { eyebrow: '先體驗 Echora 舞台', title: '讓每一首歌，', accent: '都成為一座舞台。', description: '先用展示曲目體驗動態歌詞、視覺舞台與播放控制；喜歡後再連接 YouTube Music 讀取私人歌單。', primary: '立即播放展示曲目', secondary: '播放自己的音樂' }
     : activeSource === 'spotify'
       ? { eyebrow: 'Spotify 尚未啟用', title: 'Spotify 正在準備中，', accent: '請先選擇可用來源。', description: '目前尚未設定 Spotify 開發者權限，因此不能登入或播放；這不是播放故障。', primary: '先體驗展示舞台', secondary: '查看連線方式' }
@@ -197,6 +204,10 @@ export default function Home() {
     if (currentSong) { navigate('/player'); return; }
     if (activeSource === 'ytmusic' && youtubeConnected) { navigate('/library'); return; }
     if (activeSource === 'ytmusic') {
+      if (youtubeConnected) {
+        navigate('/library');
+        return;
+      }
       const demoPlaylist = FEATURED_SONGS.filter(song => song.source === 'ytmusic');
       const demoSong = demoPlaylist[0];
       if (demoSong) {
@@ -283,7 +294,8 @@ export default function Home() {
           <div className="relative hidden min-h-[380px] overflow-hidden lg:block">
             <div className="absolute right-[-8%] top-[12%] h-[430px] w-[430px] rounded-full bg-[#62f5c4]/20 blur-[90px]" />
             <div className="absolute right-[13%] top-[12%] h-[310px] w-[310px] rotate-12 rounded-[42px] border border-white/20 bg-white/10 p-3 shadow-2xl backdrop-blur-xl">
-              {heroSong ? <><CoverImage src={heroSong.coverUrl} alt={`${heroSong.title} 專輯封面`} wrapperClassName="h-full w-full rounded-[32px]" className="h-full w-full rounded-[32px] object-cover opacity-90" /><div className="absolute inset-x-7 bottom-7 rounded-2xl border border-white/15 bg-[#07090e]/75 p-3 backdrop-blur-xl"><p className="text-xs font-bold text-white">{heroSong.title}</p><p className="mt-1 text-[10px] text-[#62f5c4]">{typeof heroSong.artists[0] === 'string' ? heroSong.artists[0] : heroSong.artists[0]?.name} · {activeSource === 'ytmusic' ? 'YouTube Music 示範' : activeSource === 'local' ? '本機音檔展示' : 'Spotify 示範'}</p></div></> : <div className="flex h-full flex-col items-center justify-center rounded-[32px] border border-dashed border-white/20 bg-[#07090e]/40 p-8 text-center"><Sparkles aria-hidden="true" className="h-9 w-9 text-[#62f5c4]" />
+              {heroSong ? <><CoverImage src={heroSong.coverUrl} alt={`${heroSong.title} 專輯封面`} wrapperClassName="h-full w-full rounded-[32px]" className="h-full w-full rounded-[32px] object-cover opacity-90" /><div className="absolute inset-x-7 bottom-7 rounded-2xl border border-white/15 bg-[#07090e]/75 p-3 backdrop-blur-xl"><p className="text-xs font-bold text-white">{heroSong.title}</p>            <p className="mt-1 text-[10px] text-[#62f5c4]">{typeof heroSong.artists[0] === 'string' ? heroSong.artists[0] : heroSong.artists[0]?.name} · {activeSource === 'ytmusic' ? (youtubeConnected ? '你的 YouTube Music' : 'YouTube Music 示範') : activeSource === 'local' ? '本機音檔展示' : 'Spotify 示範'}</p>
+</div></> : <div className="flex h-full flex-col items-center justify-center rounded-[32px] border border-dashed border-white/20 bg-[#07090e]/40 p-8 text-center"><Sparkles aria-hidden="true" className="h-9 w-9 text-[#62f5c4]" />
 <p className="mt-4 text-sm font-extrabold text-white">{heroContent.eyebrow}</p><p className="mt-2 text-xs leading-5 text-slate-400">選擇可用來源後才會顯示對應內容。</p></div>}
             </div>
             <div className="absolute bottom-[13%] left-[10%] flex items-end gap-1 opacity-70">{[30, 60, 42, 82, 55, 95, 45, 72, 35].map((height, index) => <span key={index} className="w-1.5 rounded-full bg-[#62f5c4]" style={{ height }} />)}</div>
@@ -371,7 +383,7 @@ export default function Home() {
 
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-slate-300" aria-live="polite">
-              {activeSource === 'ytmusic' ? 'YouTube Music 示範歌曲' : activeSource === 'local' ? 'Echora 本機展示曲目' : 'Spotify 歌曲'} <span className="ml-1 text-slate-500">{filteredSongs.length.toString().padStart(2, '0')}</span>
+              {activeSource === 'ytmusic' ? (youtubeConnected ? (selectedPlaylist ? `你的歌單 · ${selectedPlaylist.name}` : '你的 YouTube Music 歌單') : 'YouTube Music 示範歌曲') : activeSource === 'local' ? 'Echora 本機展示曲目' : 'Spotify 歌曲'} <span className="ml-1 text-slate-500">{filteredSongs.length.toString().padStart(2, '0')}</span>
             </p>
             {searchQuery && (
               <button type="button" onClick={() => setSearchQuery('')} aria-label="清除歌曲篩選" className="min-h-11 min-w-24 rounded-xl px-3 text-xs font-bold text-slate-400 transition hover:bg-white/[0.05] hover:text-[#62f5c4]">
@@ -407,7 +419,7 @@ export default function Home() {
           ) : (
             <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.025] px-6 py-16 text-center">
               <p className="text-sm font-bold text-slate-300">{searchQuery ? '找不到符合的歌曲' : activeSource === 'local' ? '展示音檔暫時無法載入' : '這個來源目前還沒有歌曲'}</p>
-              <p className="mt-2 text-xs text-slate-500">{searchQuery ? '可清除篩選、改用其他關鍵字，或從你的音樂庫選取已同步歌單。' : activeSource === 'local' ? '請重新整理頁面；若問題持續，稍後再試或連接 YouTube Music。' : '連接音樂服務後，內容會出現在這裡。'}</p>
+              <p className="mt-2 text-xs text-slate-500">{searchQuery ? '可清除篩選、改用其他關鍵字，或從你的音樂庫選取已同步歌單。' : activeSource === 'local' ? '請重新整理頁面；若問題持續，稍後再試或連接 YouTube Music。' : activeSource === 'ytmusic' && youtubeConnected ? (isSyncingLibrary ? '歌單同步完成後，歌曲會出現在這裡。' : '可到我的音樂庫選擇其他歌單，或重新同步目前帳戶。') : '連接音樂服務後，內容會出現在這裡。'}</p>
               {youtubeConnected && <button type="button" onClick={() => navigate('/library')} className="mt-4 rounded-xl border border-[#62f5c4]/25 px-4 py-2 text-xs font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/10">前往我的音樂庫</button>}
             </div>
           )}
