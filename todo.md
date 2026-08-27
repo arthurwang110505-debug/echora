@@ -184,3 +184,4 @@
 - [x] YOUTUBE-FUME-RELEASE-001：完成本輪 focused／full tests、typecheck、lint、build、390／393px、tablet／desktop browser smoke，提交並推送 GitHub master，驗證 Vercel production；真實 Google 帳號與私人歌單互動留由使用者接手驗證。
 - [x] FUME-MOTION-001：恢復 Fume smooth camera transition；compact safety clamp 使用實際 rendered line bounds，避免 layout whitespace 將 camera 吸附到中心；補上 invalid geometry fallback 與 tracking mode dependency regression coverage。
 - [x] FUME-SONNET-LYRICS-002：修復 Fume 區塊／scale camera 的跳動、保留 Sonnet 完整動畫層並改善 runtime workload，審核本機展示歌詞並修正已確認錯字／timing；完成 full quality gate、multi-viewport smoke、GitHub push 與 Vercel production verification。
+- [ ] SONNET-LYRICS-003：Sonnet reusable inactive Text trees 在 shot／paragraph 切換後仍保持可渲染，prune／destroy 才釋放資源；背景、幾何、guide、particle、halo、post-process、transition 與 shot motion 全部保留，並完成 cross-shot local proof、full release gate、GitHub master push 與 Vercel production verification。
