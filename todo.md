@@ -181,4 +181,4 @@
 - [x] YOUTUBE-MOBILE-002：修正 YouTube 播放狀態下 pause／play 控制偶發點不到的 layering、pointer-events、z-index 與 hit-area 問題，並保留 iframe 原生互動。
 - [x] YOUTUBE-VIDEO-001：依可靠 YouTube metadata 分流一般影片與音樂影片；一般影片直接播放原影片且不啟用歌詞／音樂 Stage，音樂影片維持歌詞與漂亮背景舞台，metadata 不足時採安全 fallback。
 - [x] FUME-FRAME-002：修正 Fume 在 mobile viewport 的 canvas／scene framing、縮放與容器溢出，確保完整在 Stage frame 內；desktop、tablet 與其他舞台場景不回歸。
-- [ ] YOUTUBE-FUME-RELEASE-001：完成本輪 focused／full tests、typecheck、lint、build、390／393px、tablet／desktop browser smoke，提交並推送 GitHub master，驗證 Vercel production；真實 Google 帳號與私人歌單互動留由使用者接手驗證。
+- [x] YOUTUBE-FUME-RELEASE-001：完成本輪 focused／full tests、typecheck、lint、build、390／393px、tablet／desktop browser smoke，提交並推送 GitHub master，驗證 Vercel production；真實 Google 帳號與私人歌單互動留由使用者接手驗證。
