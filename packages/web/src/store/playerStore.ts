@@ -15,7 +15,7 @@ import {
   refreshSpotifySession,
   type SpotifySession,
 } from '../integrations/spotifyAuth';
-import { beginYouTubeLogin, clearYouTubeSession, finishYouTubeLogin, getStoredYouTubeSession } from '../integrations/youtubeAuth';
+import { beginYouTubeLogin, clearYouTubeSession, finishYouTubeLogin, getStoredYouTubeSession, revokeYouTubeAccessToken, type YouTubeLoginOptions } from '../integrations/youtubeAuth';
 import { getBundledDemoLyrics } from './demoLyrics';
 import { LOCAL_DEMO_LYRICS, LOCAL_DEMO_SONGS } from './localDemoSongs';
 import { recordDiagnostic } from '../lib/diagnostics';
@@ -159,7 +159,8 @@ interface PlayerState {
   restorePlaybackSnapshot: () => void;
   setSpotifyToken: (token: string | null) => void;
   connectSpotify: () => Promise<void>;
-  connectYouTube: () => Promise<void>;
+  connectYouTube: (options?: YouTubeLoginOptions) => Promise<void>;
+  switchYouTubeAccount: () => Promise<void>;
   restoreYouTubeSession: () => Promise<void>;
   disconnectYouTube: () => void;
   restoreSpotifySession: () => Promise<void>;
@@ -415,9 +416,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
   },
 
-  connectYouTube: async () => {
-    try { set({ youtubeError: null, youtubeConnectionState: 'authorizing' }); await beginYouTubeLogin(); }
+  connectYouTube: async (options = {}) => {
+    try { set({ youtubeError: null, youtubeConnectionState: 'authorizing' }); await beginYouTubeLogin(options); }
     catch (error) { set({ youtubeConnectionState: 'error', youtubeError: error instanceof Error ? error.message : 'YouTube 登入設定不完整' }); }
+  },
+
+  switchYouTubeAccount: async () => {
+    get().disconnectYouTube();
+    await get().connectYouTube({ selectAccount: true });
   },
 
   restoreYouTubeSession: async () => {
@@ -442,7 +448,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
   },
 
-  disconnectYouTube: () => { clearYouTubeSession(); get().ytProvider.setAccessToken(null); set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: 'disconnected', youtubeError: null, youtubeProfile: null, userPlaylists: [], libraryError: null, isSyncingLibrary: false, lastLibrarySyncAt: null }); },
+  disconnectYouTube: () => {
+    const accessToken = get().youtubeToken;
+    void revokeYouTubeAccessToken(accessToken);
+    clearYouTubeSession();
+    get().ytProvider.setAccessToken(null);
+    set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: 'disconnected', youtubeError: null, youtubeProfile: null, userPlaylists: [], libraryError: null, isSyncingLibrary: false, lastLibrarySyncAt: null });
+  },
 
   restoreSpotifySession: async () => {
     try {

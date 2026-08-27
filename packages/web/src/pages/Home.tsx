@@ -62,7 +62,7 @@ export default function Home() {
   const {
     currentSong, play, setPlaylist,
     activeSource, setActiveSource, spotifyConnected, spotifyError, connectSpotify, disconnectSpotify,
-    youtubeConnected, youtubeError, youtubeConnectionState, youtubeProfile, userPlaylists, isSyncingLibrary, libraryError, lastLibrarySyncAt, loadSourcePlaylists, connectYouTube, disconnectYouTube,
+    youtubeConnected, youtubeError, youtubeConnectionState, youtubeProfile, userPlaylists, isSyncingLibrary, libraryError, lastLibrarySyncAt, loadSourcePlaylists, connectYouTube, switchYouTubeAccount, disconnectYouTube,
   } = usePlayer();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -136,13 +136,21 @@ export default function Home() {
   }, [filteredSongs.length]);
 
   useEffect(() => {
-    if (new URLSearchParams(location.search).get('youtube') === 'connected') {
-      setConnectionNotice(true);
-      window.history.replaceState({}, document.title, '/');
+    const params = new URLSearchParams(location.search);
+    const youtubeStatus = params.get('youtube');
+    if (youtubeStatus === 'connected' || youtubeStatus === 'error') {
+      if (youtubeStatus === 'connected') setConnectionNotice(true);
+      else {
+        setActiveSource('ytmusic');
+        setShowConnectModal(true);
+      }
+      params.delete('youtube');
+      const nextQuery = params.toString();
+      window.history.replaceState({}, document.title, `${location.pathname}${nextQuery ? `?${nextQuery}` : ''}${location.hash}`);
       const timer = window.setTimeout(() => setConnectionNotice(false), 5000);
       return () => window.clearTimeout(timer);
     }
-  }, [location.search]);
+  }, [location.hash, location.pathname, location.search]);
 
   const handleInstall = async () => {
     if (!deferredPrompt) return;
@@ -440,7 +448,10 @@ export default function Home() {
             <div className="mt-6 flex justify-end gap-2">
               <button type="button" onClick={() => setShowConnectModal(false)} className="rounded-xl px-4 py-2.5 text-xs font-bold text-slate-400 transition hover:bg-white/5 hover:text-white">稍後</button>
               {activeSource === 'ytmusic' ? (youtubeConnected ? (
-                <button type="button" onClick={() => { disconnectYouTube(); setShowConnectModal(false); }} className="rounded-xl border border-rose-400/25 px-5 py-2.5 text-xs font-extrabold text-rose-200 transition hover:bg-rose-400/10">解除 YouTube</button>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button type="button" onClick={() => void switchYouTubeAccount()} className="rounded-xl border border-[#ff7180]/35 bg-[#ff3d57]/10 px-4 py-2.5 text-xs font-extrabold text-[#ffb0b8] transition hover:bg-[#ff3d57]/20">切換帳號</button>
+                  <button type="button" onClick={() => { disconnectYouTube(); setShowConnectModal(false); }} className="rounded-xl border border-rose-400/25 px-4 py-2.5 text-xs font-extrabold text-rose-200 transition hover:bg-rose-400/10">登出 YouTube</button>
+                </div>
               ) : (
                 <button type="button" onClick={() => void connectYouTube()} className="rounded-xl bg-[#ff3d57] px-5 py-2.5 text-xs font-extrabold text-white transition hover:brightness-110 active:scale-95">使用 Google 登入 YouTube</button>
               )) : !spotifyAvailable ? (

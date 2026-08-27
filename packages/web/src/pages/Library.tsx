@@ -20,6 +20,8 @@ export default function Library() {
     loadSourcePlaylists,
     loadYouTubePlaylist,
     play,
+    switchYouTubeAccount,
+    disconnectYouTube,
     toggleFavoriteSong,
   } = usePlayer();
 
@@ -64,7 +66,11 @@ export default function Library() {
           <section className="rounded-[28px] border border-[#ff3d57]/20 bg-gradient-to-br from-[#27141b] via-[#111720] to-[#101923] p-6 shadow-2xl sm:p-8">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4"><img src={youtubeProfile?.avatarUrl || createCoverPlaceholder(youtubeProfile?.name || 'YouTube', 'artist')} alt="YouTube 帳戶頭像" className="h-14 w-14 rounded-2xl border border-white/15 object-cover" /><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[#ff7180]">我的音樂已準備好</p><h2 className="mt-1 text-xl font-extrabold text-white">{youtubeProfile?.name || '你的 YouTube Music'}</h2><p className="mt-1 text-xs text-slate-400">{youtubeConnectionState === 'syncing' ? '正在同步你的私人歌單…' : syncLabel}</p></div></div>
-              <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1.5 text-xs font-extrabold text-emerald-100">{userPlaylists.length} 個歌單</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1.5 text-xs font-extrabold text-emerald-100">{userPlaylists.length} 個歌單</span>
+                <button type="button" onClick={() => void switchYouTubeAccount()} className="min-h-11 rounded-xl border border-[#ff7180]/35 bg-[#ff3d57]/10 px-3 py-2 text-xs font-extrabold text-[#ffb0b8] transition hover:bg-[#ff3d57]/20">切換帳號</button>
+                <button type="button" onClick={disconnectYouTube} className="min-h-11 rounded-xl border border-white/15 bg-white/[0.05] px-3 py-2 text-xs font-bold text-slate-300 transition hover:bg-white/10">登出 YouTube</button>
+              </div>
             </div>
           </section>
         ) : (

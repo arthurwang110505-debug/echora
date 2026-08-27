@@ -16,7 +16,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     restorePlaybackSnapshot();
     void restoreSpotifySession();
-    void restoreYouTubeSession();
+    if (window.location.pathname !== '/oauth/youtube/callback') void restoreYouTubeSession();
     const timer = window.setInterval(() => void syncSpotifyPlayback(), 5000);
     return () => window.clearInterval(timer);
   }, [restorePlaybackSnapshot, restoreSpotifySession, restoreYouTubeSession, syncSpotifyPlayback]);

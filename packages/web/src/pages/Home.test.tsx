@@ -4,15 +4,7 @@ import Home from './Home';
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
-}));
-
-vi.mock('react-router-dom', () => ({
-  useNavigate: () => mocks.navigate,
-  useLocation: () => ({ pathname: '/', search: '', hash: '' }),
-}));
-
-vi.mock('../contexts/PlayerContext', () => ({
-  usePlayer: () => ({
+  player: {
     currentSong: null,
     play: vi.fn(),
     setPlaylist: vi.fn(),
@@ -32,8 +24,18 @@ vi.mock('../contexts/PlayerContext', () => ({
     lastLibrarySyncAt: null,
     loadSourcePlaylists: vi.fn(),
     connectYouTube: vi.fn(),
+    switchYouTubeAccount: vi.fn(),
     disconnectYouTube: vi.fn(),
-  }),
+  },
+}));
+
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mocks.navigate,
+  useLocation: () => ({ pathname: '/', search: '', hash: '' }),
+}));
+
+vi.mock('../contexts/PlayerContext', () => ({
+  usePlayer: () => mocks.player,
 }));
 
 describe('Home mobile navigation', () => {
@@ -44,4 +46,5 @@ describe('Home mobile navigation', () => {
     expect(markup).toContain('md:hidden');
     expect(markup).toContain('h-11 w-11');
   });
+
 });
