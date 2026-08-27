@@ -53,29 +53,15 @@ export const useCompactStageProfile = (): boolean => {
     return isCompact;
 };
 
-/** Keep the existing tuning contract while removing the most expensive optional Pixi passes on phones. */
+/**
+ * Keep every Sonnet visual layer and transition on touch-sized viewports.
+ * Performance must come from scheduling and retained scene data, not from silently
+ * changing the composition the user selected in the settings panel.
+ */
 export const resolveCompactSonnetTuning = (
     tuning: SonnetTuning,
     compact: boolean,
-): SonnetTuning => compact ? {
-    ...tuning,
-    mgDensity: Math.min(tuning.mgDensity, 0.5),
-    showGuide: false,
-    showBackgroundMg: false,
-    showFixedGeo: false,
-    showGiantDecorativeText: false,
-    showBackgroundDecor: false,
-    enableTransitions: false,
-    textureResolution: Math.min(tuning.textureResolution, 1),
-    postProcessEnabled: false,
-    postProcessGrain: 0,
-    postProcessContrast: 0,
-    postProcessRgbShift: 0,
-    postProcessHalftone: 0,
-    postProcessVignette: 0,
-    postProcessLensDistortion: 0,
-    postProcessLensDispersion: 0,
-} : tuning;
+): SonnetTuning => compact ? { ...tuning } : tuning;
 
 /** Keep Diorama's path and text intact while bounding its mobile point-cloud and glow workload. */
 export const resolveCompactDioramaTuning = (
@@ -212,6 +198,28 @@ export const resolveFumeContentFrameBounds = (
     };
 
     return Object.values(bounds).every(Number.isFinite) ? bounds : fallback;
+};
+
+export const resolveFumeCameraSafetyCorrection = (
+    position: number,
+    velocity: number,
+    safePosition: number,
+    dt: number,
+    response = 18,
+) => {
+    if (![position, velocity, safePosition, dt, response].every(Number.isFinite)) {
+        return { position: safePosition, velocity: 0 };
+    }
+    const safeDt = Math.min(Math.max(dt, 1 / 240), 0.05);
+    const correctionAmount = 1 - Math.exp(-safeDt * Math.max(response, 0));
+    const correction = safePosition - position;
+    const isPushingAway = correction !== 0 && Math.sign(velocity) === Math.sign(-correction);
+    return {
+        position: position + correction * correctionAmount,
+        velocity: isPushingAway
+            ? velocity * (1 - correctionAmount * 0.9)
+            : velocity,
+    };
 };
 
 export const resolveFumeCanvasDpr = (devicePixelRatio: number, compact: boolean): number => {

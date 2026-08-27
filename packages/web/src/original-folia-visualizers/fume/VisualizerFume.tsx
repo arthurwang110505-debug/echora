@@ -13,7 +13,7 @@ import { getRecentCompletedLine, getUpcomingLines } from '../runtime';
 import VisualizerShell from '../VisualizerShell';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import { resolveWordColor } from '../wordColoring';
-import { resolveFumeCameraScaleForViewport, resolveFumeCameraXForViewport, resolveFumeCameraYForViewport, resolveFumeCanvasDpr, resolveFumeContentFrameBounds, useCompactStageProfile } from '../../utils/stagePerformance';
+import { resolveFumeCameraScaleForViewport, resolveFumeCameraSafetyCorrection, resolveFumeCameraXForViewport, resolveFumeCameraYForViewport, resolveFumeCanvasDpr, resolveFumeContentFrameBounds, useCompactStageProfile } from '../../utils/stagePerformance';
 
 // This mode is basically "turn the whole lyric into an article, then move a camera through it".
 // So the pipeline is much bigger than the others: prebuild the article layout, split it into blocks/render lines/graphemes,
@@ -258,6 +258,8 @@ const FUME_BACKGROUND_PARALLAX_Y = 0.74;
 const FUME_BACKGROUND_SCALE_FACTOR = 0.94;
 const FUME_BACKGROUND_VERTICAL_OFFSET_RATIO = 0.22;
 const FUME_CAMERA_TELEPORT_TRIGGER_SCREENS = 2.75;
+const FUME_CAMERA_RETARGET_MIN_SECONDS = 0.6;
+const FUME_CAMERA_RETARGET_MAX_SECONDS = 1.4;
 const resolvePassedTextStyle = (
     variant: 'body' | 'hero',
     textHoldStyle: 'standard' | 'dimmed',
@@ -2269,7 +2271,11 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                     cameraRetargetRef.current = {
                         sourceLineIndex: focusBlock.sourceLineIndex,
                         startedAt: time,
-                        duration: clamp(resolveCameraRetargetDuration(focusBlock.line) / cameraSpeed, 0.03, 0.3),
+                        duration: clamp(
+                            resolveCameraRetargetDuration(focusBlock.line) / cameraSpeed,
+                            FUME_CAMERA_RETARGET_MIN_SECONDS,
+                            FUME_CAMERA_RETARGET_MAX_SECONDS,
+                        ),
                         fromX: cameraRef.current.x,
                         fromY: cameraRef.current.y,
                         fromScale: cameraRef.current.scale,
@@ -2312,7 +2318,9 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                 1,
             );
             const retargetBoost = 1 - easeOutCubic(retargetPhase);
-            const entryFocusBias = Math.pow(retargetBoost, 0.58);
+            // Keep the original entry framing as a subtle lead-in, but never let it
+            // replace the continuously evaluated smooth focus point at line changes.
+            const entryFocusBias = Math.pow(retargetBoost, 2.2) * 0.18;
 
             if (entryFocusPoint) {
                 targetCameraX = mix(targetCameraX, entryFocusPoint.x, entryFocusBias);
@@ -2503,16 +2511,25 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
             }
 
             // Spring interpolation can overshoot a compact viewport even when the target
-            // camera is safe. Clamp the rendered camera after interpolation as a final
-            // frame contract so long CJK lines never escape the mobile Stage frame.
+            // camera is safe. Softly steer the rendered camera back toward the final
+            // frame contract so long CJK lines stay in the mobile Stage without teleporting.
             if (isCompactStage && focusBlock && !shouldShowOverview) {
                 const frameScale = resolveCameraScaleForBlock(focusBlock, viewport, true);
                 const contentFrame = resolveFumeContentFrameBounds(focusBlock, focusBlock.renderLines, focusBlock.lineHeight);
-                const safeScale = Math.min(cameraRef.current.scale, frameScale);
-                cameraRef.current.scale = safeScale;
-                cameraRef.current.focusScale = Math.min(cameraRef.current.focusScale, frameScale);
-                cameraRef.current.velocityScale = Math.min(cameraRef.current.velocityScale, 0);
-                cameraRef.current.x = resolveFumeCameraXForViewport(
+                const correctedScale = resolveFumeCameraSafetyCorrection(
+                    cameraRef.current.scale,
+                    cameraRef.current.velocityScale,
+                    frameScale,
+                    dt,
+                    12,
+                );
+                cameraRef.current.scale = correctedScale.position;
+                cameraRef.current.velocityScale = correctedScale.velocity;
+                const focusScaleTarget = Math.min(cameraRef.current.focusScale, frameScale);
+                cameraRef.current.focusScale += (focusScaleTarget - cameraRef.current.focusScale)
+                    * (1 - Math.exp(-dt * 14));
+                const safeScale = Math.max(cameraRef.current.scale, CAMERA_SCALE_MIN);
+                const safeCameraX = resolveFumeCameraXForViewport(
                     cameraRef.current.x,
                     contentFrame.left,
                     contentFrame.right,
@@ -2520,7 +2537,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                     safeScale,
                     true,
                 );
-                cameraRef.current.y = resolveFumeCameraYForViewport(
+                const safeCameraY = resolveFumeCameraYForViewport(
                     cameraRef.current.y,
                     contentFrame.top,
                     contentFrame.bottom,
@@ -2528,6 +2545,22 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                     safeScale,
                     true,
                 );
+                const correctedX = resolveFumeCameraSafetyCorrection(
+                    cameraRef.current.x,
+                    cameraRef.current.velocityX,
+                    safeCameraX,
+                    dt,
+                );
+                const correctedY = resolveFumeCameraSafetyCorrection(
+                    cameraRef.current.y,
+                    cameraRef.current.velocityY,
+                    safeCameraY,
+                    dt,
+                );
+                cameraRef.current.x = correctedX.position;
+                cameraRef.current.y = correctedY.position;
+                cameraRef.current.velocityX = correctedX.velocity;
+                cameraRef.current.velocityY = correctedY.velocity;
                 cameraRef.current.focusX = resolveFumeCameraXForViewport(
                     cameraRef.current.focusX,
                     contentFrame.left,

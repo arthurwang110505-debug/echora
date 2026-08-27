@@ -2,19 +2,39 @@
 // Records Graphics commands so strokes/fills can grow with the shared stagger
 // schedule during playback instead of appearing fully drawn at scene build.
 type PixiModule = typeof import('pixi.js');
+type GraphicsTarget = import('pixi.js').Graphics;
+
+type AnimatedCommand = {
+    type: 'stroke' | 'fill';
+    path: any[];
+    length: number;
+    options: any;
+    staggerDelay?: number;
+    staggerSpan?: number;
+};
 
 export class AnimatedGraphics {
-    public display: import('pixi.js').Graphics;
+    // Keep a stable Container surface so completed commands can stay rasterized while
+    // the active command layer continues to animate. Both layers preserve the same
+    // visual object, mask, transform, and draw order contract for callers.
+    public display: import('pixi.js').Container;
 
-    private commands: any[] = [];
+    private readonly staticDisplay: GraphicsTarget;
+    private readonly activeDisplay: GraphicsTarget;
+    private commands: AnimatedCommand[] = [];
     private currentPath: any[] = [];
     private currentLength = 0;
     private lastX = 0;
     private lastY = 0;
     private staggerScheduled = false;
+    private staticPrefixCount = 0;
+    private lastRawProgress: number | null = null;
 
     constructor(pixi: PixiModule) {
-        this.display = new pixi.Graphics();
+        this.display = new pixi.Container();
+        this.staticDisplay = new pixi.Graphics();
+        this.activeDisplay = new pixi.Graphics();
+        this.display.addChild(this.staticDisplay, this.activeDisplay);
     }
 
     get rotation() { return this.display.rotation; }
@@ -49,7 +69,9 @@ export class AnimatedGraphics {
     }
 
     bezierCurveTo(c1x: number, c1y: number, c2x: number, c2y: number, tx: number, ty: number) {
-        const len = Math.hypot(c1x - this.lastX, c1y - this.lastY) + Math.hypot(c2x - c1x, c2y - c1y) + Math.hypot(tx - c2x, ty - c2y);
+        const len = Math.hypot(c1x - this.lastX, c1y - this.lastY)
+            + Math.hypot(c2x - c1x, c2y - c1y)
+            + Math.hypot(tx - c2x, ty - c2y);
         this.currentPath.push({ type: 'bezierCurveTo', c1x, c1y, c2x, c2y, tx, ty, len, lastX: this.lastX, lastY: this.lastY });
         this.currentLength += len;
         this.lastX = tx;
@@ -132,104 +154,133 @@ export class AnimatedGraphics {
         this.staggerScheduled = true;
     }
 
-    update(rawProgress: number) {
-        this.display.clear();
-        if (!this.staggerScheduled) this.scheduleStagger();
-        for (const cmd of this.commands) {
-            if (cmd.type === 'fill') {
-                this.display.moveTo(0, 0);
-                const localRaw = Math.min(
-                    1,
-                    Math.max(0, (rawProgress - cmd.staggerDelay) / cmd.staggerSpan),
-                );
-                const localProgress = 1 - Math.pow(1 - localRaw, 3); // Cubic ease-out locally
-                let isRectWipe = false;
-                if (cmd.path.length === 6 && cmd.path[0].type === 'rect_hint') {
-                    isRectWipe = true;
-                    const r = cmd.path[0];
-                    // Left to right mask wipe: just animate the width
-                    this.display.rect(r.x, r.y, r.w * localProgress, r.h);
-                }
+    private drawPath(target: GraphicsTarget, path: any[], targetLen: number) {
+        let currentLen = 0;
+        for (const p of path) {
+            if (p.type === 'rect_hint') continue;
+            if (p.type === 'moveTo') {
+                target.moveTo(p.x, p.y);
+                continue;
+            }
+            if (currentLen >= targetLen) break;
 
-                if (!isRectWipe) {
-                    for (const p of cmd.path) {
-                        if (p.type === 'rect_hint') continue;
-                        if (p.type === 'moveTo') this.display.moveTo(p.x, p.y);
-                        else if (p.type === 'lineTo') this.display.lineTo(p.x, p.y);
-                        else if (p.type === 'circle') this.display.circle(p.x, p.y, p.r);
-                        else if (p.type === 'arc') this.display.arc(p.cx, p.cy, p.r, p.start, p.end, p.anticlockwise);
-                        else if (p.type === 'quadraticCurveTo') this.display.quadraticCurveTo(p.cx, p.cy, p.tx, p.ty);
-                        else if (p.type === 'bezierCurveTo') this.display.bezierCurveTo(p.c1x, p.c1y, p.c2x, p.c2y, p.tx, p.ty);
-                    }
-                }
-                const alphaProgress = 1 - Math.pow(1 - Math.min(1, localRaw * 2), 3); // Ease out alpha over the first half of the window
-                const alpha = (cmd.options.alpha ?? 1) * alphaProgress;
-                this.display.fill({ ...cmd.options, alpha });
-            } else if (cmd.type === 'stroke') {
-                if (cmd.length <= 0) continue;
+            if (currentLen + p.len <= targetLen) {
+                if (p.type === 'lineTo') target.lineTo(p.x, p.y);
+                else if (p.type === 'circle') target.circle(p.x, p.y, p.r);
+                else if (p.type === 'arc') target.arc(p.cx, p.cy, p.r, p.start, p.end, p.anticlockwise);
+                else if (p.type === 'quadraticCurveTo') target.quadraticCurveTo(p.cx, p.cy, p.tx, p.ty);
+                else if (p.type === 'bezierCurveTo') target.bezierCurveTo(p.c1x, p.c1y, p.c2x, p.c2y, p.tx, p.ty);
+                currentLen += p.len;
+                continue;
+            }
 
-                const localRaw = Math.min(
-                    1,
-                    Math.max(0, (rawProgress - cmd.staggerDelay) / cmd.staggerSpan),
-                );
-                const localProgress = 1 - Math.pow(1 - localRaw, 3); // Apply cubic ease-out LOCALLY
+            const ratio = p.len > 0 ? (targetLen - currentLen) / p.len : 0;
+            if (p.type === 'lineTo') {
+                const x = p.lastX + (p.x - p.lastX) * ratio;
+                const y = p.lastY + (p.y - p.lastY) * ratio;
+                target.lineTo(x, y);
+            } else if (p.type === 'circle') {
+                target.arc(p.x, p.y, p.r, 0, Math.PI * 2 * ratio);
+            } else if (p.type === 'arc') {
+                target.arc(p.cx, p.cy, p.r, p.start, p.start + p.diff * ratio, p.anticlockwise);
+            } else if (p.type === 'quadraticCurveTo') {
+                const newCpX = p.lastX + ratio * (p.cx - p.lastX);
+                const newCpY = p.lastY + ratio * (p.cy - p.lastY);
+                const newTx = (1 - ratio) * (1 - ratio) * p.lastX + 2 * (1 - ratio) * ratio * p.cx + ratio * ratio * p.tx;
+                const newTy = (1 - ratio) * (1 - ratio) * p.lastY + 2 * (1 - ratio) * ratio * p.cy + ratio * ratio * p.ty;
+                target.quadraticCurveTo(newCpX, newCpY, newTx, newTy);
+            } else if (p.type === 'bezierCurveTo') {
+                const q0x = p.lastX + ratio * (p.c1x - p.lastX);
+                const q0y = p.lastY + ratio * (p.c1y - p.lastY);
+                const q1x = p.c1x + ratio * (p.c2x - p.c1x);
+                const q1y = p.c1y + ratio * (p.c2y - p.c1y);
+                const q2x = p.c2x + ratio * (p.tx - p.c2x);
+                const q2y = p.c2y + ratio * (p.ty - p.c2y);
+                const r0x = q0x + ratio * (q1x - q0x);
+                const r0y = q0y + ratio * (q1y - q0y);
+                const r1x = q1x + ratio * (q2x - q1x);
+                const r1y = q1y + ratio * (q2y - q1y);
+                const bx = r0x + ratio * (r1x - r0x);
+                const by = r0y + ratio * (r1y - r0y);
+                target.bezierCurveTo(q0x, q0y, r0x, r0y, bx, by);
+            }
+            break;
+        }
+    }
 
-                const targetLen = cmd.length * localProgress;
-                let currentLen = 0;
+    private drawCommand(target: GraphicsTarget, cmd: AnimatedCommand, rawProgress: number) {
+        const localRaw = Math.min(
+            1,
+            Math.max(0, (rawProgress - (cmd.staggerDelay ?? 0)) / Math.max(cmd.staggerSpan ?? 1, 0.001)),
+        );
+        if (localRaw <= 0) return;
 
+        const localProgress = 1 - Math.pow(1 - localRaw, 3);
+        if (cmd.type === 'fill') {
+            target.moveTo(0, 0);
+            const isRectWipe = cmd.path.length === 6 && cmd.path[0]?.type === 'rect_hint';
+            if (isRectWipe) {
+                const rect = cmd.path[0];
+                target.rect(rect.x, rect.y, rect.w * localProgress, rect.h);
+            } else {
                 for (const p of cmd.path) {
                     if (p.type === 'rect_hint') continue;
-                    if (p.type === 'moveTo') {
-                        this.display.moveTo(p.x, p.y);
-                    } else {
-                        if (currentLen >= targetLen) break;
-
-                        if (currentLen + p.len <= targetLen) {
-                            if (p.type === 'lineTo') this.display.lineTo(p.x, p.y);
-                            else if (p.type === 'circle') this.display.circle(p.x, p.y, p.r);
-                            else if (p.type === 'arc') this.display.arc(p.cx, p.cy, p.r, p.start, p.end, p.anticlockwise);
-                            else if (p.type === 'quadraticCurveTo') this.display.quadraticCurveTo(p.cx, p.cy, p.tx, p.ty);
-                            else if (p.type === 'bezierCurveTo') this.display.bezierCurveTo(p.c1x, p.c1y, p.c2x, p.c2y, p.tx, p.ty);
-                            currentLen += p.len;
-                        } else {
-                            const ratio = (targetLen - currentLen) / p.len;
-                            if (p.type === 'lineTo') {
-                                const x = p.lastX + (p.x - p.lastX) * ratio;
-                                const y = p.lastY + (p.y - p.lastY) * ratio;
-                                this.display.lineTo(x, y);
-                            } else if (p.type === 'circle') {
-                                this.display.arc(p.x, p.y, p.r, 0, Math.PI * 2 * ratio);
-                            } else if (p.type === 'arc') {
-                                this.display.arc(p.cx, p.cy, p.r, p.start, p.start + p.diff * ratio, p.anticlockwise);
-                            } else if (p.type === 'quadraticCurveTo') {
-                                const newCpX = p.lastX + ratio * (p.cx - p.lastX);
-                                const newCpY = p.lastY + ratio * (p.cy - p.lastY);
-                                const newTx = (1-ratio)*(1-ratio)*p.lastX + 2*(1-ratio)*ratio*p.cx + ratio*ratio*p.tx;
-                                const newTy = (1-ratio)*(1-ratio)*p.lastY + 2*(1-ratio)*ratio*p.cy + ratio*ratio*p.ty;
-                                this.display.quadraticCurveTo(newCpX, newCpY, newTx, newTy);
-                            } else if (p.type === 'bezierCurveTo') {
-                                const q0x = p.lastX + ratio * (p.c1x - p.lastX);
-                                const q0y = p.lastY + ratio * (p.c1y - p.lastY);
-                                const q1x = p.c1x + ratio * (p.c2x - p.c1x);
-                                const q1y = p.c1y + ratio * (p.c2y - p.c1y);
-                                const q2x = p.c2x + ratio * (p.tx - p.c2x);
-                                const q2y = p.c2y + ratio * (p.ty - p.c2y);
-                                const r0x = q0x + ratio * (q1x - q0x);
-                                const r0y = q0y + ratio * (q1y - q0y);
-                                const r1x = q1x + ratio * (q2x - q1x);
-                                const r1y = q1y + ratio * (q2y - q1y);
-                                const bx = r0x + ratio * (r1x - r0x);
-                                const by = r0y + ratio * (r1y - r0y);
-                                this.display.bezierCurveTo(q0x, q0y, r0x, r0y, bx, by);
-                            }
-                            currentLen = targetLen;
-                            break;
-                        }
-                    }
+                    if (p.type === 'moveTo') target.moveTo(p.x, p.y);
+                    else if (p.type === 'lineTo') target.lineTo(p.x, p.y);
+                    else if (p.type === 'circle') target.circle(p.x, p.y, p.r);
+                    else if (p.type === 'arc') target.arc(p.cx, p.cy, p.r, p.start, p.end, p.anticlockwise);
+                    else if (p.type === 'quadraticCurveTo') target.quadraticCurveTo(p.cx, p.cy, p.tx, p.ty);
+                    else if (p.type === 'bezierCurveTo') target.bezierCurveTo(p.c1x, p.c1y, p.c2x, p.c2y, p.tx, p.ty);
                 }
-
-                this.display.stroke(cmd.options);
             }
+            const alphaProgress = 1 - Math.pow(1 - Math.min(1, localRaw * 2), 3);
+            target.fill({ ...cmd.options, alpha: (cmd.options.alpha ?? 1) * alphaProgress });
+            return;
+        }
+
+        if (cmd.length <= 0) return;
+        this.drawPath(target, cmd.path, cmd.length * localProgress);
+        target.stroke(cmd.options);
+    }
+
+    private rebuildStaticLayer(prefixCount: number) {
+        this.staticDisplay.clear();
+        for (let index = 0; index < prefixCount; index += 1) {
+            this.drawCommand(this.staticDisplay, this.commands[index]!, 1);
+        }
+    }
+
+    update(rawProgress: number) {
+        if (!this.staggerScheduled) this.scheduleStagger();
+        const safeProgress = Number.isFinite(rawProgress) ? Math.min(1, Math.max(0, rawProgress)) : 0;
+
+        // Direct seeks can move backward. Invalidate only the completed-command cache;
+        // the deterministic command schedule still produces the same frame afterward.
+        if (this.lastRawProgress !== null && safeProgress < this.lastRawProgress - 0.0001) {
+            this.staticPrefixCount = 0;
+            this.staticDisplay.clear();
+        }
+        this.lastRawProgress = safeProgress;
+
+        let prefixCount = 0;
+        for (const cmd of this.commands) {
+            const localRaw = Math.min(
+                1,
+                Math.max(0, (safeProgress - (cmd.staggerDelay ?? 0)) / Math.max(cmd.staggerSpan ?? 1, 0.001)),
+            );
+            if (localRaw < 1) break;
+            prefixCount += 1;
+        }
+        if (prefixCount !== this.staticPrefixCount) {
+            this.staticPrefixCount = prefixCount;
+            this.rebuildStaticLayer(prefixCount);
+        }
+
+        // Keep all commands after the cached prefix in their original order. This
+        // preserves overlap/z-order while only replaying the still-changing suffix.
+        this.activeDisplay.clear();
+        for (let index = prefixCount; index < this.commands.length; index += 1) {
+            this.drawCommand(this.activeDisplay, this.commands[index]!, safeProgress);
         }
     }
 }

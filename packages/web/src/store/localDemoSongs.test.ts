@@ -28,6 +28,18 @@ describe('local demo showcase songs', () => {
     }
   });
 
+  it('keeps the creator-confirmed Stardust hook and corrected Sun timing boundary', () => {
+    const stardustText = LOCAL_DEMO_LYRICS['demo-stardust-pop-idol'].lines.map(line => line.fullText).join(' ');
+    expect(stardustText).toContain('STARDUST POP IDOL');
+    expect(stardustText).not.toContain('STARDOM POP IDOL');
+
+    const sunLines = LOCAL_DEMO_LYRICS['demo-sun-beneath-a-song'].lines;
+    const sparkIndex = sunLines.findIndex(line => line.fullText.startsWith('Each'));
+    const nextLine = sunLines.find(line => line.fullText.startsWith('A gentle truth'));
+    expect(sunLines[sparkIndex]?.startTime).toBe(69100);
+    expect(nextLine?.startTime).toBe(81280);
+  });
+
   it('maps every local track to matching exhibition lyric data', () => {
     const songIds = LOCAL_DEMO_SONGS.map(song => song.id).sort();
     expect(Object.keys(LOCAL_DEMO_LYRICS).sort()).toEqual(songIds);

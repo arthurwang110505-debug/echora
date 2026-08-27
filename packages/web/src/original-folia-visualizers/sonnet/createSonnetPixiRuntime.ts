@@ -105,10 +105,6 @@ export class SonnetPixiRuntime {
             preference: 'webgl',
             powerPreference: 'high-performance',
         });
-        if (options.performanceTier === 'compact') {
-            // Keep the lyric renderer responsive on touch-sized screens without changing its scene identity.
-            app.ticker.maxFPS = 30;
-        }
         const runtime = new SonnetPixiRuntime(pixi, options, app);
         runtime.sceneContainer = new pixi.Container();
         runtime.creditsContainer = new pixi.Container();

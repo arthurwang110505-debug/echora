@@ -3,6 +3,7 @@ import { DEFAULT_DIORAMA_TUNING, DEFAULT_SONNET_TUNING } from '../../types';
 import {
     resolveCompactDioramaTuning,
     resolveCompactSonnetTuning,
+    resolveFumeCameraSafetyCorrection,
     resolveFumeCameraScaleForViewport,
     resolveFumeCameraXForViewport,
     resolveFumeCameraYForViewport,
@@ -19,24 +20,35 @@ describe('stage performance profile', () => {
         expect(shouldUseCompactStageProfile({ width: 390, height: 844 })).toBe(true);
     });
 
-    it('leaves Sonnet desktop tuning untouched and trims only optional mobile passes', () => {
+    it('keeps the complete Sonnet composition on compact viewports', () => {
         expect(resolveCompactSonnetTuning(DEFAULT_SONNET_TUNING, false)).toBe(DEFAULT_SONNET_TUNING);
 
-        const compact = resolveCompactSonnetTuning({
+        const tuning = {
             ...DEFAULT_SONNET_TUNING,
             mgDensity: 0.8,
             textureResolution: 2,
             cameraIntensity: 1.4,
-        }, true);
+            showGuide: true,
+            showBackgroundMg: true,
+            showFixedGeo: true,
+            showGiantDecorativeText: true,
+            showBackgroundDecor: true,
+            enableTransitions: true,
+            postProcessEnabled: true,
+            postProcessLensDistortion: 0.7,
+        };
+        const compact = resolveCompactSonnetTuning(tuning, true);
 
-        expect(compact.mgDensity).toBe(0.5);
-        expect(compact.textureResolution).toBe(1);
-        expect(compact.cameraIntensity).toBe(1.4);
-        expect(compact.showGuide).toBe(false);
-        expect(compact.showBackgroundMg).toBe(false);
-        expect(compact.showFixedGeo).toBe(false);
-        expect(compact.showGiantDecorativeText).toBe(false);
-        expect(compact.enableTransitions).toBe(false);
+        expect(compact).toEqual(tuning);
+        expect(compact.mgDensity).toBe(0.8);
+        expect(compact.textureResolution).toBe(2);
+        expect(compact.showGuide).toBe(true);
+        expect(compact.showBackgroundMg).toBe(true);
+        expect(compact.showFixedGeo).toBe(true);
+        expect(compact.showGiantDecorativeText).toBe(true);
+        expect(compact.showBackgroundDecor).toBe(true);
+        expect(compact.enableTransitions).toBe(true);
+        expect(compact.postProcessEnabled).toBe(true);
     });
 
     it('keeps Diorama scene identity while reducing mobile point budgets', () => {
@@ -103,6 +115,21 @@ describe('stage performance profile', () => {
             [{ left: Number.NaN, top: 0, width: 240 }],
             38,
         )).toEqual({ left: 120, top: 480, right: 1020, bottom: 600 });
+    });
+
+    it('softly corrects compact Fume camera overshoot without teleporting', () => {
+        const correction = resolveFumeCameraSafetyCorrection(340, 520, 300, 1 / 60);
+        expect(correction.position).toBeGreaterThan(300);
+        expect(correction.position).toBeLessThan(340);
+        expect(correction.velocity).toBeLessThan(520);
+
+        const inBounds = resolveFumeCameraSafetyCorrection(240, 120, 300, 1 / 60);
+        expect(inBounds.position).toBeGreaterThan(240);
+        expect(inBounds.position).toBeLessThan(300);
+        expect(inBounds.velocity).toBe(120);
+
+        const invalid = resolveFumeCameraSafetyCorrection(Number.NaN, 120, 300, 1 / 60);
+        expect(invalid).toEqual({ position: 300, velocity: 0 });
     });
 
     it('caps only compact Fume canvas DPR', () => {

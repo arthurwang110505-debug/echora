@@ -122,8 +122,8 @@ export const resolveSonnetSmoothedCameraFocus = (
     startTime: number,
     endTime: number,
     sampleFocus: (sampleTime: number) => SonnetCameraFocusPoint,
-    smoothingWindow = 0.12,
-    maxBlendDistance = 96,
+    smoothingWindow = 0.18,
+    maxBlendDistance = 192,
 ): SonnetCameraFocusPoint => {
     const safeStart = Math.min(startTime, endTime);
     const safeEnd = Math.max(startTime, endTime);
@@ -137,17 +137,21 @@ export const resolveSonnetSmoothedCameraFocus = (
         return { point: sampleFocus(sampleTime), weight };
     });
     const center = samples[2].point;
-    const maxDistanceSquared = Math.max(0, maxBlendDistance) ** 2;
+    const blendDistance = Math.max(0, maxBlendDistance);
     let x = 0;
     let y = 0;
     let totalWeight = 0;
     samples.forEach(({ point, weight }) => {
-        const distanceSquared = (point.x - center.x) ** 2 + (point.y - center.y) ** 2;
-        // Preserve intentional composition jumps instead of averaging two distant focal points.
-        if (distanceSquared > maxDistanceSquared) return;
-        x += point.x * weight;
-        y += point.y * weight;
-        totalWeight += weight;
+        const distance = Math.hypot(point.x - center.x, point.y - center.y);
+        // Keep the center sample dominant for intentional composition changes, but let
+        // distant temporal samples contribute a fading amount instead of disappearing
+        // abruptly. This preserves every shot/glyph animation while removing focus pops.
+        const distanceRatio = blendDistance > 0 ? clamp01(distance / blendDistance) : distance > 0 ? 1 : 0;
+        const distanceWeight = 1 - distanceRatio * 0.78;
+        const effectiveWeight = weight * distanceWeight;
+        x += point.x * effectiveWeight;
+        y += point.y * effectiveWeight;
+        totalWeight += effectiveWeight;
     });
     return { x: x / totalWeight, y: y / totalWeight };
 };
