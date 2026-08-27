@@ -609,8 +609,10 @@ export class SonnetPixiRuntime {
             // Strict visibility: only the active scene is ever drawn. Zero overlap between scenes.
             scene.container.visible = isActive;
             if (!isActive) {
-                const previousShot = scene.shots[scene.activeShotIndex];
-                if (previousShot) unloadSonnetDisplayTree(previousShot.container);
+                // Keep inactive shot display trees warm. Pixi Text owns a GPU-backed
+                // texture that can become blank after transient unload; scenes are
+                // bounded to the active paragraph and are still fully unloaded when
+                // pruned or destroyed.
                 scene.activeShotIndex = -1;
                 return;
             }
@@ -669,8 +671,9 @@ export class SonnetPixiRuntime {
                 this.updateShot(shot, time, width, height, 0);
             });
             if (scene.activeShotIndex !== visibleShotIndex) {
-                const previousShot = scene.shots[scene.activeShotIndex];
-                if (previousShot) unloadSonnetDisplayTree(previousShot.container);
+                // Do not unload a reusable inactive shot here. Keeping its Text and
+                // Graphics views warm prevents a later seek/transition from showing
+                // a background-only frame; prune/destroy owns actual resource release.
                 scene.activeShotIndex = visibleShotIndex;
             }
             // Publish the active shot so the dev overlay's Sonnet tab can inspect it.
