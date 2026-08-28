@@ -52,7 +52,7 @@ describe('AppHome (the /app shell)', () => {
     expect(markup).toContain('h-11 w-11');
   });
 
-  it('renders loaded connected YouTube playlist tracks instead of the demo catalog', () => {
+  it('renders loaded connected YouTube playlist context instead of the demo catalog', () => {
     Object.assign(mocks.player, {
       activeSource: 'ytmusic',
       youtubeConnected: true,
@@ -72,8 +72,10 @@ describe('AppHome (the /app shell)', () => {
 
     const markup = renderToStaticMarkup(<AppHome />);
 
-    expect(markup).toContain('我的真實歌曲');
+    // The playback console names the loaded playlist (the tracks themselves
+    // render inside the lazy 3D carousel, not the static shell markup).
     expect(markup).toContain('你的歌單 · 我的夜間歌單');
+    expect(markup).toContain('目前顯示「我的夜間歌單」');
     expect(markup).not.toContain('YouTube Music 示範歌曲');
   });
 

@@ -18,6 +18,17 @@
   URL. In-app "back" navigation and YouTube OAuth return-path fallbacks point to
   `/app`, never to `/`.
 - Original Folia visualizer source is copied to `packages/web/src/original-folia-visualizers`.
+- The landing page carries the premium motion: `src/components/landing/` holds a
+  canvas "moving-head" stage light show (`StageLightCanvas`, beat-synced at ~96 BPM,
+  pointer-parallax, reduced-motion-safe), an auto-cycling word-fill lyric preview
+  (`KaraokeLine`, synced to per-line scene colors + visualizer mode chips), 3D tilt
+  cards with cursor spotlight (`TiltCard`), a magnetic CTA (`MagneticButton`), and
+  scroll reveals (`Reveal`). Styles live in `src/styles/landing.css`; the mode
+  marquee reuses `.equalizer-bar` from `index.css`. The `/app` shell is
+  intentionally landing-free: a compact playback console (context + next action +
+  optional now-playing chip) sits above the library controls.
+- `jsdom` is a web devDependency powering `src/pages/LandingStage.test.tsx`, a
+  mounted smoke test for the landing animation system.
 - The 193 visualizer files were compared against the downloaded Folia source and currently match byte-for-byte.
 - `OriginalFoliaVisualizerStage.tsx` adapts Echora lyric timestamps from milliseconds to Folia's seconds contract.
 - Immersive stage uses browser Fullscreen API and attempts mobile landscape orientation lock.
