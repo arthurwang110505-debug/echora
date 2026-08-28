@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, Check, LayoutGrid, Library, Orbit, Play, Search, Settings2, Sparkles, X } from 'lucide-react';
+import { ArrowRight, Check, LayoutGrid, Library, Orbit, Play, Search, Settings2, X } from 'lucide-react';
 import { usePlayer } from '../contexts/PlayerContext';
 import { type Song } from '@echora/core';
 import { spotifyClientId } from '../integrations/spotifyAuth';
@@ -203,22 +203,17 @@ export default function AppHome() {
     () => recentSongs.find(song => song.source === 'local' && LOCAL_DEMO_SONGS.some(demo => demo.id === song.id)) || null,
     [recentSongs],
   );
-  const heroSong = activeSource === 'ytmusic'
-    ? sourceSongs[0]
-    : activeSource === 'spotify' && spotifyAvailable
-      ? FEATURED_SONGS.find(song => song.source === 'spotify')
-      : activeSource === 'local'
-        ? lastLocalDemoSong || LOCAL_DEMO_SONGS[0]
-        : undefined;
-  const heroContent = activeSource === 'ytmusic'
+  // Compact console copy (the /app shell intentionally reads like a tool, not a
+  // landing page: no marketing headline, just context + the next action).
+  const consoleCopy = activeSource === 'ytmusic'
     ? youtubeConnected
-      ? { eyebrow: '你的 YouTube Music', title: '從你的歌單，', accent: '開啟自己的光。', description: selectedPlaylist ? `目前顯示「${selectedPlaylist.name}」；選一首歌後，使用 YouTube 原生播放與同步歌詞舞台。` : '你的私人歌單正在同步；完成後會直接出現在下方 3D 輪播。', primary: currentSong ? '返回播放舞台' : '開啟我的音樂庫', secondary: '同步我的音樂庫' }
-      : { eyebrow: '先體驗 Echora 舞台', title: '讓每一首歌，', accent: '都成為一座舞台。', description: '先用展示曲目體驗動態歌詞、視覺舞台與播放控制；喜歡後再連接 YouTube Music 讀取私人歌單。', primary: '立即播放展示曲目', secondary: '播放自己的音樂' }
+      ? { eyebrow: '你的 YouTube Music', description: selectedPlaylist ? `目前顯示「${selectedPlaylist.name}」；選一首歌後，使用 YouTube 原生播放與同步歌詞舞台。` : '你的私人歌單正在同步；完成後會直接出現在下方 3D 輪播。', primary: currentSong ? '返回播放舞台' : '開啟我的音樂庫', secondary: '同步我的音樂庫' }
+      : { eyebrow: '先體驗 Echora 舞台', description: '先用展示曲目體驗動態歌詞、視覺舞台與播放控制；喜歡後再連接 YouTube Music 讀取私人歌單。', primary: '立即播放展示曲目', secondary: '播放自己的音樂' }
     : activeSource === 'spotify'
-      ? { eyebrow: 'Spotify 尚未啟用', title: 'Spotify 正在準備中，', accent: '請先選擇可用來源。', description: '目前尚未設定 Spotify 開發者權限，因此不能登入或播放；這不是播放故障。', primary: '先體驗展示舞台', secondary: '查看連線方式' }
+      ? { eyebrow: 'Spotify 尚未啟用', description: '目前尚未設定 Spotify 開發者權限，因此不能登入或播放；這不是播放故障。', primary: '先體驗展示舞台', secondary: '查看連線方式' }
       : lastLocalDemoSong && !currentSong
-        ? { eyebrow: 'Echora 本機展示', title: '歡迎回來，', accent: '舞台為你保留。', description: `上次聽到「${lastLocalDemoSong.title}」；可以從上次曲目繼續，或直接在下方換一首展示歌曲。`, primary: '繼續上次的展示曲目', secondary: '播放自己的音樂' }
-        : { eyebrow: 'Echora 本機展示', title: '讓每一首歌，', accent: '都成為一座舞台。', description: '五首免版稅本機音檔已準備好；不需登入或依賴 YouTube Music，就能先體驗真實播放、舞台視覺與播放控制。', primary: '立即播放展示曲目', secondary: '播放自己的音樂' };
+        ? { eyebrow: 'Echora 本機展示', description: `上次聽到「${lastLocalDemoSong.title}」；可以從上次曲目繼續，或直接在下方換一首展示歌曲。`, primary: '繼續上次的展示曲目', secondary: '播放自己的音樂' }
+        : { eyebrow: 'Echora 本機展示', description: '五首免版稅本機音檔已準備好；不需登入或依賴 YouTube Music，就能先體驗真實播放、舞台視覺與播放控制。', primary: '立即播放展示曲目', secondary: '播放自己的音樂' };
 
   const handleHeroPrimary = () => {
     if (currentSong) { navigate('/player'); return; }
@@ -298,32 +293,37 @@ export default function AppHome() {
 <span>YouTube Music 已連線，歌單正在載入</span></div>}
 
       <main className="relative z-10 mx-auto max-w-[1440px] space-y-7 px-5 pb-[calc(6.75rem+env(safe-area-inset-bottom))] pt-5 sm:space-y-10 sm:px-8 sm:pb-32 sm:pt-7 lg:px-12 lg:pt-12">
-        <section className="relative grid min-h-[300px] overflow-hidden rounded-[26px] border border-white/10 bg-gradient-to-br from-[#142e32] via-[#101922] to-[#111126] shadow-2xl sm:min-h-[340px] sm:rounded-[30px] lg:min-h-[380px] lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="relative z-10 flex flex-col justify-center p-6 sm:p-10 lg:p-14">
-            <span className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-3 py-1.5 text-[10px] font-bold tracking-wide text-[#62f5c4] sm:mb-5 sm:px-3.5 sm:py-2 sm:text-[11px]"><span className="h-1.5 w-1.5 rounded-full bg-[#62f5c4] shadow-[0_0_10px_#62f5c4]" /> {heroContent.eyebrow}</span>
-            <h1 className="max-w-2xl font-heading text-[2.1rem] font-black leading-[0.98] tracking-[-0.04em] text-white sm:text-5xl lg:text-7xl">{heroContent.title}<br /><span className="bg-gradient-to-r from-[#62f5c4] via-teal-200 to-white bg-clip-text text-transparent">{heroContent.accent}</span></h1>
-            <p className="mt-4 max-w-xl text-[13px] leading-6 text-slate-300/80 sm:mt-6 sm:text-base sm:leading-7">{heroContent.description}</p>
-            <div className="mt-6 flex flex-wrap items-center gap-3 sm:mt-8">
-              <button type="button" onClick={handleHeroPrimary} className="rounded-xl bg-[#62f5c4] px-5 py-3 text-sm font-extrabold text-black shadow-[0_10px_35px_rgba(98,245,196,0.25)] transition hover:-translate-y-0.5 hover:brightness-110 active:scale-95">{heroContent.primary} <ArrowRight aria-hidden="true" className="ml-2 inline-block h-4 w-4 align-[-3px]" />
-</button>
-                              <button type="button" onClick={handleHeroSecondary} className="hidden rounded-xl border border-white/15 bg-white/[0.05] px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10 active:scale-95 sm:inline-flex">{heroContent.secondary}</button>
-                <a href="#explore-library" className="inline-flex min-h-11 items-center rounded-xl px-2 py-2 text-xs font-bold text-slate-300 transition hover:text-[#62f5c4] sm:hidden">瀏覽展示歌曲 <span aria-hidden="true" className="ml-1">↓</span></a>
-
+        {/* Compact playback console: context + next action, no landing hero.
+            (The marketing narrative lives on the landing page only.) */}
+        <section aria-label="播放控制台" className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 shadow-xl backdrop-blur-xl sm:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#62f5c4]/80">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#62f5c4] shadow-[0_0_10px_#62f5c4]" aria-hidden="true" /> {consoleCopy.eyebrow}
+              </p>
+              <p className="mt-1.5 max-w-2xl text-[13px] leading-5 text-slate-300/80">{consoleCopy.description}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={handleHeroPrimary} className="btn-spring inline-flex min-h-11 items-center rounded-xl bg-[#62f5c4] px-4 py-2.5 text-[13px] font-extrabold text-black shadow-[0_8px_24px_rgba(98,245,196,0.22)] transition hover:brightness-110 active:scale-95">
+                {consoleCopy.primary}
+                <ArrowRight aria-hidden="true" className="ml-1.5 inline-block h-4 w-4 align-[-3px]" />
+              </button>
+              <button type="button" onClick={handleHeroSecondary} className="hidden min-h-11 items-center rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-white/10 active:scale-95 sm:inline-flex">{consoleCopy.secondary}</button>
+              <a href="#explore-library" className="inline-flex min-h-11 items-center rounded-xl px-2 py-2 text-xs font-bold text-slate-300 transition hover:text-[#62f5c4] sm:hidden">瀏覽展示歌曲 <span aria-hidden="true" className="ml-1">↓</span></a>
             </div>
           </div>
-          <div className="relative hidden min-h-[380px] overflow-hidden lg:block">
-            <div className="absolute right-[-8%] top-[12%] h-[430px] w-[430px] rounded-full bg-[#62f5c4]/20 blur-[90px]" />
-            <div className="absolute right-[13%] top-[12%] h-[310px] w-[310px] rotate-12 rounded-[42px] border border-white/20 bg-white/10 p-3 shadow-2xl backdrop-blur-xl">
-              {heroSong ? <><CoverImage src={heroSong.coverUrl} alt={`${heroSong.title} 專輯封面`} wrapperClassName="h-full w-full rounded-[32px]" className="h-full w-full rounded-[32px] object-cover opacity-90" /><div className="absolute inset-x-7 bottom-7 rounded-2xl border border-white/15 bg-[#07090e]/75 p-3 backdrop-blur-xl"><p className="text-xs font-bold text-white">{heroSong.title}</p>            <p className="mt-1 text-[10px] text-[#62f5c4]">{typeof heroSong.artists[0] === 'string' ? heroSong.artists[0] : heroSong.artists[0]?.name} · {activeSource === 'ytmusic' ? (youtubeConnected ? '你的 YouTube Music' : 'YouTube Music 示範') : activeSource === 'local' ? '本機音檔展示' : 'Spotify 示範'}</p>
-</div></> : <div className="flex h-full flex-col items-center justify-center rounded-[32px] border border-dashed border-white/20 bg-[#07090e]/40 p-8 text-center"><Sparkles aria-hidden="true" className="h-9 w-9 text-[#62f5c4]" />
-<p className="mt-4 text-sm font-extrabold text-white">{heroContent.eyebrow}</p><p className="mt-2 text-xs leading-5 text-slate-400">選擇可用來源後才會顯示對應內容。</p></div>}
-            </div>
-            <div className="absolute bottom-[13%] left-[10%] flex items-end gap-1 opacity-70">{[30, 60, 42, 82, 55, 95, 45, 72, 35].map((height, index) => <span key={index} className="w-1.5 rounded-full bg-[#62f5c4]" style={{ height }} />)}</div>
-          </div>
-        </section>
 
-        <section className="flex items-center justify-center gap-2 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-3 text-center text-[11px] font-bold tracking-wide text-slate-400 sm:text-xs" aria-label="Echora 舞台體驗流程">
-          <span className="text-white">選歌</span><span aria-hidden="true" className="text-[#62f5c4]">→</span><span>播放</span><span aria-hidden="true" className="text-[#62f5c4]">→</span><span className="text-[#b8ffe2]">Stage</span>
+          {currentSong && (
+            <button type="button" onClick={() => navigate('/player')} className="group mt-4 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 text-left transition hover:border-[#62f5c4]/35 hover:bg-white/[0.06]" aria-label={`返回播放舞台：目前播放 ${currentSong.title}`}>
+              <CoverImage src={currentSong.coverUrl} alt="" wrapperClassName="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/10" className="h-full w-full object-cover" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-extrabold text-white transition-colors group-hover:text-[#62f5c4]">{currentSong.title}</span>
+                <span className="mt-0.5 block truncate text-[11px] text-slate-400">{typeof currentSong.artists[0] === 'string' ? currentSong.artists[0] : currentSong.artists[0]?.name || '未知歌手'} · 播放中</span>
+              </span>
+              <span className="mr-1 flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-[#62f5c4] shadow-[0_0_8px_#62f5c4]" aria-hidden="true" />
+              <Play aria-hidden="true" className="h-4 w-4 shrink-0 text-[#62f5c4]" fill="currentColor" />
+            </button>
+          )}
         </section>
 
         <section id="explore-library" className="space-y-6">

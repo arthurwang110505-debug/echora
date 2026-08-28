@@ -1,8 +1,10 @@
 import React from 'react';
 import { DEFAULT_SONNET_TUNING } from '../../../types';
 import { defineVisualizer } from '../definition';
+import { lazyVisualizer } from '../lazyVisualizer';
+
+const VisualizerSonnet = lazyVisualizer(() => import('./VisualizerSonnet'));
 import SonnetSettingsPanel from './SonnetSettingsPanel';
-import VisualizerSonnet from './VisualizerSonnet';
 
 // src/components/visualizer/sonnet/entry.tsx
 // Registers 商籁, the deterministic Japanese MG lyric-PV director.

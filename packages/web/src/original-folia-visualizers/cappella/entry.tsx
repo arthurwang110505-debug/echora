@@ -1,7 +1,7 @@
 import React from 'react';
 import { defineVisualizer } from '../definition';
+import { lazyVisualizer } from '../lazyVisualizer';
 import { CappellaSettingsPanel } from '../settingsPanels';
-import VisualizerCappella from './VisualizerCappella';
 
 // src/components/visualizer/cappella/entry.tsx
 // Registers the Cappella chat visualizer mode.
@@ -13,7 +13,7 @@ export default defineVisualizer({
     previewSeed: 'cappella',
     previewStartOffset: 0,
     tuningKind: 'cappella',
-    render: props => <VisualizerCappella {...props} />,
+    render: lazyVisualizer(() => import('./VisualizerCappella')),
     renderSettingsPanel: props => <CappellaSettingsPanel {...props} />,
     resetSettings: props => {
         props.resetCappellaTuning?.();

@@ -44,6 +44,7 @@
     "esbuild": "^0.28.2",
     "eslint": "^9.22.0",
     "eslint-plugin-react-hooks": "^5.2.0",
+    "jsdom": "^30.0.1",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",
     "three": "^0.185.1",

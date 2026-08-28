@@ -399,7 +399,12 @@ const RingLine: React.FC<RingLineProps> = ({
     }, [line, theme.wordColors, fontSpec, baseFontSize, Rx, textSpacingScale, letterSpacingOffset]);
 
     const charRefs = useRef<(HTMLSpanElement | null)[]>([]);
-    const styleCacheRef = useRef<Array<{ transform: string; opacity: string; filter: string; color: string; textShadow: string }>>([]);
+    type CladdaghStyleCacheEntry = { transform: string; opacity: string; filter: string; color: string; textShadow: string };
+    const styleCacheRef = useRef<Array<CladdaghStyleCacheEntry | undefined>>([]);
+    // Glyphs we have already forced to opacity 0. They stay fully faded until the
+    // ring rotates them back into the visible window, so all per-frame style work
+    // is skipped for them (the rendered result is identical: their opacity is 0).
+    const hiddenGlyphsRef = useRef<boolean[]>([]);
     const previousTimeRef = useRef(currentTime.get());
     const holdResetFrameRef = useRef(false);
     const lastMobileUpdateAtRef = useRef(-Infinity);
@@ -426,6 +431,24 @@ const RingLine: React.FC<RingLineProps> = ({
             if (mvsLength === 0) return;
 
             const curLineOffset = lineOffset.get();
+
+            // Fully faded past lines: once the ring has rotated a past line a full
+            // turn away, pastFade multiplies every glyph's opacity to exactly 0.
+            // Keep those spans hidden once and skip all per-frame math and style
+            // writes until the line becomes reachable again (same rendered output).
+            const lineDiffForCull = Math.abs(curLineOffset - lineIndex * Math.PI) / Math.PI;
+            if (lineIndex < centerLineIndex && lineDiffForCull >= 1) {
+                for (let i = 0; i < mvsLength; i++) {
+                    hiddenGlyphsRef.current[i] = true;
+                    styleCacheRef.current[i] = undefined;
+                    const el = charRefs.current[i];
+                    if (el && el.style.opacity !== '0') {
+                        el.style.opacity = '0';
+                    }
+                }
+                return;
+            }
+
             const power = normalizePower(audioPower.get());
             const intensity = theme.animationIntensity || 'normal';
             let intensityMultiplier = 0.25;
@@ -611,6 +634,24 @@ const RingLine: React.FC<RingLineProps> = ({
                 }
                 finalOpacity = finalOpacity * boundaryFade;
 
+                // Glyphs faded below half of one 8-bit alpha step render as fully
+                // transparent. Park them once and skip all downstream glow, color
+                // and transform work; the cached styles are invalidated so a reveal
+                // rewrites everything (rendered output identical).
+                if (finalOpacity < 0.002) {
+                    if (!hiddenGlyphsRef.current[i]) {
+                        hiddenGlyphsRef.current[i] = true;
+                        styleCacheRef.current[i] = undefined;
+                        const el = charRefs.current[i];
+                        if (el) el.style.opacity = '0';
+                    }
+                    continue;
+                }
+                if (hiddenGlyphsRef.current[i]) {
+                    hiddenGlyphsRef.current[i] = false;
+                    styleCacheRef.current[i] = undefined;
+                }
+
                 const scale = (0.22 + 0.98 * Math.pow(D, 1.5)) * (1.0 + (focusScaleRatio ?? 0.65) * F) * lengthScaleFactor * ((item as any).scaleFactor ?? 1.0);
                 const blur = 8.0 * (1 - D) * (1 - 0.5 * F);
                 const tiltAngle = clamp(tangentAngle * (0.4 + 0.6 * D), -38, 38);
@@ -726,7 +767,12 @@ const RingLine: React.FC<RingLineProps> = ({
                         opacity: 0,
                         transform: 'translate3d(-50%, -50%, 0px) scale(0.2)',
                         transformOrigin: 'center center',
-                        willChange: compactPerformance ? 'transform, opacity, color' : 'transform, opacity, filter, color, text-shadow',
+                        // Keep will-change to transform/opacity only: promoting every glyph for
+                        // filter/color/text-shadow creates thousands of composited layers for the
+                        // whole-song ring, which is what made this mode stutter. Filter and shadow
+                        // animations still run — the browser just rasterizes on demand instead of
+                        // hoarding layers. No rendered-pixel change.
+                        willChange: 'transform, opacity',
                         fontFamily: fontStack,
                         fontSize: `${baseFontSize}px`,
                         fontWeight,

@@ -1,7 +1,9 @@
 import React from 'react';
 import { DEFAULT_MONET_TUNING } from '../../../types';
 import { defineVisualizer } from '../definition';
-import VisualizerMonet from './VisualizerMonet';
+import { lazyVisualizer } from '../lazyVisualizer';
+
+const VisualizerMonet = lazyVisualizer(() => import('./VisualizerMonet'));
 import { MonetSettingsPanel } from './MonetSettingsPanel';
 
 // src/components/visualizer/monet/entry.tsx

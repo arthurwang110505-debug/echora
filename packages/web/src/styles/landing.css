@@ -1,0 +1,181 @@
+/* ============================================================
+   Echora landing stage animation system
+   Scoped, decorative styles for the / landing page only.
+   ============================================================ */
+
+/* --- Headline: animated gradient sweep (text stays a single node) --- */
+.stage-headline-accent {
+  background-image: linear-gradient(
+    112deg,
+    #62f5c4 0%,
+    #b9fce4 20%,
+    #ffffff 42%,
+    #a5b4fc 66%,
+    #62f5c4 100%
+  );
+  background-size: 230% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: stageGradientSweep 9s var(--ease-ambient) infinite alternate;
+}
+
+@keyframes stageGradientSweep {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 50%; }
+}
+
+/* --- Karaoke word fill (dim base + bright fill clipped by clip-path) --- */
+.karaoke-line {
+  --karaoke-accent: rgba(98, 245, 196, 0.6);
+  --karaoke-word-ms: 430ms;
+}
+
+.karaoke-word {
+  position: relative;
+  display: inline-block;
+}
+
+.karaoke-word-base {
+  color: rgba(148, 163, 184, 0.38);
+}
+
+.karaoke-word-fill {
+  position: absolute;
+  inset: 0;
+  color: #ffffff;
+  clip-path: inset(-12% 100% -18% -2%);
+  text-shadow: 0 0 22px rgba(255, 255, 255, 0);
+  transition:
+    clip-path var(--karaoke-word-ms) var(--ease-lyric),
+    text-shadow 320ms ease;
+  will-change: clip-path;
+  pointer-events: none;
+}
+
+.karaoke-word.is-filled .karaoke-word-fill {
+  clip-path: inset(-12% -8% -18% -2%);
+  text-shadow:
+    0 0 10px rgba(255, 255, 255, 0.35),
+    0 0 30px var(--karaoke-accent);
+}
+
+/* --- Visualizer mode marquee --- */
+.stage-marquee-mask {
+  mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent);
+}
+
+.stage-marquee {
+  animation: stageMarquee 42s linear infinite;
+}
+
+.stage-marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes stageMarquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* --- Cursor spotlight for tilt cards --- */
+.spotlight-card {
+  position: relative;
+}
+
+.spotlight-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    460px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(98, 245, 196, 0.11),
+    transparent 58%
+  );
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  z-index: 1;
+}
+
+.spotlight-card:hover::before {
+  opacity: 1;
+}
+
+/* --- Beat dots (pump on the demo's ~grid) --- */
+.beat-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.35);
+  animation: beatDotPump 2.4s var(--ease-ambient) infinite;
+}
+
+.beat-dot:nth-child(2) { animation-delay: 0.15s; }
+.beat-dot:nth-child(3) { animation-delay: 0.3s; }
+.beat-dot:nth-child(4) { animation-delay: 0.45s; }
+.beat-dot:nth-child(5) { animation-delay: 0.6s; }
+
+@keyframes beatDotPump {
+  0%, 12%, 100% { background: rgba(148, 163, 184, 0.35); transform: scale(1); }
+  6% { background: var(--mint-glow); transform: scale(1.5); }
+}
+
+/* --- Hero aurora blobs (CSS-only depth behind the canvas) --- */
+.stage-aurora {
+  filter: blur(90px);
+  opacity: 0.5;
+  will-change: transform;
+}
+
+.stage-aurora-1 {
+  animation: ambientFloat1 var(--tempo-ambient) var(--ease-ambient) infinite alternate;
+}
+
+.stage-aurora-2 {
+  animation: ambientFloat2 var(--tempo-ambient-slow) var(--ease-ambient) infinite alternate;
+}
+
+/* --- Scene crossfade layer for the stage demo --- */
+.stage-scene-bg {
+  transition: background 1.15s var(--ease-out-smooth), opacity 1.15s var(--ease-out-smooth);
+}
+
+/* --- Mode chip crossfade --- */
+.stage-chip-enter {
+  animation: stageChipIn 620ms var(--ease-spring) both;
+}
+
+@keyframes stageChipIn {
+  0% { opacity: 0; transform: translateY(8px) scale(0.9); filter: blur(6px); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+/* --- Floating album card --- */
+.stage-float {
+  animation: stageFloat 7.5s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes stageFloat {
+  0%, 100% { transform: translateY(0) rotate(8deg); }
+  50% { transform: translateY(-14px) rotate(10deg); }
+}
+
+/* --- Equalizer sizing override for the landing (taller bars) --- */
+.stage-eq .equalizer-bar {
+  width: 4px;
+}
+
+/* --- Reduced motion: freeze the decorative layers --- */
+@media (prefers-reduced-motion: reduce) {
+  .stage-headline-accent { animation: none; }
+  .stage-marquee { animation: none; }
+  .stage-float { animation: none; }
+  .beat-dot { animation: none; }
+  .stage-aurora-1,
+  .stage-aurora-2 { animation: none; }
+  .karaoke-word-fill { transition: none; }
+}
