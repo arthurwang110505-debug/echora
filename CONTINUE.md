@@ -10,6 +10,13 @@
 
 ## Current implementation
 
+- Two-entrance information architecture: `/` (alias `/welcome`) is a marketing
+  landing page for new visitors; `/app` is the app shell / song picker. The PWA
+  manifest `start_url` is `/app`, so installed users never see the landing page
+  on launch. Landing CTAs: 開始體驗 → `/app?demo=1`, low-key 開啟播放器 → `/app`.
+  `?demo=1` on `/app` forces the local demo source, then is stripped from the
+  URL. In-app "back" navigation and YouTube OAuth return-path fallbacks point to
+  `/app`, never to `/`.
 - Original Folia visualizer source is copied to `packages/web/src/original-folia-visualizers`.
 - The 193 visualizer files were compared against the downloaded Folia source and currently match byte-for-byte.
 - `OriginalFoliaVisualizerStage.tsx` adapts Echora lyric timestamps from milliseconds to Folia's seconds contract.

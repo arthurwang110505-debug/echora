@@ -9,7 +9,17 @@ export interface SpotifySession {
 }
 
 export const spotifyClientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID as string | undefined;
-export const spotifyRedirectUri = (import.meta.env.VITE_SPOTIFY_REDIRECT_URI as string | undefined) || 'http://127.0.0.1:3000/';
+
+// Spotify redirects back here after OAuth. Default to /app so a just-connected
+// user lands in the app shell; deployments that still point the registered
+// redirect at / are handled by the landing redirect inside finishSpotifyLogin.
+const getRedirectUri = () =>
+  (import.meta.env.VITE_SPOTIFY_REDIRECT_URI as string | undefined) ||
+  (typeof window !== 'undefined' ? `${window.location.origin}/app` : 'http://127.0.0.1:3000/app');
+export const spotifyRedirectUri = getRedirectUri();
+
+// Keep OAuth returns inside the app shell; the landing page is marketing-only.
+const LANDING_PATHS = new Set(['/', '/welcome']);
 
 const toBase64Url = (bytes: Uint8Array) =>
   btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -90,6 +100,9 @@ export const finishSpotifyLogin = async (): Promise<SpotifySession | null> => {
   sessionStorage.removeItem(VERIFIER_KEY);
   sessionStorage.removeItem(STATE_KEY);
   window.history.replaceState({}, document.title, window.location.pathname);
+  // If the registered redirect URI still points at the landing page, hand the
+  // freshly connected user to the app shell instead of leaving them on /.
+  if (LANDING_PATHS.has(window.location.pathname)) window.location.replace('/app');
   return session;
 };
 

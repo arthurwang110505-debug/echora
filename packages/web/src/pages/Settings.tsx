@@ -92,7 +92,7 @@ export default function Settings() {
   return (
     <div className="settings-page min-h-screen bg-[#07090e] pb-8 font-sans text-white selection:bg-[#62f5c4] selection:text-black">
       <header className="sticky top-0 z-30 flex items-center border-b border-white/10 bg-[#0d111a]/90 px-4 py-3 backdrop-blur-2xl sm:px-6 sm:py-4">
-        <button type="button" onClick={() => navigate('/')} aria-label="返回探索頁" className="mr-4 rounded-2xl border border-white/10 p-2.5 text-white transition-all hover:bg-white/10 btn-spring">
+        <button type="button" onClick={() => navigate('/app')} aria-label="返回探索頁" className="mr-4 rounded-2xl border border-white/10 p-2.5 text-white transition-all hover:bg-white/10 btn-spring">
           <ArrowLeft aria-hidden="true" className="h-5 w-5" strokeWidth={2.5} />
         </button>
         <div className="flex items-center gap-2">
@@ -150,7 +150,7 @@ export default function Settings() {
               <div className="rounded-2xl border border-dashed border-white/15 bg-black/15 p-4 text-center">
                 <p className="font-bold text-white">先播放一首歌，再來設計它的舞台</p>
                 <p className="mt-1 text-xs leading-5 text-slate-400">你可以先用免登入展示曲目體驗，再決定是否連接自己的音樂。</p>
-                <button type="button" onClick={() => navigate('/')} className="mt-3 rounded-xl border border-[#62f5c4]/30 bg-[#62f5c4]/10 px-4 py-2 text-xs font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/20">選一首展示曲目</button>
+                <button type="button" onClick={() => navigate('/app?demo=1')} className="mt-3 rounded-xl border border-[#62f5c4]/30 bg-[#62f5c4]/10 px-4 py-2 text-xs font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/20">選一首展示曲目</button>
               </div>
             )}
 

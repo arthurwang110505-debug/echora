@@ -1,9 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import Home from './Home';
+import AppHome from './AppHome';
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
+  location: { pathname: '/app', search: '', hash: '' },
   player: {
     currentSong: null,
     play: vi.fn(),
@@ -11,6 +12,7 @@ const mocks = vi.hoisted(() => ({
     playlist: [],
     selectedPlaylistId: null,
     loadedPlaylistId: null,
+    recentSongs: [] as Array<Record<string, unknown>>,
     activeSource: 'local',
     setActiveSource: vi.fn(),
     spotifyConnected: false,
@@ -34,16 +36,16 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mocks.navigate,
-  useLocation: () => ({ pathname: '/', search: '', hash: '' }),
+  useLocation: () => mocks.location,
 }));
 
 vi.mock('../contexts/PlayerContext', () => ({
   usePlayer: () => mocks.player,
 }));
 
-describe('Home mobile navigation', () => {
+describe('AppHome (the /app shell)', () => {
   it('keeps a 44px Library entry when the desktop nav is hidden below md', () => {
-    const markup = renderToStaticMarkup(<Home />);
+    const markup = renderToStaticMarkup(<AppHome />);
 
     expect(markup).toContain('aria-label="我的音樂庫"');
     expect(markup).toContain('md:hidden');
@@ -68,11 +70,32 @@ describe('Home mobile navigation', () => {
       }],
     });
 
-    const markup = renderToStaticMarkup(<Home />);
+    const markup = renderToStaticMarkup(<AppHome />);
 
     expect(markup).toContain('我的真實歌曲');
     expect(markup).toContain('你的歌單 · 我的夜間歌單');
     expect(markup).not.toContain('YouTube Music 示範歌曲');
   });
 
+  it('offers to resume the most recently played local demo song', () => {
+    Object.assign(mocks.player, {
+      activeSource: 'local',
+      youtubeConnected: false,
+      youtubeConnectionState: 'idle',
+      selectedPlaylistId: null,
+      loadedPlaylistId: null,
+      userPlaylists: [],
+      playlist: [],
+      recentSongs: [{
+        id: 'demo-dancing-in-the-stardust',
+        title: 'Dancing in the Stardust',
+        artists: [{ id: 'demo', name: 'Echora 展示' }],
+        source: 'local',
+      }],
+    });
+
+    const markup = renderToStaticMarkup(<AppHome />);
+
+    expect(markup).toContain('繼續上次的展示曲目');
+  });
 });

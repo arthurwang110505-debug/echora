@@ -237,7 +237,7 @@ export default function Player() {
         <div className="mt-2 flex flex-wrap justify-center gap-3">
           <button
             type="button"
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/app')}
             className="px-7 py-3.5 rounded-2xl bg-gradient-to-r from-[#62f5c4] via-teal-300 to-emerald-400 text-black font-extrabold text-sm shadow-[0_10px_30px_rgba(98,245,196,0.25)] hover:brightness-110 btn-spring"
           >
             返回主頁探索歌曲 <ArrowRight aria-hidden="true" className="ml-1.5 inline-block h-4 w-4 align-[-3px]" />
@@ -310,7 +310,7 @@ export default function Player() {
       {displayMode !== 'stage' && <header className="relative z-20 flex flex-wrap items-center justify-between gap-3 px-3 py-3 glass-panel border-b border-white/[0.08] sm:px-5 sm:py-3.5 md:flex-nowrap md:gap-0 md:px-8">
         <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-5">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/app')}
             className="min-h-11 min-w-11 shrink-0 rounded-2xl bg-white/[0.05] p-2.5 text-white backdrop-blur-md btn-spring hover:bg-white/[0.12]"
             title="返回主頁"
             aria-label="返回主頁"

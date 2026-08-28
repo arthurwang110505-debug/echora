@@ -22,7 +22,9 @@ export default defineConfig({
         orientation: 'any',
         lang: 'zh-TW',
         scope: '/',
-        start_url: '/',
+        // Installed users must land directly in the app shell / playlist picker.
+        // The landing page at / stays the public website entry for new visitors.
+        start_url: '/app',
         icons: [
           {
             src: 'echora-icon-192.png',
@@ -59,7 +61,8 @@ export default defineConfig({
           'echora-icon-512.png',
           'echora-icon-maskable.png',
           'assets/index-*.{js,css}',
-          'assets/Home-*.js',
+          'assets/AppHome-*.js',
+          'assets/Welcome-*.js',
         ],
         runtimeCaching: [
           {
@@ -110,6 +113,8 @@ export default defineConfig({
     }
   },
   server: {
-    port: 3000
+    port: 3000,
+    // The Arena preview proxies the sandbox through *.e2b.app; allow those hosts.
+    allowedHosts: true,
   }
 });

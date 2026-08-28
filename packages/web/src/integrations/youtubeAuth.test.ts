@@ -95,7 +95,8 @@ describe('YouTube OAuth return path', () => {
   });
 
   it('rejects external and callback destinations instead of creating an open redirect', () => {
-    expect(buildYouTubeCallbackPath('https://example.com/account', 'error')).toBe('/?youtube=error');
-    expect(buildYouTubeCallbackPath('/oauth/youtube/callback', 'error')).toBe('/?youtube=error');
+    // Fallbacks land in the app shell, never on the landing page.
+    expect(buildYouTubeCallbackPath('https://example.com/account', 'error')).toBe('/app?youtube=error');
+    expect(buildYouTubeCallbackPath('/oauth/youtube/callback', 'error')).toBe('/app?youtube=error');
   });
 });

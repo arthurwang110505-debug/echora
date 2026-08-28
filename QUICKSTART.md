@@ -23,8 +23,8 @@ pnpm --filter=@echora/web preview
 
 ## 使用方式
 
-- 開發網址：`http://localhost:3000`
-- 手機／iPad：用瀏覽器開啟部署網址，再選擇「加入主畫面」
+- 開發網址：`http://localhost:3000`（`/` 是 Landing Page，`/app` 直接進入播放器）
+- 手機／iPad：用瀏覽器開啟部署網址，再選擇「加入主畫面」；安裝後開啟會直接進入 `/app` 的歌單選擇
 - 桌面：可使用瀏覽器提供的安裝按鈕
 - 不需要 Expo Go、React Native 或獨立 mobile app
 

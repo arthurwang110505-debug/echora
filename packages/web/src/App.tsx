@@ -8,7 +8,8 @@ import { RouteSkeleton } from './components/LoadingSkeletons';
 import './App.css';
 import { isChunkLoadError, lazyWithRetry, recoverFromStaleBuild } from './utils/recovery';
 
-const Home = lazyWithRetry(() => import('./pages/Home'), 'route-home');
+const Welcome = lazyWithRetry(() => import('./pages/Welcome'), 'route-welcome');
+const AppHome = lazyWithRetry(() => import('./pages/AppHome'), 'route-app-home');
 const Player = lazyWithRetry(() => import('./pages/Player'), 'route-player');
 const Settings = lazyWithRetry(() => import('./pages/Settings'), 'route-settings');
 const Library = lazyWithRetry(() => import('./pages/Library'), 'route-library');
@@ -18,11 +19,18 @@ function RouteLoader() {
   return <RouteSkeleton />;
 }
 
+// Landing routes serve new visitors; the PWA (and every in-app "back" action)
+// enters through /app so installed users never wait behind the landing page.
+const LANDING_PATHS = new Set(['/', '/welcome']);
+
 function AppShell() {
   const location = useLocation();
-  const showPersistentMiniPlayer = location.pathname !== '/settings' && location.pathname !== '/library';
+  const hidePersistentMiniPlayer =
+    location.pathname === '/settings' ||
+    location.pathname === '/library' ||
+    LANDING_PATHS.has(location.pathname);
 
-  return <><Outlet />{showPersistentMiniPlayer ? <PersistentMiniPlayer /> : null}</>;
+  return <><Outlet />{hidePersistentMiniPlayer ? null : <PersistentMiniPlayer />}</>;
 }
 
 function RouteErrorBoundary() {
@@ -49,10 +57,10 @@ function RouteErrorBoundary() {
           </button>
           <button
             type="button"
-            onClick={() => { window.location.assign('/'); }}
+            onClick={() => { window.location.assign('/app'); }}
             className="min-h-11 rounded-xl border border-white/20 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10"
           >
-            回到首頁
+            回到播放器首頁
           </button>
         </div>
       </section>
@@ -65,7 +73,9 @@ const router = createBrowserRouter([
     element: <AppShell />,
     errorElement: <RouteErrorBoundary />,
     children: [
-      { path: '/', element: <Home /> },
+      { path: '/', element: <Welcome /> },
+      { path: '/welcome', element: <Welcome /> },
+      { path: '/app', element: <AppHome /> },
       { path: '/player', element: <Player /> },
       { path: '/settings', element: <Settings /> },
       { path: '/library', element: <Library /> },

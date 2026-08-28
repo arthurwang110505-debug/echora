@@ -5,6 +5,9 @@ const SWITCH_ACCOUNT_KEY = 'echora.youtube.oauth.switch-account';
 const SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
 const EXPIRY_SKEW_MS = 30_000;
 
+// Keep OAuth returns inside the app shell; the landing page is marketing-only.
+const LANDING_PATHS = new Set(['/', '/welcome']);
+
 export interface YouTubeSession { accessToken: string; expiresAt: number; }
 
 export interface YouTubeLoginOptions {
@@ -25,22 +28,23 @@ const getRedirectUri = () => (import.meta.env.VITE_GOOGLE_REDIRECT_URI as string
 const normalizeReturnPath = (value?: string) => {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://echora.local';
   try {
-    const url = new URL(value || '/', origin);
-    if (url.origin !== origin || url.pathname === '/oauth/youtube/callback') return '/';
-    return `${url.pathname}${url.search}${url.hash}` || '/';
+    const url = new URL(value || '/app', origin);
+    if (url.origin !== origin || url.pathname === '/oauth/youtube/callback') return '/app';
+    // Never return OAuth users to the landing page; /app is the product entrance.
+    return LANDING_PATHS.has(url.pathname) ? '/app' : `${url.pathname}${url.search}${url.hash}` || '/app';
   } catch {
-    return '/';
+    return '/app';
   }
 };
 
 const getCurrentReturnPath = () => {
-  if (typeof window === 'undefined') return '/';
+  if (typeof window === 'undefined') return '/app';
   return normalizeReturnPath(`${window.location.pathname}${window.location.search}${window.location.hash}`);
 };
 
 export const getYouTubeLoginReturnPath = () => {
-  if (typeof window === 'undefined') return '/';
-  return normalizeReturnPath(window.sessionStorage.getItem(RETURN_TO_KEY) || '/');
+  if (typeof window === 'undefined') return '/app';
+  return normalizeReturnPath(window.sessionStorage.getItem(RETURN_TO_KEY) || '/app');
 };
 
 export const buildYouTubeCallbackPath = (returnTo: string, status: 'connected' | 'error') => {
