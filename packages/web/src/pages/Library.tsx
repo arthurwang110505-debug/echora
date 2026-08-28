@@ -50,7 +50,7 @@ export default function Library() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/app')}
             className="rounded-2xl border border-white/10 p-2.5 text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F9F871]"
             aria-label="返回探索頁"
           >
@@ -82,8 +82,8 @@ export default function Library() {
                 <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">你可以先探索本機展示曲目；收藏會留在這台裝置。連線後，個人歌單才會出現在下方。</p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
-                <button type="button" onClick={() => navigate('/?source=local#explore-library')} className="min-h-11 rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3 text-xs font-extrabold text-white transition hover:bg-white/10">先探索本機展示</button>
-                <button type="button" onClick={() => navigate('/?connect=1')} className="min-h-11 rounded-xl bg-[#62f5c4] px-4 py-3 text-xs font-extrabold text-black transition hover:brightness-110">連接我的音樂</button>
+                <button type="button" onClick={() => navigate('/app?source=local#explore-library')} className="min-h-11 rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3 text-xs font-extrabold text-white transition hover:bg-white/10">先探索本機展示</button>
+                <button type="button" onClick={() => navigate('/app?connect=1')} className="min-h-11 rounded-xl bg-[#62f5c4] px-4 py-3 text-xs font-extrabold text-black transition hover:brightness-110">連接我的音樂</button>
               </div>
             </div>
           </section>
@@ -104,7 +104,7 @@ export default function Library() {
               <h2 id="local-showcase-heading" className="mt-1 text-xl font-extrabold text-white">本機展示，不需先連線</h2>
               <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">五首展示曲目可直接體驗動態歌詞、舞台視覺與播放控制；它們與個人歌單分開保存。</p>
             </div>
-            <button type="button" onClick={() => navigate('/?source=local#explore-library')} className="min-h-11 shrink-0 rounded-xl bg-[#62f5c4] px-5 py-3 text-xs font-extrabold text-black transition hover:brightness-110">探索展示曲目 <ArrowRight aria-hidden="true" className="ml-1 inline-block h-4 w-4 align-[-3px]" /></button>
+            <button type="button" onClick={() => navigate('/app?source=local#explore-library')} className="min-h-11 shrink-0 rounded-xl bg-[#62f5c4] px-5 py-3 text-xs font-extrabold text-black transition hover:brightness-110">探索展示曲目 <ArrowRight aria-hidden="true" className="ml-1 inline-block h-4 w-4 align-[-3px]" /></button>
           </div>
         </section>
 

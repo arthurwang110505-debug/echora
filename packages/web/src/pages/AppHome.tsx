@@ -56,11 +56,11 @@ const sources = [
   { id: 'local' as const, label: '本機展示', dot: 'bg-amber-300' },
 ];
 
-export default function Home() {
+export default function AppHome() {
   const navigate = useNavigate();
   const location = useLocation();
   const {
-    currentSong, play, setPlaylist, playlist, selectedPlaylistId, loadedPlaylistId,
+    currentSong, play, setPlaylist, playlist, selectedPlaylistId, loadedPlaylistId, recentSongs,
     activeSource, setActiveSource, spotifyConnected, spotifyError, connectSpotify, disconnectSpotify,
     youtubeConnected, youtubeError, youtubeConnectionState, youtubeProfile, userPlaylists, isSyncingLibrary, libraryError, lastLibrarySyncAt, loadSourcePlaylists, connectYouTube, switchYouTubeAccount, disconnectYouTube,
   } = usePlayer();
@@ -107,9 +107,21 @@ export default function Home() {
     if (sourceParam === 'spotify' || sourceParam === 'ytmusic' || sourceParam === 'local') {
       setActiveSource(sourceParam);
     }
+    // ?demo=1 is the landing page's "開始體驗" target: drop the visitor into the
+    // demo catalog selection. localStorage history is only an auxiliary hint —
+    // the URL param always wins so the demo entry stays deterministic.
+    let paramsChanged = false;
+    if (params.get('demo') === '1') {
+      setActiveSource('local');
+      params.delete('demo');
+      paramsChanged = true;
+    }
     if (params.get('connect') === '1') {
       setShowConnectModal(true);
       params.delete('connect');
+      paramsChanged = true;
+    }
+    if (paramsChanged) {
       const nextQuery = params.toString();
       window.history.replaceState({}, document.title, `${location.pathname}${nextQuery ? `?${nextQuery}` : ''}${location.hash}`);
     }
@@ -185,12 +197,18 @@ export default function Home() {
         ? `已同步 ${userPlaylists.length} 個歌單`
         : '尚未同步歌單';
   const selectedPlaylist = userPlaylists.find(item => item.id === selectedPlaylistId);
+  // Auxiliary restore hint (localStorage): if the visitor played a demo song
+  // before, offer to continue it instead of restarting from the first track.
+  const lastLocalDemoSong = useMemo(
+    () => recentSongs.find(song => song.source === 'local' && LOCAL_DEMO_SONGS.some(demo => demo.id === song.id)) || null,
+    [recentSongs],
+  );
   const heroSong = activeSource === 'ytmusic'
     ? sourceSongs[0]
     : activeSource === 'spotify' && spotifyAvailable
       ? FEATURED_SONGS.find(song => song.source === 'spotify')
       : activeSource === 'local'
-        ? LOCAL_DEMO_SONGS[0]
+        ? lastLocalDemoSong || LOCAL_DEMO_SONGS[0]
         : undefined;
   const heroContent = activeSource === 'ytmusic'
     ? youtubeConnected
@@ -198,7 +216,9 @@ export default function Home() {
       : { eyebrow: '先體驗 Echora 舞台', title: '讓每一首歌，', accent: '都成為一座舞台。', description: '先用展示曲目體驗動態歌詞、視覺舞台與播放控制；喜歡後再連接 YouTube Music 讀取私人歌單。', primary: '立即播放展示曲目', secondary: '播放自己的音樂' }
     : activeSource === 'spotify'
       ? { eyebrow: 'Spotify 尚未啟用', title: 'Spotify 正在準備中，', accent: '請先選擇可用來源。', description: '目前尚未設定 Spotify 開發者權限，因此不能登入或播放；這不是播放故障。', primary: '先體驗展示舞台', secondary: '查看連線方式' }
-      : { eyebrow: 'Echora 本機展示', title: '讓每一首歌，', accent: '都成為一座舞台。', description: '五首免版稅本機音檔已準備好；不需登入或依賴 YouTube Music，就能先體驗真實播放、舞台視覺與播放控制。', primary: '立即播放展示曲目', secondary: '播放自己的音樂' };
+      : lastLocalDemoSong && !currentSong
+        ? { eyebrow: 'Echora 本機展示', title: '歡迎回來，', accent: '舞台為你保留。', description: `上次聽到「${lastLocalDemoSong.title}」；可以從上次曲目繼續，或直接在下方換一首展示歌曲。`, primary: '繼續上次的展示曲目', secondary: '播放自己的音樂' }
+        : { eyebrow: 'Echora 本機展示', title: '讓每一首歌，', accent: '都成為一座舞台。', description: '五首免版稅本機音檔已準備好；不需登入或依賴 YouTube Music，就能先體驗真實播放、舞台視覺與播放控制。', primary: '立即播放展示曲目', secondary: '播放自己的音樂' };
 
   const handleHeroPrimary = () => {
     if (currentSong) { navigate('/player'); return; }
@@ -218,7 +238,7 @@ export default function Home() {
       }
     }
     if (activeSource === 'local') {
-      const demoSong = LOCAL_DEMO_SONGS[0];
+      const demoSong = lastLocalDemoSong || LOCAL_DEMO_SONGS[0];
       if (demoSong) {
         setPlaylist(LOCAL_DEMO_SONGS);
         play(demoSong, LOCAL_DEMO_SONGS);
@@ -249,7 +269,7 @@ export default function Home() {
 
       <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-[#07090e]/80 backdrop-blur-2xl">
         <div className="mx-auto flex h-[76px] max-w-[1440px] items-center justify-between px-5 sm:px-8 lg:px-12">
-          <button type="button" onClick={() => navigate('/')} className="group flex items-center gap-3 text-left">
+          <button type="button" onClick={() => navigate('/app')} className="group flex items-center gap-3 text-left">
             <span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-gradient-to-br from-[#62f5c4] via-teal-400 to-indigo-500 text-lg font-black text-black shadow-[0_0_15px_rgba(98,245,196,0.3)] transition-transform group-hover:rotate-6">E</span>
             <span>
               <span className="flex items-center gap-2 font-heading text-lg font-extrabold tracking-tight text-white">ECHORA <span className="rounded-full border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-1.5 py-0.5 font-sans text-[9px] font-bold tracking-wide text-[#62f5c4]">STAGE</span></span>

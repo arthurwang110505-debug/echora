@@ -15,6 +15,22 @@ attribution requirements.
 - **Core**: 共用歌詞解析、視覺模式、AI 主題與 provider 邏輯
 - **Responsive**: 同一套介面適配手機、iPad 與桌面瀏覽器
 
+## 網站結構：兩個入口、同一個網站
+
+```text
+/                  → Landing Page（新訪客、行銷、產品介紹）
+/welcome           → 同 Landing Page 的別名
+/app               → App shell／歌單選擇（產品本體）
+/app?demo=1        → 展示體驗（Landing「開始體驗」的目標）
+/player            → 沉浸式播放器
+/library           → 我的音樂庫（歌單選擇）
+/settings          → 設定
+```
+
+- PWA 的 `start_url` 是 **`/app`**：從主畫面開啟直接進入歌單選擇，不會先看到 Landing Page。
+- Landing Page 的主要 CTA「開始體驗」連到 `/app?demo=1`；低調的「開啟播放器」入口連到 `/app`。
+- `localStorage`（最近播放、播放快照、服務工作階段）只作為輔助，用來在 `/app` 恢復上次的歌單或播放狀態；即使被清除，`/app` 仍會顯示展示歌單選擇。
+
 ## 快速開始
 
 ```bash
@@ -37,7 +53,7 @@ pnpm --filter=@echora/web preview
 
 ```text
 VITE_SPOTIFY_CLIENT_ID
-VITE_SPOTIFY_REDIRECT_URI=https://你的-vercel-domain.vercel.app/
+VITE_SPOTIFY_REDIRECT_URI=https://你的-vercel-domain.vercel.app/app
 VITE_YOUTUBE_API_KEY（可選）
 AGNES_API_KEY（伺服器端必要；不要使用 VITE_ 前綴）
 ```
