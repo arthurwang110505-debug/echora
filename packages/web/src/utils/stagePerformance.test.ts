@@ -132,9 +132,13 @@ describe('stage performance profile', () => {
         expect(invalid).toEqual({ position: 300, velocity: 0 });
     });
 
-    it('caps only compact Fume canvas DPR', () => {
+    it('caps Fume canvas DPR at 2 on every device class', () => {
+        // Beyond two device pixels per CSS pixel the glow-heavy canvas gains nothing
+        // visible but rasterizes 2.25x+ more pixels per frame; dpr <= 2 is untouched.
         expect(resolveFumeCanvasDpr(3, true)).toBe(2);
-        expect(resolveFumeCanvasDpr(3, false)).toBe(3);
+        expect(resolveFumeCanvasDpr(3, false)).toBe(2);
+        expect(resolveFumeCanvasDpr(2, false)).toBe(2);
+        expect(resolveFumeCanvasDpr(1.5, false)).toBe(1.5);
         expect(resolveFumeCanvasDpr(0, true)).toBe(1);
     });
 });

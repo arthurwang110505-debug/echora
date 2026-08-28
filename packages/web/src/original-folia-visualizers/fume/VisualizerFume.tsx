@@ -1537,6 +1537,89 @@ const buildTextStyleKey = (
     shadowColor: string,
 ) => `${fillStyle}|${shadowColor}|${shadowBlur.toFixed(3)}`;
 
+// The line-glow pass re-draws every segment with a large canvas shadowBlur purely to
+// produce the soft halo behind the text. That halo is - by definition - a low-frequency
+// image, so it is rasterized once per frame into a half-resolution offscreen layer and
+// composited back at full size. The composite is visually identical (a gaussian halo
+// loses nothing at half resolution) while costing roughly a quarter of the fill rate.
+const FUME_GLOW_LAYER_SCALE = 0.5;
+let fumeGlowLayer: HTMLCanvasElement | null = null;
+
+interface FumeGlowBlockRef {
+    x: number;
+    y: number;
+    renderLines: Array<{ left: number; top: number; segments: Array<{ text: string; x: number; y: number }> }>;
+}
+
+const drawFumeLineGlowLayer = (
+    context: CanvasRenderingContext2D,
+    canvas: HTMLCanvasElement,
+    block: FumeGlowBlockRef,
+    baselineOffset: number,
+    font: string,
+    glowColor: string,
+    glowBlur: number,
+    glowShadowColor: string,
+): boolean => {
+    if (typeof context.getTransform !== 'function' || typeof document === 'undefined') {
+        return false;
+    }
+
+    const targetWidth = Math.max(1, Math.round(canvas.width * FUME_GLOW_LAYER_SCALE));
+    const targetHeight = Math.max(1, Math.round(canvas.height * FUME_GLOW_LAYER_SCALE));
+    if (!fumeGlowLayer) {
+        fumeGlowLayer = document.createElement('canvas');
+    }
+    if (fumeGlowLayer.width !== targetWidth || fumeGlowLayer.height !== targetHeight) {
+        fumeGlowLayer.width = targetWidth;
+        fumeGlowLayer.height = targetHeight;
+    }
+    const glowContext = fumeGlowLayer.getContext('2d');
+    if (!glowContext) {
+        return false;
+    }
+
+    // Shadows ignore the canvas transform, so the glow blur is expressed in device
+    // pixels. Scaling the full camera transform by FUME_GLOW_LAYER_SCALE and the blur
+    // by the same factor reproduces the exact same device-space halo after upscale.
+    const cameraTransform = context.getTransform();
+    glowContext.setTransform(1, 0, 0, 1, 0, 0);
+    glowContext.clearRect(0, 0, targetWidth, targetHeight);
+    glowContext.setTransform(
+        cameraTransform.a * FUME_GLOW_LAYER_SCALE,
+        cameraTransform.b * FUME_GLOW_LAYER_SCALE,
+        cameraTransform.c * FUME_GLOW_LAYER_SCALE,
+        cameraTransform.d * FUME_GLOW_LAYER_SCALE,
+        cameraTransform.e * FUME_GLOW_LAYER_SCALE,
+        cameraTransform.f * FUME_GLOW_LAYER_SCALE,
+    );
+    glowContext.font = font;
+    glowContext.textAlign = 'left';
+    glowContext.textBaseline = 'middle';
+    glowContext.fillStyle = glowColor;
+    glowContext.shadowBlur = glowBlur * FUME_GLOW_LAYER_SCALE;
+    glowContext.shadowColor = glowShadowColor;
+
+    for (const renderLine of block.renderLines) {
+        const glowBaseX = block.x + renderLine.left;
+        const glowBaseY = block.y + renderLine.top + baselineOffset;
+
+        for (const segment of renderLine.segments) {
+            if (segment.text.trim().length === 0) {
+                continue;
+            }
+            glowContext.fillText(segment.text, glowBaseX + segment.x, glowBaseY);
+        }
+    }
+
+    context.save();
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.drawImage(fumeGlowLayer, 0, 0);
+    context.restore();
+    return true;
+};
+
+
 const resolveRenderLineOffset = (
     renderLine: RenderLineSlice,
     localOffset: number,
@@ -2807,26 +2890,40 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                         + lineGlowEnvelope * (block.fontPx * (block.variant === 'hero' ? 0.7 : 0.52))
                     ) * glowIntensity;
                     const lineGlowColor = colorWithAlpha(theme.accentColor, lineGlowAlpha);
+                    const lineGlowShadowColor = colorWithAlpha(theme.accentColor, lineGlowAlpha * 1.35);
 
-                    context.save();
-                    context.fillStyle = lineGlowColor;
-                    context.shadowBlur = lineGlowBlur;
-                    context.shadowColor = colorWithAlpha(theme.accentColor, lineGlowAlpha * 1.35);
+                    const glowLayerDrawn = drawFumeLineGlowLayer(
+                        context,
+                        canvas,
+                        block,
+                        baselineOffset,
+                        buildCanvasFont(block, theme),
+                        lineGlowColor,
+                        lineGlowBlur,
+                        lineGlowShadowColor,
+                    );
 
-                    for (const renderLine of block.renderLines) {
-                        const glowBaseX = block.x + renderLine.left;
-                        const glowBaseY = block.y + renderLine.top + baselineOffset;
+                    if (!glowLayerDrawn) {
+                        context.save();
+                        context.fillStyle = lineGlowColor;
+                        context.shadowBlur = lineGlowBlur;
+                        context.shadowColor = lineGlowShadowColor;
 
-                        for (const segment of renderLine.segments) {
-                            if (segment.text.trim().length === 0) {
-                                continue;
+                        for (const renderLine of block.renderLines) {
+                            const glowBaseX = block.x + renderLine.left;
+                            const glowBaseY = block.y + renderLine.top + baselineOffset;
+
+                            for (const segment of renderLine.segments) {
+                                if (segment.text.trim().length === 0) {
+                                    continue;
+                                }
+
+                                context.fillText(segment.text, glowBaseX + segment.x, glowBaseY);
                             }
-
-                            context.fillText(segment.text, glowBaseX + segment.x, glowBaseY);
                         }
-                    }
 
-                    context.restore();
+                        context.restore();
+                    }
                 }
 
                 for (const renderLine of block.renderLines) {

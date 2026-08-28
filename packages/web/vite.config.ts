@@ -107,7 +107,12 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('@react-three') || id.includes('/three/') || id.includes('/three@')) return 'three-runtime';
-          if (id.includes('pixi.js') || id.includes('@paper-design') || id.includes('framer-motion')) return 'stage-runtime';
+          // Sonnet's ~50 scene modules (~11k lines) plus Pixi (its only consumer) are
+          // exclusive to the lazily loaded Sonnet mode; grouping them keeps megabytes
+          // out of the shared stage chunk that every player entry parses. They share
+          // one chunk because splitting them produced a circular chunk graph.
+          if (id.includes('/original-folia-visualizers/sonnet/') || id.includes('pixi.js') || id.includes('/pixi.js/') || id.includes('@pixi/')) return 'sonnet-scene';
+          if (id.includes('@paper-design') || id.includes('framer-motion')) return 'stage-runtime';
         }
       }
     }

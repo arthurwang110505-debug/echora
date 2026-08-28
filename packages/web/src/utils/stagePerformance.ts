@@ -224,5 +224,9 @@ export const resolveFumeCameraSafetyCorrection = (
 
 export const resolveFumeCanvasDpr = (devicePixelRatio: number, compact: boolean): number => {
     const safeDpr = Number.isFinite(devicePixelRatio) && devicePixelRatio > 0 ? devicePixelRatio : 1;
-    return compact ? Math.min(safeDpr, 2) : safeDpr;
+    // Cap at 2: beyond two device pixels per CSS pixel the glow-heavy canvas gains
+    // nothing visible but rasterizes 2.25x+ more pixels per frame. Devices at or
+    // below dpr 2 (phones, notebooks, most desktops) are unaffected.
+    void compact;
+    return Math.min(safeDpr, 2);
 };

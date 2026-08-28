@@ -29,6 +29,24 @@
   optional now-playing chip) sits above the library controls.
 - `jsdom` is a web devDependency powering `src/pages/LandingStage.test.tsx`, a
   mounted smoke test for the landing animation system.
+- Stage performance work (visual output preserved — no animation changes):
+  - `original-folia-visualizers/colorMix.ts` memoizes color parsing/formatting and
+    quantizes alpha to 1/128 steps so per-frame color strings repeat (locked by
+    `colorMix.test.ts`). This lets Claddagh's existing style cache actually hit.
+  - Claddagh: fully-faded past lines park their spans once and skip all per-frame
+    math; glyphs under 0.002 opacity (half an 8-bit step) do the same; will-change
+    trimmed to transform/opacity (was hoarding thousands of composited layers).
+  - Fume: the line-glow pass rasterizes into a half-resolution offscreen layer and
+    is composited back (halos are low-frequency; identical on screen);
+    `resolveFumeCanvasDpr` now caps every device class at 2.
+  - Each visualizer mode ships in its own chunk (`lazyVisualizer.tsx` +
+    `React.lazy` in every `entry.tsx`); `vite.config.ts` manualChunks split
+    pixi+Sonnet scene into `sonnet-scene` and paper/framer into `stage-runtime`,
+    so page loads no longer pull Pixi and player entry parses ~89 KB of stage
+    shell instead of the old 1.4 MB all-modes bundle.
+  - `OriginalFoliaVisualizerStage` idles through `import.meta.glob` loaders to
+    prefetch every mode chunk plus Sonnet's Pixi runtime, so first mode switches
+    stay instant.
 - The 193 visualizer files were compared against the downloaded Folia source and currently match byte-for-byte.
 - `OriginalFoliaVisualizerStage.tsx` adapts Echora lyric timestamps from milliseconds to Folia's seconds contract.
 - Immersive stage uses browser Fullscreen API and attempts mobile landscape orientation lock.

@@ -1,8 +1,10 @@
 import React from 'react';
 import { DEFAULT_PENDOLO_TUNING } from '../../../types';
 import { defineVisualizer } from '../definition';
+import { lazyVisualizer } from '../lazyVisualizer';
+
+const VisualizerPendolo = lazyVisualizer(() => import('./VisualizerPendolo'));
 import PendoloSettingsPanel from './PendoloSettingsPanel';
-import VisualizerPendolo from './VisualizerPendolo';
 
 // src/components/visualizer/pendolo/entry.tsx
 
