@@ -38,6 +38,9 @@ describe('Library mobile hierarchy', () => {
 
     expect(markup).toContain('連接我的音樂');
     expect(markup).toContain('本機展示，不需先連線');
+    expect(markup).toContain('已連線歌單');
+    expect(markup).not.toContain('Connected playlists');
+    expect(markup).not.toContain('Device showcase');
     expect(markup).not.toContain('最近播放');
     expect(markup).not.toContain('Continue listening');
   });

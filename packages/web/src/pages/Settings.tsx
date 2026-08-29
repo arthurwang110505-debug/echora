@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import packageJson from '../../package.json';
 import { ArrowLeft, CheckCircle2, CircleAlert, LoaderCircle, Sparkles } from 'lucide-react';
+import BrandMark from '../components/BrandMark';
 import { useTheme } from '../contexts/ThemeProvider';
 import { usePlayer } from '../contexts/PlayerContext';
 import { getAgnesApiStatus, generateAgnesTheme, type AgnesApiStatus } from '../services/agnesAi';
@@ -96,7 +97,7 @@ export default function Settings() {
           <ArrowLeft aria-hidden="true" className="h-5 w-5" strokeWidth={2.5} />
         </button>
         <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[#62f5c4] via-teal-400 to-indigo-500 text-xs font-black text-black shadow-[0_0_12px_rgba(98,245,196,0.3)]">E</span>
+          <BrandMark size={28} />
           <h1 className="font-heading text-lg font-extrabold text-white">Echora 設定</h1>
         </div>
       </header>

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { attachLocalAudioAnalyser, detachLocalAudioAnalyser, resumeLocalAudioAnalyser } from '../playback/localAudioAnalyser';
 import { usePlayerStore } from '../store/playerStore';
 
 type LocalAudioDetail = {
@@ -18,23 +19,28 @@ export default function LocalAudioController() {
     if (!audio) return;
 
     audio.preload = 'auto';
+    attachLocalAudioAnalyser(audio);
 
     const setError = (message: string) => {
       usePlayerStore.getState().setLocalPlaybackError(message);
     };
 
     const playAudio = () => {
-      const playPromise = audio.play();
-      if (playPromise && typeof playPromise.then === 'function') {
-        void playPromise.then(() => {
-          // A browser may resolve play() without dispatching a second `play`
-          // event when the element was already playing. Keep the transport UI
-          // authoritative in that case so Pause remains available after route changes.
-          if (!audio.paused) usePlayerStore.getState().setLocalPlaybackState('playing', true);
-        }).catch(() => setError('本機音檔無法播放，請確認瀏覽器允許播放或稍後再試。'));
-      } else if (!audio.paused) {
-        usePlayerStore.getState().setLocalPlaybackState('playing', true);
-      }
+      const startPlayback = () => {
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.then === 'function') {
+          void playPromise.then(() => {
+            // A browser may resolve play() without dispatching a second `play`
+            // event when the element was already playing. Keep the transport UI
+            // authoritative in that case so Pause remains available after route changes.
+            if (!audio.paused) usePlayerStore.getState().setLocalPlaybackState('playing', true);
+          }).catch(() => setError('本機音檔無法播放，請確認瀏覽器允許播放或稍後再試。'));
+        } else if (!audio.paused) {
+          usePlayerStore.getState().setLocalPlaybackState('playing', true);
+        }
+      };
+      // MediaElementSource is silent while AudioContext is suspended.
+      void resumeLocalAudioAnalyser().then(startPlayback).catch(startPlayback);
     };
 
     const loadAudio = (audioUrl: string, autoplay: boolean) => {
@@ -122,6 +128,7 @@ export default function LocalAudioController() {
       audio.removeEventListener('error', onError);
       document.removeEventListener('visibilitychange', syncAudioState);
       window.removeEventListener('pageshow', syncAudioState);
+      detachLocalAudioAnalyser();
       audio.pause();
       audio.removeAttribute('src');
       audio.load();

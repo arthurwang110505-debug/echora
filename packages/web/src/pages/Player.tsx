@@ -10,8 +10,11 @@ import { spotifyClientId } from '../integrations/spotifyAuth';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import LyriclessSoundscapeStage from '../components/LyriclessSoundscapeStage';
 import { CoverImage, PanelSkeleton, PlayerSkeleton, StageSkeleton } from '../components/LoadingSkeletons';
+import BrandMark from '../components/BrandMark';
 import { adjustLyricsOffset, getActiveLyricIndex, LYRICS_OFFSET_STEP_SECONDS } from '../utils/lyrics/activeLine';
 import { lazyWithRetry } from '../utils/recovery';
+import { pickAutoVisualizerMode, resolveStageAudioBands, visualizerEnergy } from '../playback/audioBands';
+import { sampleLocalAudioBands } from '../playback/localAudioAnalyser';
 import { isYouTubeVideo } from '../utils/youtubePlayback';
 
 const OriginalFoliaVisualizerStage = lazyWithRetry(
@@ -149,8 +152,12 @@ export default function Player() {
     if (!autoVisualizer) return;
     const timer = window.setInterval(() => {
       if (!isPlaying) return;
-      const energy = (Math.sin(currentTime * 5.2) + Math.sin(currentTime * 3.1 + 1) + 2) / 4;
-      const next = energy > 0.72 ? 'claddagh' : energy > 0.45 ? 'cadenza' : 'classic';
+      const bands = resolveStageAudioBands({
+        isPlaying,
+        displayedTime: currentTime,
+        liveBands: sampleLocalAudioBands(true),
+      });
+      const next = pickAutoVisualizerMode(visualizerEnergy(bands));
       setActiveVisualizer(current => current === next ? current : next);
     }, 500);
     return () => window.clearInterval(timer);
@@ -321,7 +328,7 @@ export default function Player() {
 
           {/* App Brand Tag */}
           <div className="hidden sm:flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[#62f5c4] via-teal-400 to-indigo-500 text-xs font-black text-black shadow-[0_0_12px_rgba(98,245,196,0.3)]">F</span>
+            <BrandMark size={28} />
             <span className="font-heading text-sm font-extrabold tracking-wider text-white">ECHORA STAGE</span>
           </div>
 

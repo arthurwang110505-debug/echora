@@ -7,6 +7,7 @@ import { spotifyClientId } from '../integrations/spotifyAuth';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { LOCAL_DEMO_SONGS } from '../store/localDemoSongs';
 import { CarouselSkeleton, CoverImage } from '../components/LoadingSkeletons';
+import BrandMark from '../components/BrandMark';
 import { shouldResetSearchOnSourceChange } from '../utils/sourceState';
 
 const Carousel3D = lazy(() => import('../components/Carousel3D').then(module => ({ default: module.Carousel3D })));
@@ -265,7 +266,7 @@ export default function AppHome() {
       <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-[#07090e]/80 backdrop-blur-2xl">
         <div className="mx-auto flex h-[76px] max-w-[1440px] items-center justify-between px-5 sm:px-8 lg:px-12">
           <button type="button" onClick={() => navigate('/app')} className="group flex items-center gap-3 text-left">
-            <span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-gradient-to-br from-[#62f5c4] via-teal-400 to-indigo-500 text-lg font-black text-black shadow-[0_0_15px_rgba(98,245,196,0.3)] transition-transform group-hover:rotate-6">E</span>
+            <BrandMark size={40} className="transition-transform group-hover:rotate-6" />
             <span>
               <span className="flex items-center gap-2 font-heading text-lg font-extrabold tracking-tight text-white">ECHORA <span className="rounded-full border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-1.5 py-0.5 font-sans text-[9px] font-bold tracking-wide text-[#62f5c4]">STAGE</span></span>
               <span className="hidden text-[10px] font-medium tracking-[0.16em] text-slate-500 sm:block">LYRICS / LIGHT / MOTION</span>
@@ -329,7 +330,7 @@ export default function AppHome() {
         <section id="explore-library" className="space-y-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[#62f5c4]/80">Echora Library</p>
+              <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[#62f5c4]/80">音樂庫</p>
               <h2 className="font-heading text-2xl font-extrabold tracking-tight text-white sm:text-3xl">探索你的音樂</h2>
             </div>
 

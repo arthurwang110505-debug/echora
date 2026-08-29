@@ -9,6 +9,7 @@ import KaraokeLine from '../components/landing/KaraokeLine';
 import TiltCard from '../components/landing/TiltCard';
 import MagneticButton from '../components/landing/MagneticButton';
 import Reveal from '../components/landing/Reveal';
+import BrandMark from '../components/BrandMark';
 import '../styles/landing.css';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -89,7 +90,7 @@ export default function Welcome() {
         <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-[#07090e]/80 backdrop-blur-2xl">
           <div className="mx-auto flex h-[76px] max-w-[1200px] items-center justify-between px-5 sm:px-8">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-gradient-to-br from-[#62f5c4] via-teal-400 to-indigo-500 text-lg font-black text-black shadow-[0_0_15px_rgba(98,245,196,0.3)]">E</span>
+              <BrandMark size={40} />
               <span>
                 <span className="flex items-center gap-2 font-heading text-lg font-extrabold tracking-tight text-white">ECHORA <span className="rounded-full border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-1.5 py-0.5 font-sans text-[9px] font-bold tracking-wide text-[#62f5c4]">STAGE</span></span>
                 <span className="hidden text-[10px] font-medium tracking-[0.16em] text-slate-500 sm:block">LYRICS / LIGHT / MOTION</span>

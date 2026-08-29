@@ -56,7 +56,9 @@ export default defineConfig({
         // does not download the whole application before first paint.
         globPatterns: [
           'registerSW.js',
+          'favicon.png',
           'echora-icon.svg',
+          'echora-icon-180.png',
           'echora-icon-192.png',
           'echora-icon-512.png',
           'echora-icon-maskable.png',
@@ -118,6 +120,7 @@ export default defineConfig({
     }
   },
   server: {
+    host: '0.0.0.0',
     port: 3000,
     // The Arena preview proxies the sandbox through *.e2b.app; allow those hosts.
     allowedHosts: true,
