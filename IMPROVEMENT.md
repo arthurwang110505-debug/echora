@@ -60,93 +60,49 @@ YouTube 那關做不到真的聽原聲（瀏覽器限制），歌詞對時就好
 
 ---
 
-## P1｜架構與可維護性
+## P1｜接下來把使用變順、改程式變輕鬆
 
-### 5. 拆開 `Player.tsx`，取代 `window` 事件匯流排
+講人話：舞台已經會聽歌了。下一步不是加新按鈕，而是「你調過的會記住」，以及「改一處不要牽全身」。
 
-`Player.tsx`（842 行）同時負責：路由水合、OAuth modal、歌單 drawer、沉浸 Stage、進度條、歌詞校正、視覺器狀態、YouTube／本機分流。
+### 4. 播放器不要一頁包山包海
 
-音訊控制路徑是：
+現在播放器這一頁什麼都管：歌單、登入、進度條、全螢幕、歌詞校正。本機要播、要暫停，還是對整頁喊一聲才聽得到，換頁容易漏接，要測也得假裝在點整頁。
 
-```text
-playerStore.play() → window.dispatchEvent('echora:local-load')
-                  → LocalAudioController 監聽 → HTMLAudioElement
-```
+**要做的事：** 畫面拆成幾塊（上方、歌單、播放列、全螢幕、登入）。要播、要暫停、要跳轉，直接跟音訊模組講，不要再對整頁廣播。
 
-這讓測試必須模擬 DOM 事件，Route 切換時也容易漏 unsubscribe。
-
-**建議模組切分**
-
-```text
-pages/Player.tsx                  組裝
-components/player/PlayerHeader.tsx
-components/player/QueueDrawer.tsx
-components/player/TransportBar.tsx
-components/player/ImmersiveChrome.tsx
-components/player/ConnectModal.tsx
-playback/localAudioEngine.ts      Audio element + Analyser，單一模組
-playback/youtubeBridge.ts         取代 youtube-* CustomEvent
-```
-
-Store 只發「意圖」（play / pause / seek），engine 訂閱 store 或透過 `PlayerContext` 注入，不要經過 `window`。
+做完長這樣：改播放列不會動到登入視窗；測試也不用假裝發送整頁事件。
 
 ---
 
-### 6. 把舞台偏好寫進 Zustand
+### 5. 記住你選過的舞台，還有每首歌的歌詞對齊
 
-現在這些都是 `Player` 的 `useState`，重整即消失：
+現在每次進播放器，舞台都從第一種開始，歌詞校正也歸零。重整網頁一樣會忘。
 
-- `activeVisualizer`、`backgroundMode`、`visualizerTunings`
-- `lyricsOffsetSeconds`（切歌還會重設為 0）
-- `autoVisualizer`、`displayMode`（`displayMode` 有進 store，視覺器沒有）
+**要做的事：**
+- 記住你常用的舞台、背景
+- 每一首歌各自記住歌詞要提前或延後幾秒
 
-**建議**
-
-- 全域記住：預設舞台、背景、音量、循環、reduced-motion（motion 已有）。
-- 每首歌記住：歌詞 offset。key = `${source}:${id}`。
-- CONTINUE.md 寫的「用 `VisPlaygroundSettingsPanel` 取代自製 tuning overlay」仍值得做，但排在頻譜與傳輸控制之後。
+做完長這樣：下次打開還是你上次的舞台；這首歌對過一次，再播不用重調。
 
 ---
 
-### 7. 清理倉庫，補上品質閘道
+### 6. 清掉用不到的，改完自動檢查
 
-**死碼／重複**
+倉庫裡還躺著一份用不到的手機專案、一堆沒接上的工具，看起來像還有原生 App。改壞了也沒人在合併前擋下來。展示曲離線有時會沒聲音。
 
-- `packages/mobile`：完整 Expo app + 第二份 Folia visualizers，但 `pnpm-workspace.yaml` 已不包含它。要嘛刪除，要嘛移出 repo。現在它只會讓人以為還有原生 App。
-- `packages/web/src/utils` 大量未接線模組：`navidromeScrobble`、`obsUrl`、`obsBrowserSource`、`audioEqualizer`、`chorusDetector`、`playerCap*`。若短期不用，移到 `packages/web/src/vendor/folia-unused/` 或刪除，避免之後誤接到半成品。
-- `packages/web/types.ts` 與 `packages/web/src/types.ts` 各 1145 行，內容重複。
+**要做的事：** 用不到的刪掉或搬開。每次提交自動跑檢查、測試、打包。展示封面和音檔離線也聽得到。
 
-**CI（目前沒有 `.github/`）**
-
-```yaml
-# 建議最小 workflow
-- pnpm install --frozen-lockfile
-- pnpm --filter=@echora/web lint
-- pnpm --filter=@echora/web exec tsc --noEmit
-- pnpm --filter=@echora/web test
-- pnpm --filter=@echora/web build
-```
-
-`turbo.json` 的 `test.dependsOn: ["build"]` 讓單測必須先 production build，本機與 CI 都會變慢。單測應獨立。
-
-**PWA 快取**
-
-- `vite.config.ts` 仍快取 `https://api.echora.example.com`，這個網域不存在。
-- 展示 MP3／封面不在 precache，離線「開始體驗」會沒聲音。至少 CacheFirst 封面與展示音檔。
+做完長這樣：打開專案不會被用不到的東西分心；改壞會在合併前被擋住。
 
 ---
 
-### 8. 歌詞管線
+### 7. 歌詞再穩一點
 
-現況可用，但有明顯上限：
+沒歌詞時畫面會變成純音樂舞台，沒有退路。句子有時從標點中間切開，對齊每次都要重調。
 
-1. YouTube 曲目只打 LRCLib；失敗就 Soundscape。可加「上傳 LRC」當逃生門，比再接一個不穩定歌詞 API 安全。
-2. `parseVTT` 假設 `mm:ss.mmm`，沒處理 `HH:MM:SS` 與 cue identifier。
-3. `parseLRC` 忽略增強型逐字 LRC（`<mm:ss.xx>word`），Folia 舞台最需要的卻是逐字。
-4. 展示日文轉錄在句中切開（例如 Blue Knot 的「遠迴りばかりして / 。ため息を…」），舞台會出現孤立標點。應以標點為界重切，而不是固定字數。
-5. 歌詞 offset 不做 per-track 記憶，使用者每次都要重校。
+**要做的事：** 對不齊時可以上傳自己的歌詞檔。記住每首歌的校正。標點不要把句子切碎。畫面上標示歌詞從哪來。
 
-LRCLib 請加超時、429 退避，以及「這次結果來自 LRCLib／本機檔／展示轉錄」的可見來源標記（本機展示已有，YouTube 還沒有）。
+做完長這樣：沒歌詞有退路；同一首歌不用每次重對。
 
 ---
 
@@ -214,17 +170,17 @@ PWA icon、180 PNG apple-touch-icon 與頁首 BrandMark 已改為新的 E 波形
 2. 新 icon 用於 PWA、favicon、頁首（已接上）
 3. snapshot 寫入改 throttle
 
-**第 3 週：記住使用者的舞台**
+**第 3 週：記住你的舞台**
 
-4. 記住預設視覺器、背景、每首歌的歌詞校正
-5. 展示 MP3 不要綁在單一第三方 CDN（可靠性，不是新功能）
+4. 記住常用舞台、背景、每首歌的歌詞對齊
+5. 展示音檔不要綁在單一網站（比較穩，不是新功能）
 
-**第 4 週：衛生**
+**第 4 週：清乾淨**
 
-6. 拆 `Player.tsx`，本機／YouTube 控制不再走 `window` 事件
-7. 刪或隔離 `packages/mobile` 與未使用 utils
-8. GitHub Actions 品質閘道
-9. 修正 AGPL 原始碼入口與 Spotify 文案策略
+6. 把播放器拆小，播歌不要再對整頁喊
+7. 刪掉用不到的手機專案和沒接上的工具
+8. 每次提交自動檢查
+9. 補上原始碼入口，Spotify 沒開通就先別寫得像能用
 
 ---
 
