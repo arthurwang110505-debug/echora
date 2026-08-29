@@ -8,6 +8,7 @@ import { usePlayer } from '../contexts/PlayerContext';
 import { getAgnesApiStatus, generateAgnesTheme, type AgnesApiStatus } from '../services/agnesAi';
 import type { ThemeConfig } from '@echora/core';
 import type { MotionPreference } from '../store/themeStore';
+import { getCorrespondingSourceUrl } from '../lib/sourceAvailability';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -195,6 +196,15 @@ export default function Settings() {
           <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs">
             <div><p className="font-bold text-white">Echora 隨身動態歌詞舞台</p><p className="mt-0.5 text-[11px] text-slate-500">Breathe with music · Motion Design System v2.0</p></div>
             <span className="rounded-xl border border-[#62f5c4]/20 bg-[#62f5c4]/10 px-2.5 py-1 font-bold text-[#62f5c4]">v{packageJson.version}</span>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs leading-6 text-slate-300">
+            <p className="font-bold text-white">原始碼</p>
+            <p className="mt-1">Echora 以 AGPL-3.0 授權。你正在使用的這一版，對應原始碼在 GitHub。</p>
+            <a href={getCorrespondingSourceUrl()} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center font-bold text-[#62f5c4] underline decoration-white/20 underline-offset-2">開啟目前版本的原始碼</a>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs leading-6 text-slate-300">
+            <p className="font-bold text-white">隱私權說明</p>
+            <p className="mt-1">登入 YouTube 或 Spotify 時，存取權杖只留在這台裝置的瀏覽器。Echora 不會看到你的密碼。登出會清除本機權杖；最近播放與歌詞校正也只存在這台裝置。</p>
           </div>
         </section>
         </div>

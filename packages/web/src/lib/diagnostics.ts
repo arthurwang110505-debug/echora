@@ -1,4 +1,4 @@
-export type DiagnosticEventName = 'song_selected' | 'play_requested' | 'pause_requested' | 'youtube_error' | 'render_error';
+export type DiagnosticEventName = 'song_selected' | 'play_requested' | 'pause_requested' | 'youtube_error' | 'render_error' | 'web_vital';
 
 const diagnosticLabels: Record<DiagnosticEventName, string> = {
   song_selected: '已選取歌曲',
@@ -6,6 +6,7 @@ const diagnosticLabels: Record<DiagnosticEventName, string> = {
   pause_requested: '已要求暫停',
   youtube_error: 'YouTube 播放器錯誤',
   render_error: '畫面載入錯誤',
+  web_vital: '網頁效能指標',
 };
 
 export interface DiagnosticEvent {

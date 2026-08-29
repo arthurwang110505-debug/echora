@@ -52,7 +52,6 @@ const FEATURED_SONGS: Song[] = [
 ];
 
 const sources = [
-  { id: 'spotify' as const, label: 'Spotify', dot: 'bg-[#1ed760]' },
   { id: 'ytmusic' as const, label: 'YouTube Music', dot: 'bg-[#ff3d57]' },
   { id: 'local' as const, label: '本機展示', dot: 'bg-amber-300' },
 ];
@@ -337,27 +336,24 @@ export default function AppHome() {
             <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-end">
               {/* Music source switcher */}
               <div className="space-y-1"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">你的音樂</p><div className="flex w-full rounded-2xl border border-white/[0.1] bg-white/[0.04] p-1 backdrop-blur-md sm:w-fit" role="group" aria-label="音樂來源">
-                {sources.map(source => (
+                {[...sources, ...(spotifyAvailable ? [{ id: 'spotify' as const, label: 'Spotify', dot: 'bg-[#1ed760]' }] : [])].map(source => (
                   <button
                     type="button"
                     key={source.id}
                     onClick={() => changeSource(source.id)}
-                    disabled={source.id === 'spotify' && !spotifyAvailable}
                     aria-label={`切換來源至 ${source.label}`}
                     aria-pressed={activeSource === source.id}
-                    aria-describedby={source.id === 'spotify' && !spotifyAvailable ? 'spotify-source-status' : undefined}
-                    title={source.id === 'spotify' && !spotifyAvailable ? 'Spotify 尚未啟用，無法作為播放來源' : undefined}
-                    className={`flex min-h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-all duration-200 btn-spring sm:flex-none sm:px-3.5 disabled:cursor-not-allowed disabled:opacity-70 ${
+                    className={`flex min-h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-all duration-200 btn-spring sm:flex-none sm:px-3.5 ${
                       activeSource === source.id
                         ? 'bg-white/[0.12] text-white shadow-lg border border-white/15'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     <span className={`h-2 w-2 rounded-full ${source.dot}`} />
-                    {source.id === 'spotify' && !spotifyAvailable ? 'Spotify（尚未啟用）' : source.label}
+                    {source.label}
                   </button>
                 ))}
-              </div><span id="spotify-source-status" className="sr-only">Spotify 目前不可用，請改選本機展示或 YouTube Music。</span></div>
+              </div></div>
 
               {/* 3D Carousel vs Grid Toggle */}
               <div className="space-y-1"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">瀏覽方式</p><div className="flex rounded-2xl border border-white/10 bg-white/[0.04] p-1 backdrop-blur-md" role="group" aria-label="瀏覽方式">
@@ -465,7 +461,6 @@ export default function AppHome() {
                 {spotifyError}<br />請先在 Spotify Developer Dashboard 設定 Redirect URI。
               </p>
             )}
-            {!spotifyAvailable && <p className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/10 p-3 text-xs leading-5 text-amber-100">Spotify 尚未取得開發者權限或設定 Client ID，因此目前不可登入與測試；這不是播放故障。</p>}
             {youtubeError && <p className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs leading-5 text-rose-200">{youtubeError}</p>}
             {activeSource === 'ytmusic' && youtubeConnected && <div className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-xs text-emerald-100"><p className="font-bold">已連線 {youtubeProfile?.name || 'YouTube'} · {syncCopy}</p><p className="mt-1 text-emerald-100/75">歌單會與「我的音樂庫」及播放器共用。</p>{libraryError ? <p className="mt-2 text-rose-200">{libraryError}</p> : null}<div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => void loadSourcePlaylists()} disabled={isSyncingLibrary} className="rounded-lg border border-emerald-200/25 px-3 py-1.5 font-bold transition hover:bg-emerald-300/10 disabled:opacity-60">{isSyncingLibrary ? '同步中…' : '重新同步'}</button><button type="button" onClick={() => { setShowConnectModal(false); navigate('/library'); }} className="rounded-lg border border-emerald-200/25 px-3 py-1.5 font-bold transition hover:bg-emerald-300/10">開啟我的音樂庫</button></div></div>}
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -473,23 +468,23 @@ export default function AppHome() {
                 <span className="block text-sm text-[#ff7180]">YouTube Music</span>
                 <span className="mt-1 block font-normal text-slate-500">讀取你的私人歌單</span>
               </button>
-              <button type="button" onClick={() => changeSource('spotify')} disabled={!spotifyAvailable} className={`min-h-16 rounded-xl border px-4 py-3 text-left text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${activeSource === 'spotify' ? 'border-[#1ed760]/60 bg-[#1ed760]/10 text-white' : 'border-white/10 bg-white/[0.03] text-slate-400'}`}>
+              {spotifyAvailable ? (
+              <button type="button" onClick={() => changeSource('spotify')} className={`min-h-16 rounded-xl border px-4 py-3 text-left text-xs font-bold transition ${activeSource === 'spotify' ? 'border-[#1ed760]/60 bg-[#1ed760]/10 text-white' : 'border-white/10 bg-white/[0.03] text-slate-400'}`}>
                 <span className="block text-sm text-[#1ed760]">Spotify</span>
-                <span className="mt-1 block font-normal text-slate-500">{spotifyAvailable ? '同步 Spotify 歌單' : '鎖定：尚未取得開發者權限'}</span>
+                <span className="mt-1 block font-normal text-slate-500">同步 Spotify 歌單</span>
               </button>
+              ) : null}
             </div>
             <div className="mt-6 flex justify-end gap-2">
               <button type="button" onClick={() => setShowConnectModal(false)} className="rounded-xl px-4 py-2.5 text-xs font-bold text-slate-400 transition hover:bg-white/5 hover:text-white">稍後</button>
-              {activeSource === 'ytmusic' ? (youtubeConnected ? (
+              {(!spotifyAvailable || activeSource !== 'spotify') ? (youtubeConnected ? (
                 <div className="flex flex-wrap justify-end gap-2">
                   <button type="button" onClick={() => void switchYouTubeAccount()} className="rounded-xl border border-[#ff7180]/35 bg-[#ff3d57]/10 px-4 py-2.5 text-xs font-extrabold text-[#ffb0b8] transition hover:bg-[#ff3d57]/20">切換帳號</button>
                   <button type="button" onClick={() => { disconnectYouTube(); setShowConnectModal(false); }} className="rounded-xl border border-rose-400/25 px-4 py-2.5 text-xs font-extrabold text-rose-200 transition hover:bg-rose-400/10">登出 YouTube</button>
                 </div>
               ) : (
                 <button type="button" onClick={() => void connectYouTube()} className="rounded-xl bg-[#ff3d57] px-5 py-2.5 text-xs font-extrabold text-white transition hover:brightness-110 active:scale-95">使用 Google 登入 YouTube</button>
-              )) : !spotifyAvailable ? (
-                <button type="button" disabled className="cursor-not-allowed rounded-xl border border-amber-300/20 bg-amber-300/10 px-5 py-2.5 text-xs font-extrabold text-amber-100">Spotify 尚未啟用</button>
-              ) : spotifyConnected ? (
+              )) : spotifyConnected ? (
                 <button type="button" onClick={() => { disconnectSpotify(); setShowConnectModal(false); }} className="rounded-xl border border-rose-400/25 px-5 py-2.5 text-xs font-extrabold text-rose-200 transition hover:bg-rose-400/10">解除連線</button>
               ) : (
                 <button type="button" onClick={() => void connectSpotify()} className="rounded-xl bg-[#62f5c4] px-5 py-2.5 text-xs font-extrabold text-black transition hover:brightness-110 active:scale-95">使用 Spotify 登入</button>

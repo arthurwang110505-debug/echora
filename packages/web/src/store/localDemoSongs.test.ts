@@ -28,6 +28,16 @@ describe('local demo showcase songs', () => {
     }
   });
 
+  it('glues leading punctuation onto the previous line instead of leaving a lone mark', () => {
+    const refined = refineTranscriptSegments([
+      [8.88, 19.42, '遠回りばかりして'],
+      [19.42, 29.68, '。ため息を数えてた。'],
+    ]);
+    expect(refined.some(segment => segment[2] === '。')).toBe(false);
+    expect(refined[0][2]).toContain('して。');
+    expect(refined[1][2].startsWith('。')).toBe(false);
+  });
+
   it('keeps the creator-confirmed Stardust hook and corrected Sun timing boundary', () => {
     const stardustText = LOCAL_DEMO_LYRICS['demo-stardust-pop-idol'].lines.map(line => line.fullText).join(' ');
     expect(stardustText).toContain('STARDUST POP IDOL');

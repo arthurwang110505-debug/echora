@@ -26,7 +26,7 @@ const FEATURES = [
   {
     icon: ListMusic,
     title: '連接你的音樂',
-    description: '支援 YouTube Music 私人歌單、Spotify（準備中）與免登入本機展示曲目，選歌後立即上台。',
+    description: '支援 YouTube Music 私人歌單與免登入本機展示曲目，選歌後立即上台。',
   },
   {
     icon: MonitorSmartphone,

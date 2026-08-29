@@ -94,21 +94,31 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
     };
   }, [currentSong?.source, videoMode]);
 
+  const youtubeCommand = usePlayer(state => state.youtubeCommand);
+
   useEffect(() => {
-    const onLoad = (event: Event) => {
-      const videoId = extractYouTubeVideoId((event as CustomEvent).detail.videoId);
+    if (!youtubeCommand || youtubeCommand.seq === 0) return;
+    if (youtubeCommand.action === 'load') {
+      const videoId = extractYouTubeVideoId(youtubeCommand.url);
       if (!videoId) {
         usePlayer.setState({ isPlaying: false, playbackState: 'error', youtubeError: '缺少有效的 YouTube video ID。' });
         return;
       }
       if (!disposedRef.current && typeof playerRef.current?.loadVideoById === 'function') playerRef.current.loadVideoById(videoId);
-    };
-    const onPlay = () => { if (!disposedRef.current && typeof playerRef.current?.playVideo === 'function') playerRef.current.playVideo(); };
-    const onPause = () => { if (!disposedRef.current && typeof playerRef.current?.pauseVideo === 'function') playerRef.current.pauseVideo(); };
-    const onSeek = (event: Event) => { if (typeof playerRef.current?.seekTo === 'function') playerRef.current.seekTo((event as CustomEvent<number>).detail, true); };
-    window.addEventListener('echora:youtube-load', onLoad); window.addEventListener('echora:youtube-play', onPlay); window.addEventListener('echora:youtube-pause', onPause); window.addEventListener('echora:youtube-seek', onSeek);
-    return () => { window.removeEventListener('echora:youtube-load', onLoad); window.removeEventListener('echora:youtube-play', onPlay); window.removeEventListener('echora:youtube-pause', onPause); window.removeEventListener('echora:youtube-seek', onSeek); };
-  }, []);
+      return;
+    }
+    if (youtubeCommand.action === 'play') {
+      if (!disposedRef.current && typeof playerRef.current?.playVideo === 'function') playerRef.current.playVideo();
+      return;
+    }
+    if (youtubeCommand.action === 'pause') {
+      if (!disposedRef.current && typeof playerRef.current?.pauseVideo === 'function') playerRef.current.pauseVideo();
+      return;
+    }
+    if (youtubeCommand.action === 'seek' && typeof playerRef.current?.seekTo === 'function' && Number.isFinite(youtubeCommand.time)) {
+      playerRef.current.seekTo(youtubeCommand.time, true);
+    }
+  }, [youtubeCommand]);
 
   useEffect(() => {
     if (typeof playerRef.current?.setVolume === 'function') playerRef.current.setVolume(Math.round((volume || 0) * 100));

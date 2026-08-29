@@ -5,7 +5,12 @@ import { resolve } from 'path';
 import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 
+const gitCommitSha = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || '';
+
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_GIT_COMMIT_SHA': JSON.stringify(gitCommitSha),
+  },
   plugins: [
     react(),
     VitePWA({
@@ -65,16 +70,28 @@ export default defineConfig({
           'assets/index-*.{js,css}',
           'assets/AppHome-*.js',
           'assets/Welcome-*.js',
+          'covers/*.{svg,png,jpg,webp}',
         ],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/api\.echora\.example\.com\/.*/i,
-            handler: 'NetworkFirst',
+            urlPattern: /^https:\/\/files\.manuscdn\.com\/.*\.(mp3|m4a|ogg|wav)/i,
+            handler: 'CacheFirst',
             options: {
-              cacheName: 'api-cache',
+              cacheName: 'demo-audio-cache',
               expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24
+                maxEntries: 12,
+                maxAgeSeconds: 60 * 60 * 24 * 14
+              }
+            }
+          },
+          {
+            urlPattern: /\/covers\/.*\.(png|jpg|jpeg|svg|webp)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'demo-cover-cache',
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 60 * 24 * 30
               }
             }
           },

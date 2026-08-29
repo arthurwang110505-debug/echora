@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_DIORAMA_TUNING, DEFAULT_SONNET_TUNING } from '../../types';
+import { DEFAULT_DIORAMA_TUNING, DEFAULT_SONNET_TUNING } from '../types';
 import {
     resolveCompactDioramaTuning,
     resolveCompactSonnetTuning,

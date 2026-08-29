@@ -13,6 +13,23 @@ export interface LrcLibTrack {
   syncedLyrics?: string;
 }
 
+const LRCLIB_TIMEOUT_MS = 8000;
+
+const fetchLrcLib = async (url: string, attempt = 0): Promise<Response> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), LRCLIB_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (response.status === 429 && attempt < 1) {
+      await new Promise(resolve => setTimeout(resolve, 800));
+      return fetchLrcLib(url, attempt + 1);
+    }
+    return response;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 export async function fetchLrcLibLyrics(params: {
   trackName: string;
   artistName: string;
@@ -26,19 +43,16 @@ export async function fetchLrcLibLyrics(params: {
     if (params.albumName) query.set('album_name', params.albumName);
     if (params.duration) query.set('duration', Math.round(params.duration).toString());
 
-    // 1. Try exact match API
-    let res = await fetch(`https://lrclib.net/api/get?${query.toString()}`);
+    let res = await fetchLrcLib(`https://lrclib.net/api/get?${query.toString()}`);
     
     if (!res.ok) {
-      // 2. Fallback to search API if exact match fails
       const searchQuery = new URLSearchParams({
         q: `${params.trackName} ${params.artistName}`.trim(),
       });
-      const searchRes = await fetch(`https://lrclib.net/api/search?${searchQuery.toString()}`);
+      const searchRes = await fetchLrcLib(`https://lrclib.net/api/search?${searchQuery.toString()}`);
       if (searchRes.ok) {
         const searchResults: LrcLibTrack[] = await searchRes.json();
         if (searchResults && searchResults.length > 0) {
-          // Find best candidate with syncedLyrics
           const candidate = searchResults.find(t => t.syncedLyrics) || searchResults[0];
           return processLrcLibTrack(candidate);
         }
@@ -98,5 +112,6 @@ export function processLrcLibTrack(track: LrcLibTrack): LyricData | null {
     artist: track.artistName,
     isWordByWord: false,
     availability: formattedLines.length ? 'available' : 'unavailable',
+    origin: 'lrclib',
   };
 }
