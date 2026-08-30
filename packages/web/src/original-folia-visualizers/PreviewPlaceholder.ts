@@ -1,8 +1,23 @@
-import { type Line, type VisualizerMode } from '../../types';
-import { getLineRenderEndTime } from '../../utils/lyrics/renderHints';
-import placeholderCoverUrl from '../../../assets/placeholder_cover.jpg';
-import placeholderCover2Url from '../../../assets/placeholder_cover-2.jpg';
+import { type Line, type VisualizerMode } from '../types';
+import { getLineRenderEndTime } from '../utils/lyrics/renderHints';
 import { getVisualizerPreviewStartOffset } from './registry';
+
+// Preview-only placeholder covers. The original Folia assets were not copied into
+// this tree; generate lightweight inline SVG data URLs so the playground resolves
+// without bundling binary assets.
+const createPlaceholderCoverUrl = (from: string, to: string, label: string): string =>
+    `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">` +
+            `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">` +
+            `<stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/>` +
+            `</linearGradient></defs><rect width="600" height="600" fill="url(#g)"/>` +
+            `<text x="50%" y="52%" text-anchor="middle" dominant-baseline="middle" ` +
+            `font-family="sans-serif" font-size="64" font-weight="700" fill="rgba(255,255,255,0.92)">${label}</text>` +
+            `</svg>`,
+    )}`;
+
+const placeholderCoverUrl = createPlaceholderCoverUrl('#1b2a4a', '#62f5c4', '神文之诗');
+const placeholderCover2Url = createPlaceholderCoverUrl('#3a1b4a', '#f5c462', '野芝麻');
 
 const createCharacterWords = (text: string, startTime: number, endTime: number) => {
     const chars = Array.from(text);

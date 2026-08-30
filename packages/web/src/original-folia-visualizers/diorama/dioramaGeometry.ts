@@ -1,4 +1,4 @@
-import { type DioramaGeometryVisibility } from '../../../types';
+import { type DioramaGeometryVisibility } from '../../types';
 import {
     DIORAMA_PARTICLE_AUDIO_SCALE_MAX,
     type DioramaShapePlacement,

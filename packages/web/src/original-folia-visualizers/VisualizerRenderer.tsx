@@ -1,5 +1,5 @@
 import React from 'react';
-import { type VisualizerMode } from '../../types';
+import { type VisualizerMode } from '../types';
 import { type VisualizerSharedProps } from './definition';
 import { getVisualizerRegistryEntry } from './registry';
 import { applyVisualizerTuning } from './tuningRegistry';

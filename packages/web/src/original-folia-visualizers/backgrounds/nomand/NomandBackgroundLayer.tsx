@@ -1,6 +1,6 @@
 import React from 'react';
 import { ImageDithering } from '@paper-design/shaders-react';
-import { DEFAULT_NOMAND_BACKGROUND_TUNING, type MonetBackgroundImage, type NomandBackgroundTuning, type Theme } from '../../../../types';
+import { DEFAULT_NOMAND_BACKGROUND_TUNING, type MonetBackgroundImage, type NomandBackgroundTuning, type Theme } from '../../../types';
 
 // src/components/visualizer/backgrounds/nomand/NomandBackgroundLayer.tsx
 // Renders the Paper image-dithering shader with the current selected theme palette.

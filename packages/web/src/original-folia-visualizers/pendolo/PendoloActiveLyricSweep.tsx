@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { motion, useTransform, type MotionValue } from 'framer-motion';
-import { type Line, type Theme } from '../../../types';
+import { type Line, type Theme } from '../../types';
 import { colorWithAlpha, mixColors } from '../colorMix';
-import { buildLineGraphemeTimeline, splitLyricGraphemes } from '../../../utils/lyrics/graphemeTiming';
+import { buildLineGraphemeTimeline, splitLyricGraphemes } from '../../utils/lyrics/graphemeTiming';
 import { measureMonetGraphemeOffsets } from '../monet/monetLyricsModel';
 import { buildPendoloTextLayout, type PendoloWrappedTextLine } from './pendoloTextLayout';
 import { prepareWordColorMatchers, buildWordColorRangesFromMatchers, resolveTokenColorMap, type WordColorToken } from '../wordColoring';

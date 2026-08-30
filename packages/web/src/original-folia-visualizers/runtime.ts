@@ -1,6 +1,6 @@
 import { MotionValue } from 'framer-motion';
 import { useMemo } from 'react';
-import { Line } from '../../types';
+import { Line } from '../types';
 
 // Shared runtime helpers for all visualizers.
 // This file is intentionally tiny: it only answers "what line should I care about right now?"

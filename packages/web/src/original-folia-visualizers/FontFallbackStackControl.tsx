@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import type { Theme } from '../../types';
-import { normalizeFontFamilyStack } from '../../utils/fontStacks';
+import type { Theme } from '../types';
+import { normalizeFontFamilyStack } from '../utils/fontStacks';
 
 // src/components/visualizer/FontFallbackStackControl.tsx
 // Edits an ordered CSS font-family fallback list while keeping normalization in the shared font utility.

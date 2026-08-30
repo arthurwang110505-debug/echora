@@ -1,7 +1,7 @@
 import { layoutWithLines, prepareWithSegments } from '@chenglou/pretext';
-import type { Line } from '../../../types';
-import { buildLineGraphemeTimeline, buildWordGraphemeTimings, type GraphemeTiming } from '../../../utils/lyrics/graphemeTiming';
-import { getLineRenderEndTime } from '../../../utils/lyrics/renderHints';
+import type { Line } from '../../types';
+import { buildLineGraphemeTimeline, buildWordGraphemeTimings, type GraphemeTiming } from '../../utils/lyrics/graphemeTiming';
+import { getLineRenderEndTime } from '../../utils/lyrics/renderHints';
 
 // src/components/visualizer/monet/monetLyricsModel.ts
 // Builds the measured, discrete lyric rail state for Monet before Framer Motion animates it.

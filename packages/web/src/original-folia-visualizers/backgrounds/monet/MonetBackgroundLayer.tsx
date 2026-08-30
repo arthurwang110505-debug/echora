@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { DEFAULT_MONET_BACKGROUND_TUNING, type MonetBackgroundImage, type MonetBackgroundTuning, type Theme } from '../../../../types';
+import { DEFAULT_MONET_BACKGROUND_TUNING, type MonetBackgroundImage, type MonetBackgroundTuning, type Theme } from '../../../types';
 import { colorWithAlpha } from '../../colorMix';
 import { getMonetBackgroundCacheKey, resolveMonetBackgroundDataUrl, checkCanvasFilterSupport } from '../../monet/monetBackgroundPipeline';
 

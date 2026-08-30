@@ -1,4 +1,4 @@
-import type { Line } from '../../../types';
+import type { Line } from '../../types';
 
 // src/components/visualizer/cappella/cappellaMessageSenders.ts
 // Resolves TTML agent ids into stable Cappella chat senders.

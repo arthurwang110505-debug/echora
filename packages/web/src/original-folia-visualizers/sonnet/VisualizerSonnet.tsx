@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { MotionValue } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { DEFAULT_SONNET_TUNING } from '../../../types';
-import type { Line } from '../../../types';
-import { resolveThemeFontStack, resolveThemeFontWeight } from '../../../utils/fontStacks';
-import { getLineRenderEndTime } from '../../../utils/lyrics/renderHints';
+import { DEFAULT_SONNET_TUNING } from '../../types';
+import type { Line } from '../../types';
+import { resolveThemeFontStack, resolveThemeFontWeight } from '../../utils/fontStacks';
+import { getLineRenderEndTime } from '../../utils/lyrics/renderHints';
 import type { VisualizerSharedProps } from '../definition';
 import { useVisualizerRuntime } from '../runtime';
 import VisualizerShell from '../VisualizerShell';

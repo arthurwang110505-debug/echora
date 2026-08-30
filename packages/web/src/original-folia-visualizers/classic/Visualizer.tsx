@@ -1,15 +1,15 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, MotionValue, Variants, useMotionValueEvent } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { DEFAULT_CLASSIC_TUNING, Line, Theme, Word as WordType, AudioBands, type ClassicTuning } from '../../../types';
-import { getLineRenderEndTime, getLineRenderHints } from '../../../utils/lyrics/renderHints';
+import { DEFAULT_CLASSIC_TUNING, Line, Theme, Word as WordType, AudioBands, type ClassicTuning } from '../../types';
+import { getLineRenderEndTime, getLineRenderHints } from '../../utils/lyrics/renderHints';
 import { useVisualizerRuntime } from '../runtime';
 import { type VisualizerSharedProps } from '../definition';
 import VisualizerShell from '../VisualizerShell';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
-import { buildPostLyricLayoutUnits, buildDisplayWordsFromLayoutUnits } from '../../../utils/lyrics/cjkSemanticLayout';
-import { buildWordGraphemeTimings } from '../../../utils/lyrics/graphemeTiming';
-import { resolveThemeFontStack, resolveThemeFontWeight } from '../../../utils/fontStacks';
+import { buildPostLyricLayoutUnits, buildDisplayWordsFromLayoutUnits } from '../../utils/lyrics/cjkSemanticLayout';
+import { buildWordGraphemeTimings } from '../../utils/lyrics/graphemeTiming';
+import { resolveThemeFontStack, resolveThemeFontWeight } from '../../utils/fontStacks';
 import { resolveWordColor } from '../wordColoring';
 
 // This mode is the most straightforward lyric pipeline in the folder.

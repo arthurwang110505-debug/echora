@@ -9,7 +9,7 @@ import {
     type MonetBackgroundTuning,
     type MonetBackgroundWashColorMode,
     type Theme,
-} from '../../../../types';
+} from '../../../types';
 import { colorWithAlpha } from '../../colorMix';
 
 // src/components/visualizer/backgrounds/monet/MonetBackgroundSettingsCard.tsx

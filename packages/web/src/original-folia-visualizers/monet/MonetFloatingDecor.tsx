@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import * as LucideIcons from 'lucide-react';
-import type { Theme } from '../../../types';
+import type { Theme } from '../../types';
 import { colorWithAlpha } from '../colorMix';
 
 // src/components/visualizer/monet/MonetFloatingDecor.tsx

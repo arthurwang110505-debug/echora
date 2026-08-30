@@ -1,4 +1,4 @@
-import { type VisualizerMode } from '../../types';
+import { type VisualizerMode } from '../types';
 import {
     type VisualizerEntryModule,
     type VisualizerRegistryEntry,

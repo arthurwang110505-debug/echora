@@ -1,5 +1,5 @@
-import type { Line } from '../../../types';
-import type { GraphemeTiming } from '../../../utils/lyrics/graphemeTiming';
+import type { Line } from '../../types';
+import type { GraphemeTiming } from '../../utils/lyrics/graphemeTiming';
 
 // src/components/visualizer/sonnet/types.ts
 // Public, renderer-independent contracts for the deterministic Sonnet PV program.

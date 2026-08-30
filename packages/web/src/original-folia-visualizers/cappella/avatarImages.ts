@@ -1,4 +1,4 @@
-import type { CappellaAvatarSource } from '../../../types';
+import type { CappellaAvatarSource } from '../../types';
 
 // src/components/visualizer/cappella/avatarImages.ts
 // Loads built-in Cappella avatar images and resolves the active avatar source.

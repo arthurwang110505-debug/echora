@@ -1,4 +1,4 @@
-import { splitLyricGraphemes } from '../../../utils/lyrics/graphemeTiming';
+import { splitLyricGraphemes } from '../../utils/lyrics/graphemeTiming';
 
 // src/components/visualizer/pendolo/pendoloColorRuns.ts
 

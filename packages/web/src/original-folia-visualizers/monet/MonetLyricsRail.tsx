@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useTransform, MotionValue } from 'framer-motion';
-import type { Theme, AudioBands, Line } from '../../../types';
-import { resolveThemeFontWeight } from '../../../utils/fontStacks';
-import type { GraphemeTiming } from '../../../utils/lyrics/graphemeTiming';
-import { getLineRenderEndTime } from '../../../utils/lyrics/renderHints';
+import type { Theme, AudioBands, Line } from '../../types';
+import { resolveThemeFontWeight } from '../../utils/fontStacks';
+import type { GraphemeTiming } from '../../utils/lyrics/graphemeTiming';
+import { getLineRenderEndTime } from '../../utils/lyrics/renderHints';
 import { colorWithAlpha, mixColors } from '../colorMix';
 import {
     buildWordColorRangesFromMatchers,

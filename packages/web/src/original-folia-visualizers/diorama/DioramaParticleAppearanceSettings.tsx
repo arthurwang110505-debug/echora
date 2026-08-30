@@ -10,7 +10,7 @@ import {
     DIORAMA_PARTICLE_SIZE_MIN,
     DIORAMA_PARTICLE_SIZE_STEP,
     type Theme,
-} from '../../../types';
+} from '../../types';
 import { colorWithAlpha } from '../colorMix';
 import { DioramaSettingsToggle } from './DioramaSettingsToggle';
 

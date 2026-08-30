@@ -1,4 +1,4 @@
-import type { Theme } from '../../../types';
+import type { Theme } from '../../types';
 import type { SonnetSemanticSegment } from './types';
 import { isSonnetEmphasisRole, type SonnetTypographyPlacement } from './sonnetTypographyLayout';
 

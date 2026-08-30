@@ -1,5 +1,5 @@
 import type { MotionValue } from 'framer-motion';
-import type { AudioBands, SonnetTuning, Theme } from '../../../types';
+import type { AudioBands, SonnetTuning, Theme } from '../../types';
 import type { SonnetProgram } from './types';
 import { findSonnetParagraphIndexAtTime } from './sonnetProgram';
 import { buildSonnetIconDataUrl, buildSonnetIconTextureKey, resolveSonnetIconNames } from './sonnetIcons';

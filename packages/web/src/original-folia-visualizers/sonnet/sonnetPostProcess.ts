@@ -1,4 +1,4 @@
-import type { SonnetTuning, Theme } from '../../../types';
+import type { SonnetTuning, Theme } from '../../types';
 import { resolveSonnetAnimationScale } from './sonnetMotion';
 import { createSonnetLensFilter } from './sonnetLensFilter';
 import { createSonnetPrintFilters, type SonnetPrintEffectAmounts } from './sonnetPrintFilters';

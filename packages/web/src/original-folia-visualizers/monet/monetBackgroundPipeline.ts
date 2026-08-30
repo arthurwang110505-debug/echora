@@ -1,5 +1,5 @@
 import { colorWithAlpha, parseColorChannels } from '../colorMix';
-import type { MonetBackgroundImage, MonetBackgroundTuning, Theme } from '../../../types';
+import type { MonetBackgroundImage, MonetBackgroundTuning, Theme } from '../../types';
 
 // src/components/visualizer/monet/monetBackgroundPipeline.ts
 // Builds and caches the static Monet poster background so the visualizer only recomputes when inputs change.

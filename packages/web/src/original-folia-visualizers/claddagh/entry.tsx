@@ -1,5 +1,5 @@
 import React from 'react';
-import { DEFAULT_CLADDAGH_TUNING } from '../../../types';
+import { DEFAULT_CLADDAGH_TUNING } from '../../types';
 import { defineVisualizer } from '../definition';
 import { lazyVisualizer } from '../lazyVisualizer';
 import { CladdaghSettingsPanel } from '../settingsPanels';

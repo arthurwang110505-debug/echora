@@ -1,5 +1,5 @@
-import type { Line } from '../../../types';
-import { getLineRenderEndTime } from '../../../utils/lyrics/renderHints';
+import type { Line } from '../../types';
+import { getLineRenderEndTime } from '../../utils/lyrics/renderHints';
 import type {
     SonnetAnimationCue,
     SonnetCompiledLine,

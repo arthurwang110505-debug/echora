@@ -17,8 +17,7 @@ import {
     type TiltTuning,
     type DioramaTuning,
     type VisualizerMode,
-} from '../../types';
-import { useSettingsUiStore } from '../../stores/useSettingsUiStore';
+} from '../types';
 import { colorWithAlpha } from './colorMix';
 import FontFallbackStackControl from './FontFallbackStackControl';
 import { VISUALIZER_REGISTRY, getVisualizerModeLabel, type VisualizerRegistryEntry } from './registry';
@@ -419,7 +418,9 @@ const VisPlaygroundSettingsPanel: React.FC<VisPlaygroundSettingsPanelProps> = (p
         setSubtitleFontFamilyDraft(subtitleFontFamily ?? '');
     }, [subtitleFontFamily]);
 
-    const enablePlayerPageNativeBlur = useSettingsUiStore(state => state.enablePlayerPageNativeBlur);
+    // The preview playground is standalone tooling; mirror the player default for
+    // the native-blur notice instead of reaching into the settings UI store.
+    const enablePlayerPageNativeBlur = true;
     const resolvedBackgroundMode = backgroundConfig?.mode ?? DEFAULT_VISUALIZER_BACKGROUND_MODE;
     const backgroundEntry = getVisualizerBackgroundRegistryEntry(resolvedBackgroundMode);
     const backgroundModeOptions = useMemo(() => (

@@ -3,9 +3,9 @@
 import React, { useMemo, useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { measureNaturalWidth, prepareWithSegments } from '@chenglou/pretext';
 import { useMotionValue, animate, MotionValue, useSpring, motion } from 'framer-motion';
-import { DEFAULT_CLADDAGH_TUNING, type Line, type Theme } from '../../../types';
-import { buildLineGraphemeTimeline } from '../../../utils/lyrics/graphemeTiming';
-import { resolveThemeFontStack, resolveThemeFontWeight } from '../../../utils/fontStacks';
+import { DEFAULT_CLADDAGH_TUNING, type Line, type Theme } from '../../types';
+import { buildLineGraphemeTimeline } from '../../utils/lyrics/graphemeTiming';
+import { resolveThemeFontStack, resolveThemeFontWeight } from '../../utils/fontStacks';
 import { type VisualizerSharedProps } from '../definition';
 import { useVisualizerRuntime } from '../runtime';
 import { colorWithAlpha, mixColors } from '../colorMix';

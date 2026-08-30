@@ -1,4 +1,4 @@
-import type { VisualizerBackgroundMode } from '../../../types';
+import type { VisualizerBackgroundMode } from '../../types';
 import type {
     VisualizerBackgroundEntryModule,
     VisualizerBackgroundRegistryEntry,

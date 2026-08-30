@@ -1,4 +1,4 @@
-import type { Line } from '../../../types';
+import type { Line } from '../../types';
 
 // src/components/visualizer/pendolo/pendoloTimeline.ts
 

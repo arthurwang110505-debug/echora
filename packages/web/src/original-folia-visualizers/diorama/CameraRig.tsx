@@ -2,9 +2,9 @@ import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { type MotionValue } from 'framer-motion';
 import * as THREE from 'three';
-import { type Line } from '../../../types';
-import { buildLineGraphemeTimeline, type GraphemeTiming } from '../../../utils/lyrics/graphemeTiming';
-import { getLineRenderEndTime } from '../../../utils/lyrics/renderHints';
+import { type Line } from '../../types';
+import { buildLineGraphemeTimeline, type GraphemeTiming } from '../../utils/lyrics/graphemeTiming';
+import { getLineRenderEndTime } from '../../utils/lyrics/renderHints';
 import {
     DIORAMA_CAMERA_LIFT,
     DIORAMA_HERO_DISTANCE,

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { type MotionValue } from 'framer-motion';
-import { type VisualizerMode } from '../../types';
+import { type VisualizerMode } from '../types';
 import { getPreviewPlaceholderStartOffset } from './PreviewPlaceholder';
 
 // Drives preview-only motion values without putting frame-by-frame data into React state.

@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Trash2, Upload } from 'lucide-react';
-import type { MonetBackgroundImage, NomandBackgroundDitheringType, NomandBackgroundSource, NomandBackgroundTuning, Theme } from '../../../../types';
+import type { MonetBackgroundImage, NomandBackgroundDitheringType, NomandBackgroundSource, NomandBackgroundTuning, Theme } from '../../../types';
 import { colorWithAlpha } from '../../colorMix';
 import BackgroundToggleRow from '../BackgroundToggleRow';
 

@@ -1,5 +1,5 @@
 import { prepareWithSegments, layoutWithLines } from '@chenglou/pretext';
-import { type Line, type PendoloTuning } from '../../../types';
+import { type Line, type PendoloTuning } from '../../types';
 
 // src/components/visualizer/pendolo/pendoloGeometry.ts
 

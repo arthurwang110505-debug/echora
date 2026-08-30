@@ -39,8 +39,8 @@ import {
     type TiltTuning,
     type DioramaTuning,
     type VisualizerMode,
-} from '../../types';
-import { resolveThemeFontStack } from '../../utils/fontStacks';
+} from '../types';
+import { resolveThemeFontStack } from '../utils/fontStacks';
 import { colorWithAlpha } from './colorMix';
 import FontFallbackStackControl from './FontFallbackStackControl';
 import {

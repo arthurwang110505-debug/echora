@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { ImagePlus, Trash2 } from 'lucide-react';
-import { DEFAULT_MONET_TUNING, type MonetAudioStyle, type MonetPortraitSource } from '../../../types';
+import { DEFAULT_MONET_TUNING, type MonetAudioStyle, type MonetPortraitSource } from '../../types';
 import { colorWithAlpha } from '../colorMix';
 import { type VisualizerSettingsPanelProps } from '../definition';
 

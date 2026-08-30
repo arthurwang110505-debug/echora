@@ -8,8 +8,8 @@ import {
     type LatentBackgroundColorSource,
     type LatentBackgroundTuning,
     type Theme,
-} from '../../../../types';
-import { extractRepresentativeColors } from '../../../../utils/colorExtractor';
+} from '../../../types';
+import { extractRepresentativeColors } from '../../../utils/colorExtractor';
 
 // src/components/visualizer/backgrounds/latent/LatentBackground.tsx
 // Layers two cover-colored Paper shaders and drives their uniforms without React frame updates.

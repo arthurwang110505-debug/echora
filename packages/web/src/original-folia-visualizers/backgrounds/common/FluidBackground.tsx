@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Theme } from '../../../../types';
+import { Theme } from '../../../types';
 
 // src/components/visualizer/backgrounds/common/FluidBackground.tsx
 

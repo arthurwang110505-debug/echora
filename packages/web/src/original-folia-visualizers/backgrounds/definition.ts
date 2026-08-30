@@ -9,7 +9,7 @@ import type {
     Theme,
     UrlBackgroundItem,
     VisualizerBackgroundMode,
-} from '../../../types';
+} from '../../types';
 
 // src/components/visualizer/backgrounds/definition.ts
 // Shared contracts for discoverable visualizer background modes.

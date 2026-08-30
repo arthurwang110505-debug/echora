@@ -2,11 +2,11 @@ import React, { forwardRef, useEffect, useRef, useState } from 'react';
 import { motion, MotionValue } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft } from 'lucide-react';
-import { AudioBands, Theme } from '../../types';
-import { resolveThemeFontStack, resolveThemeFontWeight } from '../../utils/fontStacks';
+import { AudioBands, Theme } from '../types';
+import { resolveThemeFontStack, resolveThemeFontWeight } from '../utils/fontStacks';
 import { type VisualizerSharedProps } from './definition';
 import VisualizerBackgroundRenderer from './backgrounds/VisualizerBackgroundRenderer';
-import { getSizedCoverUrl } from '../../utils/coverUrl';
+import { getSizedCoverUrl } from '../utils/coverUrl';
 
 // Shared outer shell for all visualizers.
 // This is where we keep background layering, font injection, and the hover-only back button

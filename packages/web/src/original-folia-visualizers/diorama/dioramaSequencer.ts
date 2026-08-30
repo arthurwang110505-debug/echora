@@ -14,7 +14,7 @@
 // orchestrator (VisualizerDiorama) owns one SequencerState in a ref, appends on transition edges, and
 // hands the segments + a global index to CameraRig / DioramaScene, which resolve frames/lines through it.
 
-import { type Line } from '../../../types';
+import { type Line } from '../../types';
 import {
     buildDioramaPath,
     type DioramaFrame,
