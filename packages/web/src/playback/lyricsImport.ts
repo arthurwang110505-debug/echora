@@ -6,14 +6,15 @@ import {
   type LyricLine,
   type LyricOrigin,
 } from '@echora/core';
+import i18n from '../i18n';
 
 const UPLOADED_LYRICS_KEY = 'echora.uploaded-lyrics';
 
 export const lyricsOriginLabel = (origin?: LyricOrigin) => {
-  if (origin === 'upload') return '你上傳的歌詞檔';
-  if (origin === 'demo-transcript') return '展示轉錄（非官方）';
-  if (origin === 'bundled') return '內建展示歌詞';
-  if (origin === 'lrclib') return '來自 LRCLib';
+  if (origin === 'upload') return i18n.t('player.lyricsOriginUpload');
+  if (origin === 'demo-transcript') return i18n.t('player.lyricsOriginDemoTranscript');
+  if (origin === 'bundled') return i18n.t('player.lyricsOriginBundled');
+  if (origin === 'lrclib') return i18n.t('player.lyricsOriginLrclib');
   return '';
 };
 

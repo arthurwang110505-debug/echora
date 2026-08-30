@@ -54,7 +54,7 @@ pnpm --filter=@echora/web preview
 ```text
 VITE_SPOTIFY_CLIENT_ID
 VITE_SPOTIFY_REDIRECT_URI=https://你的-vercel-domain.vercel.app/app
-VITE_YOUTUBE_API_KEY（可選）
+YOUTUBE_API_KEY（伺服器端可選，用於公開歌曲搜尋；不要使用 VITE_ 前綴）
 AGNES_API_KEY（伺服器端必要；不要使用 VITE_ 前綴）
 ```
 

@@ -40,6 +40,11 @@ export const resolveYouTubeVideoKind = (categoryId?: string | null): YouTubeVide
   categoryId === '10' ? 'music' : categoryId ? 'video' : 'unknown'
 );
 
+// Safety caps for pagination. Paging stops early when the API stops returning
+// pages; these only guard against an accidental unbounded loop.
+const MAX_PLAYLIST_PAGES = 20; // 50 per page → up to 1000 playlists
+const MAX_TRACK_PAGES = 100; // 50 per page → up to 5000 tracks
+
 export interface YTTrack {
   videoId: string;
   title: string;
@@ -75,7 +80,7 @@ export class YouTubeMusicProvider {
     const items: NonNullable<PlaylistResponse['items']> = [];
     let pageToken: string | undefined;
 
-    for (let page = 0; page < 4; page += 1) {
+    for (let page = 0; page < MAX_PLAYLIST_PAGES; page += 1) {
       const token = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '';
       const data = await this.authorized<PlaylistResponse>(`https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&mine=true&maxResults=50${token}`);
       items.push(...(data.items || []));
@@ -116,7 +121,7 @@ export class YouTubeMusicProvider {
     const items: NonNullable<PlaylistItemsResponse['items']> = [];
     let pageToken: string | undefined;
 
-    for (let page = 0; page < 4; page += 1) {
+    for (let page = 0; page < MAX_TRACK_PAGES; page += 1) {
       const token = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '';
       const data = await this.authorized<PlaylistItemsResponse>(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${encodeURIComponent(playlistId)}&maxResults=50${token}`);
       items.push(...(data.items || []));
@@ -152,13 +157,18 @@ export class YouTubeMusicProvider {
   }
 
   // YouTube does not expose a public YouTube Music playback/account API.
-  // Use the official YouTube Data API for public search, then hand playback to YouTube Music.
+  // Public search now goes through the serverless `/api/youtube/search` proxy so the
+  // Data API key stays server-side instead of shipping inside the Vite bundle.
   async searchTracks(query: string): Promise<Song[]> {
     try {
-      const apiKey = (import.meta as any).env?.VITE_YOUTUBE_API_KEY as string | undefined;
-      if (!apiKey) throw new Error('尚未設定 YouTube 搜尋 API，請改從已同步的私人歌單選取曲目。');
-      const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=20&q=${encodeURIComponent(query)}&key=${apiKey}`);
-      if (!res.ok) throw new Error(`YouTube 搜尋失敗：${res.status}`);
+      const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(query)}`);
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        const message = payload && typeof payload === 'object' && typeof (payload as { error?: string }).error === 'string'
+          ? (payload as { error: string }).error
+          : `YouTube 搜尋失敗：${res.status}`;
+        throw new Error(message);
+      }
       const data = await res.json();
       return (data.items || []).map((item: any) => ({
         id: item.id.videoId,
@@ -178,10 +188,5 @@ export class YouTubeMusicProvider {
 
   openInYouTubeMusic(videoId: string) {
     window.open(`https://music.youtube.com/watch?v=${encodeURIComponent(videoId)}`, '_blank', 'noopener,noreferrer');
-  }
-
-  // Get Popular YT Music Playlists
-  async getFeaturedPlaylists(): Promise<Playlist[]> {
-    return [];
   }
 }

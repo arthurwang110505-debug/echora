@@ -1,5 +1,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { usePlayer } from '../contexts/PlayerContext';
 import { useTheme } from '../contexts/ThemeProvider';
@@ -31,6 +32,7 @@ const OriginalFoliaTuningPanel = lazyWithRetry(
 );
 
 export default function Player() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const {
@@ -244,8 +246,8 @@ export default function Player() {
   }
 
   const lyricsOffsetLabel = lyricsOffsetSeconds === 0
-    ? '已同步'
-    : `${lyricsOffsetSeconds > 0 ? '+' : ''}${lyricsOffsetSeconds.toFixed(2)} 秒`;
+    ? t('player.synced')
+    : `${lyricsOffsetSeconds > 0 ? '+' : ''}${t('player.seconds', { value: lyricsOffsetSeconds.toFixed(2) })}`;
   const offsetKey = songOffsetKey(currentSong);
   const adjustStageLyricsOffset = (deltaSeconds: number) => {
     setStoredLyricsOffset(offsetKey, adjustLyricsOffset(lyricsOffsetSeconds, deltaSeconds));
@@ -259,8 +261,8 @@ export default function Player() {
           <Sparkles aria-hidden="true" className="h-9 w-9 text-[#62f5c4]" />
         </div>
         <div className="text-center space-y-1">
-          <h2 className="text-2xl font-bold font-heading text-white">尚未選擇播放歌曲</h2>
-          <p className="text-sm text-slate-400">挑選一首喜愛的曲目，開啟 Echora 音樂呼吸舞台</p>
+          <h2 className="text-2xl font-bold font-heading text-white">{t('player.noSongTitle')}</h2>
+          <p className="text-sm text-slate-400">{t('player.noSongHint')}</p>
         </div>
         <div className="mt-2 flex flex-wrap justify-center gap-3">
           <button
@@ -268,14 +270,14 @@ export default function Player() {
             onClick={() => navigate('/app')}
             className="px-7 py-3.5 rounded-2xl bg-gradient-to-r from-[#62f5c4] via-teal-300 to-emerald-400 text-black font-extrabold text-sm shadow-[0_10px_30px_rgba(98,245,196,0.25)] hover:brightness-110 btn-spring"
           >
-            返回主頁探索歌曲 <ArrowRight aria-hidden="true" className="ml-1.5 inline-block h-4 w-4 align-[-3px]" />
+            {t('player.backToExplore')} <ArrowRight aria-hidden="true" className="ml-1.5 inline-block h-4 w-4 align-[-3px]" />
           </button>
           <button
             type="button"
             onClick={() => navigate('/library')}
             className="rounded-2xl border border-white/15 bg-white/[0.06] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-white/[0.12]"
           >
-            前往我的音樂庫
+            {t('player.goToLibrary')}
           </button>
         </div>
       </div>
@@ -284,24 +286,24 @@ export default function Player() {
 
   const activeArtist = typeof currentSong.artists[0] === 'string'
     ? currentSong.artists[0]
-    : currentSong.artists[0]?.name || 'Unknown Artist';
+    : currentSong.artists[0]?.name || t('player.unknownArtist');
 
   const displayedTime = (isSeeking && seekPreviewTime !== null) ? seekPreviewTime : currentTime;
   const displayedLyricsTime = Math.max(0, displayedTime + lyricsOffsetSeconds);
   const queueSources = Array.from(new Set(playlist.map(song => song.source)));
-  const queueLabel = queueSources.length > 1 ? '混合服務佇列' : queueSources[0] === 'ytmusic' ? 'YouTube Music 佇列' : queueSources[0] === 'spotify' ? 'Spotify 佇列' : queueSources[0] === 'local' ? '本機展示佇列' : '目前播放佇列';
+  const queueLabel = queueSources.length > 1 ? t('player.queueMixed') : queueSources[0] === 'ytmusic' ? t('player.queueYt') : queueSources[0] === 'spotify' ? t('player.queueSpotify') : queueSources[0] === 'local' ? t('player.queueLocal') : t('player.queueCurrent');
   const showLyriclessSoundscape = !isLoadingLyrics && !currentLyrics?.lines?.length;
   const lyricsStageStatus = (() => {
-    if (isLoadingLyrics || lyricsStatus === 'loading') return { title: '正在載入歌詞', copy: '準備完成後，舞台會顯示同步歌詞或說明為何無法取得。' };
-    if (currentSong.source === 'ytmusic' && !isPlaying && !youtubeError) return { title: playbackState === 'buffering' || playbackState === 'loading' ? 'YouTube 正在準備播放' : '等待你在 YouTube 開始播放', copy: '請在原生播放器按下播放鍵，開始有聲播放與歌詞同步。' };
-    if (currentSong.source === 'local' && !isPlaying && playbackState === 'loading') return { title: '本機音檔已準備', copy: '按下播放即可在不登入 YouTube Music 的情況下體驗 Echora 展示舞台。' };
+    if (isLoadingLyrics || lyricsStatus === 'loading') return { title: t('player.loadingLyrics'), copy: t('player.loadingLyricsHint') };
+    if (currentSong.source === 'ytmusic' && !isPlaying && !youtubeError) return { title: playbackState === 'buffering' || playbackState === 'loading' ? t('player.ytPreparing') : t('player.ytWaiting'), copy: t('player.ytWaitingHint') };
+    if (currentSong.source === 'local' && !isPlaying && playbackState === 'loading') return { title: t('player.localReady'), copy: t('player.localReadyHint') };
     if (currentLyrics?.lines?.length) {
       const origin = lyricsOriginLabel(currentLyrics.origin);
-      const title = currentLyrics.origin === 'upload' ? '使用你上傳的歌詞' : currentLyrics.origin === 'demo-transcript' ? '展示轉錄歌詞' : '同步歌詞可用';
-      return { title, copy: origin ? `${origin}。若對不齊，可用下方微調或上傳 .lrc／.vtt。` : '若文字與音樂有偏移，可用下方微調或上傳歌詞檔。' };
+      const title = currentLyrics.origin === 'upload' ? t('player.lyricsUploaded') : currentLyrics.origin === 'demo-transcript' ? t('player.lyricsTranscript') : t('player.lyricsAvailable');
+      return { title, copy: origin ? t('player.lyricsOriginHint', { origin }) : t('player.lyricsOffsetHint') };
     }
-    if (localError) return { title: '本機音檔播放失敗', copy: localError };
-    return { title: lyricsStatus === 'instrumental' ? '這是一首純音樂內容' : lyricsStatus === 'error' ? '歌詞暫時無法載入' : '這首歌目前沒有同步歌詞', copy: lyricsStatus === 'error' ? '請稍後重試或繼續使用真實播放時間與視覺舞台。' : currentSong.source === 'local' ? '這首展示音檔尚未附帶可核對的同步歌詞，之後可匯入 .lrc 或 .vtt。' : '你可以繼續播放、選擇其他曲目，或使用視覺舞台。' };
+    if (localError) return { title: t('player.localPlaybackError'), copy: localError };
+    return { title: lyricsStatus === 'instrumental' ? t('player.instrumental') : lyricsStatus === 'error' ? t('player.lyricsError') : t('player.noSyncedLyrics'), copy: lyricsStatus === 'error' ? t('player.lyricsErrorHint') : currentSong.source === 'local' ? t('player.localNoLyricsHint') : t('player.noLyricsHint') };
   })();
 
   return (
@@ -395,7 +397,7 @@ export default function Player() {
               <p className="text-xs sm:text-sm text-[#62f5c4] font-semibold mt-0.5">
                 {activeArtist} {currentSong.album?.name ? `• ${currentSong.album.name}` : ''}
               </p>
-              {demoMode && <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b8ffe2]">{currentSong.source === 'local' ? 'Echora 本機音檔展示 · 不需登入或 YouTube' : 'Echora 展示模式 · 不需登入即可體驗'}</p>}
+              {demoMode && <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b8ffe2]">{currentSong.source === 'local' ? t('player.localDemoBadge') : t('player.demoBadge')}</p>}
             </div>
           </div>}
 
@@ -408,7 +410,7 @@ export default function Player() {
             <>
               {currentSong.source === 'ytmusic' && <YouTubePlayer immersive={displayMode === 'stage'} concealed={displayMode === 'full' && showPlaylistDrawer} />}
               {displayMode === 'full' && showPlaylistDrawer && currentSong.source === 'ytmusic' && (
-                <p className="pointer-events-none absolute bottom-6 right-6 z-20 hidden rounded-xl border border-white/10 bg-[#07090e]/80 px-3 py-2 text-[11px] font-semibold text-slate-300 backdrop-blur md:block">選歌時已隱藏 YouTube 播放器；關閉歌單側欄後即可操作。</p>
+                <p className="pointer-events-none absolute bottom-6 right-6 z-20 hidden rounded-xl border border-white/10 bg-[#07090e]/80 px-3 py-2 text-[11px] font-semibold text-slate-300 backdrop-blur md:block">{t('player.ytConcealedHint')}</p>
               )}
             </>
           )}

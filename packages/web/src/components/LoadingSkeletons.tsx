@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { CSSProperties, ReactNode } from 'react';
 import { Sparkles } from 'lucide-react';
 
@@ -64,6 +65,7 @@ function SkeletonStatus({ children }: { children: ReactNode }) {
 }
 
 export function RouteSkeleton() {
+  const { t } = useTranslation();
   return (
     <div className="echora-route-skeleton" role="status" aria-busy="true" aria-live="polite">
       <div className="echora-route-skeleton-orbit" aria-hidden="true" />
@@ -71,12 +73,13 @@ export function RouteSkeleton() {
       <SkeletonBlock className="echora-route-skeleton-kicker" />
       <SkeletonBlock className="echora-route-skeleton-title" />
       <SkeletonBlock className="echora-route-skeleton-copy" />
-      <SkeletonStatus>正在載入 Echora 舞台內容…</SkeletonStatus>
+      <SkeletonStatus>{t('appHome.loadingStage')}</SkeletonStatus>
     </div>
   );
 }
 
 export function HomeSkeleton() {
+  const { t } = useTranslation();
   return (
     <div className="echora-page-skeleton" role="status" aria-busy="true" aria-live="polite">
       <div className="echora-skeleton-page-glow echora-skeleton-page-glow-left" aria-hidden="true" />
@@ -132,7 +135,7 @@ export function HomeSkeleton() {
           <CarouselSkeleton />
         </section>
       </main>
-      <SkeletonStatus>正在準備 Echora 首頁與 3D 音樂輪播…</SkeletonStatus>
+      <SkeletonStatus>{t('appHome.loadingHome')}</SkeletonStatus>
     </div>
   );
 }
@@ -153,6 +156,7 @@ export function CarouselSkeleton() {
 }
 
 export function PlayerSkeleton() {
+  const { t } = useTranslation();
   return (
     <div className="echora-player-skeleton" role="status" aria-busy="true" aria-live="polite">
       <header className="echora-skeleton-player-header">
@@ -197,7 +201,7 @@ export function PlayerSkeleton() {
           </div>
         </main>
       </div>
-      <SkeletonStatus>正在恢復播放佇列與 Echora 舞台…</SkeletonStatus>
+      <SkeletonStatus>{t('appHome.loadingPlayer')}</SkeletonStatus>
     </div>
   );
 }
@@ -222,5 +226,6 @@ export function StageSkeleton() {
 }
 
 export function PanelSkeleton() {
-  return <div className="echora-panel-skeleton" role="status" aria-busy="true">正在載入舞台設定…</div>;
+  const { t } = useTranslation();
+  return <div className="echora-panel-skeleton" role="status" aria-busy="true">{t('appHome.loadingPanel')}</div>;
 }
