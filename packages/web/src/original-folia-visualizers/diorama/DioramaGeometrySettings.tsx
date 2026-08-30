@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import {
     type DioramaGeometryVisibility,
     type Theme,
-} from '../../../types';
+} from '../../types';
 import { colorWithAlpha } from '../colorMix';
 import { DioramaParticleAppearanceSettings } from './DioramaParticleAppearanceSettings';
 import { DioramaSettingsToggle } from './DioramaSettingsToggle';

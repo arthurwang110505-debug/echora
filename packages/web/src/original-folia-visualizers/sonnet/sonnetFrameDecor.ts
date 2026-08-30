@@ -1,4 +1,4 @@
-import type { Theme } from '../../../types';
+import type { Theme } from '../../types';
 import type { SonnetSemanticSegment } from './types';
 import { hashSonnetSeed } from './sonnetRandom';
 import { resolveSonnetGlyphMotionDuration } from './sonnetGlyphLayout';

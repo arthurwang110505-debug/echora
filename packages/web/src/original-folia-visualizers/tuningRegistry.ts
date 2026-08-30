@@ -11,7 +11,7 @@ import type {
     SonnetTuning,
     TiltTuning,
     VisualizerMode,
-} from '../../types';
+} from '../types';
 import type { VisualizerSharedProps } from './definition';
 
 // src/components/visualizer/tuningRegistry.ts

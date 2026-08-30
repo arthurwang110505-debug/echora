@@ -1,8 +1,8 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Line, SubtitleContentMode, Theme } from '../../types';
-import { resolveThemeFontWeight, resolveThemeTranslationFontStack } from '../../utils/fontStacks';
-import { resolveLyricAlternateText, resolveSubtitleContentMode } from '../../utils/lyrics/alternateText';
+import { Line, SubtitleContentMode, Theme } from '../types';
+import { resolveThemeFontWeight, resolveThemeTranslationFontStack } from '../utils/fontStacks';
+import { resolveLyricAlternateText, resolveSubtitleContentMode } from '../utils/lyrics/alternateText';
 import { colorWithAlpha } from './colorMix';
 
 // Some songs' lyric data carries pure marker/separator lines ("//", "●●●", dashes, stray slashes from

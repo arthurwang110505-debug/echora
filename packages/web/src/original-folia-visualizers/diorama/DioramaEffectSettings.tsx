@@ -1,6 +1,6 @@
 import React, { useId, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { type Theme } from '../../../types';
+import { type Theme } from '../../types';
 import { colorWithAlpha } from '../colorMix';
 import { DioramaSettingsToggle } from './DioramaSettingsToggle';
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { DEFAULT_SONNET_TUNING } from '../../../types';
+import { DEFAULT_SONNET_TUNING } from '../../types';
 import { defineVisualizer } from '../definition';
 import { lazyVisualizer } from '../lazyVisualizer';
 

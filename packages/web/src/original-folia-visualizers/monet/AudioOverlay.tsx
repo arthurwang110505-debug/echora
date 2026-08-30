@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import type { AudioBands, MonetAudioStyle, Theme } from '../../../types';
+import type { AudioBands, MonetAudioStyle, Theme } from '../../types';
 import { colorWithAlpha } from '../colorMix';
 
 // src/components/visualizer/monet/AudioOverlay.tsx

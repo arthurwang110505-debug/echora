@@ -1,5 +1,5 @@
-import type { Line, LyricBackgroundVocal, SubtitleContentMode, Word } from '../../types';
-import { resolveLyricAlternateText, resolveSubtitleContentMode } from '../../utils/lyrics/alternateText';
+import type { Line, LyricBackgroundVocal, SubtitleContentMode, Word } from '../types';
+import { resolveLyricAlternateText, resolveSubtitleContentMode } from '../utils/lyrics/alternateText';
 
 // src/components/visualizer/harmonyRuntime.ts
 // Builds the small discrete state used by the shared top harmony overlay.

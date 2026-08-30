@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { type MotionValue } from 'framer-motion';
 import * as THREE from 'three';
-import { type AudioBands, type DioramaGeometryVisibility, type Line, type Theme } from '../../../types';
-import { buildLineGraphemeTimeline, splitLyricGraphemes, type GraphemeTiming } from '../../../utils/lyrics/graphemeTiming';
-import { resolveThemeFontStack, resolveThemeFontWeight } from '../../../utils/fontStacks';
+import { type AudioBands, type DioramaGeometryVisibility, type Line, type Theme } from '../../types';
+import { buildLineGraphemeTimeline, splitLyricGraphemes, type GraphemeTiming } from '../../utils/lyrics/graphemeTiming';
+import { resolveThemeFontStack, resolveThemeFontWeight } from '../../utils/fontStacks';
 import { prepareDioramaKeywordMatchers, resolveDioramaKeywordUnitColors } from './dioramaKeywordColor';
 import {
     buildFormation,

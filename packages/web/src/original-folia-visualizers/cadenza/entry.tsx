@@ -1,5 +1,5 @@
 import React from 'react';
-import { DEFAULT_CADENZA_TUNING } from '../../../types';
+import { DEFAULT_CADENZA_TUNING } from '../../types';
 import { defineVisualizer, type VisualizerSharedProps } from '../definition';
 import { lazyVisualizer } from '../lazyVisualizer';
 

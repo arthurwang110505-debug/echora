@@ -1,16 +1,16 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, MotionValue, Variants, useMotionValueEvent } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { DEFAULT_PARTITA_TUNING, Line, Theme, Word as WordType, AudioBands, type PartitaTuning } from '../../../types';
-import { buildDisplayWordsFromLayoutUnits, buildPostLyricLayoutUnits, type LyricLayoutUnit } from '../../../utils/lyrics/cjkSemanticLayout';
-import { buildWordGraphemeTimings } from '../../../utils/lyrics/graphemeTiming';
-import { getLineRenderEndTime, getLineRenderHints } from '../../../utils/lyrics/renderHints';
+import { DEFAULT_PARTITA_TUNING, Line, Theme, Word as WordType, AudioBands, type PartitaTuning } from '../../types';
+import { buildDisplayWordsFromLayoutUnits, buildPostLyricLayoutUnits, type LyricLayoutUnit } from '../../utils/lyrics/cjkSemanticLayout';
+import { buildWordGraphemeTimings } from '../../utils/lyrics/graphemeTiming';
+import { getLineRenderEndTime, getLineRenderHints } from '../../utils/lyrics/renderHints';
 import { shouldPreheatLine, useVisualizerRuntime, type VisualizerPreheatWindow } from '../runtime';
 import { type VisualizerSharedProps } from '../definition';
 import VisualizerShell from '../VisualizerShell';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import { resolveWordColor } from '../wordColoring';
-import { resolveThemeFontWeight } from '../../../utils/fontStacks';
+import { resolveThemeFontWeight } from '../../utils/fontStacks';
 
 // This one is still word-driven, but unlike Classic it needs to pre-build a column/chunk structure first.
 // The flow is basically: ask runtime for the active line, optionally preheat the upcoming line,

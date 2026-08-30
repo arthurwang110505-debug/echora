@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { AnimatePresence, motion, MotionValue, useSpring, useTransform } from 'framer-motion';
 import * as LucideIcons from 'lucide-react';
-import { AudioBands, Theme } from '../../../../types';
+import { AudioBands, Theme } from '../../../types';
 
 // src/components/visualizer/backgrounds/common/GeometricBackground.tsx
 

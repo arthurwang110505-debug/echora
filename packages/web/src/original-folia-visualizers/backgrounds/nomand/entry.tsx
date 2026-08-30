@@ -1,5 +1,5 @@
 import React from 'react';
-import { DEFAULT_NOMAND_BACKGROUND_TUNING } from '../../../../types';
+import { DEFAULT_NOMAND_BACKGROUND_TUNING } from '../../../types';
 import NomandBackgroundLayer from './NomandBackgroundLayer';
 import NomandBackgroundSettingsCard from './NomandBackgroundSettingsCard';
 import { defineVisualizerBackground } from '../definition';

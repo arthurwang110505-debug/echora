@@ -1,5 +1,5 @@
-import type { Line } from '../../../types';
-import { buildLineGraphemeTimeline, splitLyricGraphemes } from '../../../utils/lyrics/graphemeTiming';
+import type { Line } from '../../types';
+import { buildLineGraphemeTimeline, splitLyricGraphemes } from '../../utils/lyrics/graphemeTiming';
 import type { SonnetSemanticSegment } from './types';
 
 // src/components/visualizer/sonnet/sonnetSemantic.ts

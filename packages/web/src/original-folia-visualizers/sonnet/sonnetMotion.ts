@@ -1,4 +1,4 @@
-import type { Theme } from '../../../types';
+import type { Theme } from '../../types';
 import type { SonnetShot, SonnetShotKind } from './types';
 import type { SonnetSegmentRole } from './sonnetTypographyLayout';
 

@@ -1,4 +1,4 @@
-import type { Theme } from '../../../types';
+import type { Theme } from '../../types';
 
 // src/components/visualizer/pendolo/pendoloMotionProfile.ts
 

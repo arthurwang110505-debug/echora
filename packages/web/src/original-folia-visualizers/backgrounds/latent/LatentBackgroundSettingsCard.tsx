@@ -4,7 +4,7 @@ import type {
     LatentBackgroundDisplayMode,
     LatentBackgroundTuning,
     Theme,
-} from '../../../../types';
+} from '../../../types';
 import { colorWithAlpha } from '../../colorMix';
 import BackgroundToggleRow from '../BackgroundToggleRow';
 

@@ -2,13 +2,13 @@ import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { motion, useSpring, useTransform } from 'framer-motion';
 import { Star, type LucideIcon } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
-import { DEFAULT_PENDOLO_TUNING } from '../../../types';
+import { DEFAULT_PENDOLO_TUNING } from '../../types';
 import { colorWithAlpha } from '../colorMix';
 import { type VisualizerSharedProps } from '../definition';
 import VisualizerShell from '../VisualizerShell';
 import PendoloClockworkCanvas from './PendoloClockworkCanvas';
-import { resolveThemeFontStack, resolveThemeFontWeight, resolveThemeTranslationFontStack } from '../../../utils/fontStacks';
-import { resolveSubtitleContentMode, resolveLyricAlternateText } from '../../../utils/lyrics/alternateText';
+import { resolveThemeFontStack, resolveThemeFontWeight, resolveThemeTranslationFontStack } from '../../utils/fontStacks';
+import { resolveSubtitleContentMode, resolveLyricAlternateText } from '../../utils/lyrics/alternateText';
 import { calculatePendoloWheelLayout } from './pendoloGeometry';
 import PendoloActiveLyricSweep from './PendoloActiveLyricSweep';
 import { buildPendoloTextLayout } from './pendoloTextLayout';

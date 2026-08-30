@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { DEFAULT_PENDOLO_TUNING, type PendoloTuning } from '../../../types';
+import { DEFAULT_PENDOLO_TUNING, type PendoloTuning } from '../../types';
 import { type VisualizerSettingsPanelProps } from '../definition';
 import VisualizerPresetGroup, { type VisualizerPresetOption } from '../VisualizerPresetGroup';
 

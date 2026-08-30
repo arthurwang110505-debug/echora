@@ -1,4 +1,4 @@
-import { normalizeFontWeight } from '../../../utils/fontStacks';
+import { normalizeFontWeight } from '../../utils/fontStacks';
 import type { SonnetSemanticSegment } from './types';
 
 // src/components/visualizer/sonnet/sonnetTypographyRoles.ts

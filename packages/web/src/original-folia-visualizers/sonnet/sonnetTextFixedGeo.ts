@@ -1,4 +1,4 @@
-import type { Theme } from '../../../types';
+import type { Theme } from '../../types';
 
 // src/components/visualizer/sonnet/sonnetTextFixedGeo.ts
 // Plans and draws deterministic fixed geometry that sits behind ordinary Sonnet text.

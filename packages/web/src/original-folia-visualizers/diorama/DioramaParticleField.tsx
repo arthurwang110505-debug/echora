@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { type MotionValue } from 'framer-motion';
 import * as THREE from 'three';
-import { type AudioBands, type DioramaGeometryMode } from '../../../types';
+import { type AudioBands, type DioramaGeometryMode } from '../../types';
 import { DIORAMA_STEP_DISTANCE, hashSeed, seededUnit } from './cameraPath';
 import { type DioramaParticleClusterAnchor } from './dioramaGeometry';
 import {

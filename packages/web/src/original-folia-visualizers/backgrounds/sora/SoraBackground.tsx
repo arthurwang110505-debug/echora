@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import * as twgl from 'twgl.js';
-import { Theme } from '../../../../types';
+import { Theme } from '../../../types';
 import { parseColorChannels } from '../../colorMix';
 
 // src/components/visualizer/backgrounds/sora/SoraBackground.tsx

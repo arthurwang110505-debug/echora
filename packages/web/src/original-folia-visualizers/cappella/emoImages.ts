@@ -1,4 +1,4 @@
-import type { CappellaEmojiImage } from '../../../types';
+import type { CappellaEmojiImage } from '../../types';
 
 // src/components/visualizer/cappella/emoImages.ts
 // Loads emoji images from the `emo` directory via Vite's import.meta.glob

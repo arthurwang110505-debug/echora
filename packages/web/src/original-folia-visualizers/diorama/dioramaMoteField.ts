@@ -4,7 +4,7 @@ import {
     DIORAMA_MOTE_RADIAL_MAX,
     DIORAMA_MOTE_RADIAL_MIN,
     DEFAULT_DIORAMA_TUNING,
-} from '../../../types';
+} from '../../types';
 import {
     composeLocal,
     DIORAMA_STEP_DISTANCE,

@@ -1,4 +1,4 @@
-import type { Theme } from '../../types';
+import type { Theme } from '../types';
 
 // src/components/visualizer/wordColoring.ts
 // Shared range-based keyword coloring helpers for visualizers that render timed lyric tokens.

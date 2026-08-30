@@ -3,7 +3,7 @@ import {
     DIORAMA_PARTICLE_DENSITY_MAX,
     DIORAMA_PARTICLE_DENSITY_MIN,
     DIORAMA_PARTICLE_DENSITY_STEP,
-} from '../../../types';
+} from '../../types';
 import {
     DIORAMA_PARTICLE_AUDIO_SCALE_MAX,
     DIORAMA_STEP_DISTANCE,

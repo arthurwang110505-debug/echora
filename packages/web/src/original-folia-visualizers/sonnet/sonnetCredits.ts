@@ -1,5 +1,5 @@
-import type { Theme } from '../../../types';
-import { resolveThemeFontStack, resolveThemeFontWeight } from '../../../utils/fontStacks';
+import type { Theme } from '../../types';
+import { resolveThemeFontStack, resolveThemeFontWeight } from '../../utils/fontStacks';
 import { clamp01, easeSonnetInOut } from './sonnetMotion';
 
 // src/components/visualizer/sonnet/sonnetCredits.ts

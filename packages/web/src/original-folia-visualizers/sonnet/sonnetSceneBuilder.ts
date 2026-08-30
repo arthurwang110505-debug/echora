@@ -1,5 +1,5 @@
-import type { SonnetTuning, Theme } from '../../../types';
-import { normalizeFontWeight, resolveThemeFontStack } from '../../../utils/fontStacks';
+import type { SonnetTuning, Theme } from '../../types';
+import { normalizeFontWeight, resolveThemeFontStack } from '../../utils/fontStacks';
 import type { SonnetParagraph, SonnetShot } from './types';
 import { hashSonnetSeed } from './sonnetRandom';
 import { buildSonnetShotMg } from './sonnetShotMg';

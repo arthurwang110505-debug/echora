@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Theme } from '../../../types';
+import type { Theme } from '../../types';
 import {
     buildWordColorRangesFromMatchers,
     prepareWordColorMatchers,

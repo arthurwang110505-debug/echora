@@ -8,7 +8,7 @@ import {
     DIORAMA_MOTE_RADIAL_MIN,
     DIORAMA_MOTE_RADIAL_STEP,
     type Theme,
-} from '../../../types';
+} from '../../types';
 import { colorWithAlpha } from '../colorMix';
 import { DioramaSettingsToggle } from './DioramaSettingsToggle';
 

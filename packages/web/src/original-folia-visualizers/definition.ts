@@ -20,7 +20,7 @@ import {
     type Theme,
     type TiltTuning,
     type VisualizerMode,
-} from '../../types';
+} from '../types';
 import type { VisualizerTuningBundle } from './tuningRegistry';
 import type { VisualizerBackgroundConfig } from './backgrounds/definition';
 

@@ -32,7 +32,7 @@
 // Kept free of Three.js objects so the math stays unit-testable; the R3F components consume these each
 // frame. All motion scales come from DioramaMotionParams (tuning + theme sub-modes).
 
-import { DEFAULT_DIORAMA_TUNING, type DioramaTuning, type Line, type Theme } from '../../../types';
+import { DEFAULT_DIORAMA_TUNING, type DioramaTuning, type Line, type Theme } from '../../types';
 
 /** Distance advanced along the path per lyric line. */
 export const DIORAMA_STEP_DISTANCE = 8;

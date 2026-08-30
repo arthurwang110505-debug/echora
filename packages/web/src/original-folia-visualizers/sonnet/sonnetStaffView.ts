@@ -1,4 +1,4 @@
-import type { Theme } from '../../../types';
+import type { Theme } from '../../types';
 import type { GlyphView } from './sonnetTextViewBuilder';
 import type { SonnetTypographyPlacement } from './sonnetTypographyLayout';
 import {
