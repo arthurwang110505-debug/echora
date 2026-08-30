@@ -34,7 +34,9 @@ const splitTranscriptText = (text: string, targetCount: number): string[] => {
     if (graphemes.length < 4) break;
     const midpoint = Math.floor(graphemes.length / 2);
     const whitespaceBoundary = candidate.slice(0, midpoint).lastIndexOf(' ');
-    const splitIndex = whitespaceBoundary > 0 ? whitespaceBoundary : midpoint;
+    // Never bisect CJK or a glued punctuation mark; wait for a real word or sentence boundary.
+    if (whitespaceBoundary <= 0) break;
+    const splitIndex = whitespaceBoundary;
     chunks.splice(largestIndex, 1, candidate.slice(0, splitIndex).trim(), candidate.slice(splitIndex).trim());
     chunks = chunks.filter(Boolean);
   }
@@ -45,13 +47,32 @@ const splitTranscriptText = (text: string, targetCount: number): string[] => {
  * Split coarse speech-to-text segments without inventing lyric text. The source segment's exact start/end
  * remains the outer boundary; only the interior is allocated by semantic chunk weight for smoother display.
  */
+const LEADING_PUNCTUATION = /^[\s。．.！？!?、，,；;：:）)】」』"']+/u;
+const ONLY_PUNCTUATION = /^[\s\p{P}\p{S}]+$/u;
+
+const attachLeadingPunctuation = (segments: readonly TranscriptSegment[]): TranscriptSegment[] => {
+  const next: TranscriptSegment[] = [];
+  for (const [start, end, raw] of segments) {
+    const text = raw.trim();
+    const leading = text.match(LEADING_PUNCTUATION)?.[0] || '';
+    const remainder = text.slice(leading.length).trim();
+    if (leading && next.length) {
+      const previous = next[next.length - 1];
+      next[next.length - 1] = [previous[0], previous[1], `${previous[2]}${leading}`];
+    }
+    if (!remainder || ONLY_PUNCTUATION.test(remainder)) continue;
+    next.push([start, end, remainder]);
+  }
+  return next;
+};
+
 export function refineTranscriptSegments(segments: readonly TranscriptSegment[]): TranscriptSegment[] {
-  return segments.flatMap(([start, end, text]) => {
+  return attachLeadingPunctuation(segments).flatMap(([start, end, text]) => {
     const safeStart = Number.isFinite(start) ? Math.max(0, start) : 0;
     const safeEnd = Number.isFinite(end) ? Math.max(safeStart, end) : safeStart;
     const duration = safeEnd - safeStart;
     const targetCount = Math.min(4, Math.max(1, Math.ceil(Math.max(getTimingWeight(text) / 18, duration / 5.5))));
-    const chunks = splitTranscriptText(text, targetCount);
+    const chunks = splitTranscriptText(text, targetCount).map(chunk => chunk.trim()).filter(chunk => chunk && !ONLY_PUNCTUATION.test(chunk));
     if (chunks.length <= 1) return [[safeStart, safeEnd, text.trim()] as TranscriptSegment];
 
     const totalWeight = chunks.reduce((total, chunk) => total + getTimingWeight(chunk), 0);
@@ -112,6 +133,7 @@ function createTranscribedLyrics(title: string, artist: string, segments: readon
     isWordByWord: true,
     lines: refineTranscriptSegments(segments).map(([start, end, text]) => createLine(start, end, text, splitTranscriptWords(text))),
     availability: 'available',
+    origin: 'demo-transcript',
   };
 }
 

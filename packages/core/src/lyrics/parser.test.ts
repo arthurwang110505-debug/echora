@@ -18,6 +18,14 @@ describe('LRC Parser', () => {
     expect(result[0].time).toBeCloseTo(1.23, 1);
   });
 
+  it('parses enhanced word timestamps', () => {
+    const result = parseLRC('[00:01.00]<00:01.00>Hello <00:01.40>world');
+    expect(result[0].text).toBe('Hello world');
+    expect(result[0].words?.map(word => word.text)).toEqual(['Hello ', 'world']);
+    expect(result[0].words?.[0].time).toBeCloseTo(1, 2);
+    expect(result[0].words?.[1].time).toBeCloseTo(1.4, 2);
+  });
+
   it('normalizes accidentally duplicated latin tokens and duplicate timestamps', () => {
     const result = parseLRC('[00:01.00]I\'mI\'m\n[00:01.00]I\'mI\'m\n[00:02.00]trynatryna');
 
@@ -42,6 +50,14 @@ describe('VTT Parser', () => {
     const vtt = 'WEBVTT\n\n00:00.000 --> 00:05.000\nFirst line\n\n00:05.000 --> 00:10.000\nSecond line';
     const result = parseVTT(vtt);
     expect(result).toHaveLength(2);
+  });
+
+  it('parses hour timestamps and skips cue identifiers', () => {
+    const vtt = 'WEBVTT\n\n1\n00:01:02.000 --> 00:01:05.000\nHour line';
+    const result = parseVTT(vtt);
+    expect(result).toHaveLength(1);
+    expect(result[0].time).toBeCloseTo(62, 1);
+    expect(result[0].text).toBe('Hour line');
   });
 });
 

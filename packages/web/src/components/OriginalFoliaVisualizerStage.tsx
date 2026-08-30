@@ -4,9 +4,12 @@ import {
   type ReactNode,
   useEffect,
   useMemo,
+  useRef,
 } from "react";
 import { useMotionValue } from "framer-motion";
 import type { Line, ThemeConfig } from "@echora/core";
+import { resolveStageAudioBands } from "../playback/audioBands";
+import { sampleLocalAudioBands } from "../playback/localAudioAnalyser";
 import OriginalVisualizerRenderer from "./OriginalVisualizerRendererProxy";
 
 type OriginalMode =
@@ -247,56 +250,46 @@ export default function OriginalFoliaVisualizerStage({
     [lines],
   );
   const originalTheme = useMemo(() => toOriginalTheme(theme), [theme]);
-
-  const bandLevels = useMemo(
-    () =>
-      audioBands ?? {
-        // YouTube's iframe exposes transport time, but not PCM/FFT data. Keep a
-        // deterministic musical pulse so the original visualizers still breathe
-        // while a local audio source can provide real analyser bands later.
-        bass: isPlaying ? 0.42 + Math.sin(displayedTime * 5.2) * 0.16 : 0.04,
-        lowMid: isPlaying
-          ? 0.34 + Math.sin(displayedTime * 3.1 + 1) * 0.12
-          : 0.03,
-        mid: isPlaying ? 0.28 + Math.sin(displayedTime * 2.2 + 2) * 0.1 : 0.03,
-        vocal: isPlaying
-          ? 0.38 + Math.sin(displayedTime * 4.0 + 0.5) * 0.14
-          : 0.03,
-        treble: isPlaying
-          ? 0.24 + Math.sin(displayedTime * 7.0 + 2.5) * 0.1
-          : 0.02,
-      },
-    [audioBands, safeDisplayedTime, isPlaying],
-  );
   const bands = useMemo(
     () => ({ bass, lowMid, mid, vocal, treble }),
     [bass, lowMid, mid, vocal, treble],
   );
+  const playingRef = useRef(isPlaying);
+  const timeRef = useRef(safeDisplayedTime);
+  const fallbackBandsRef = useRef(audioBands);
+  playingRef.current = isPlaying;
+  timeRef.current = safeDisplayedTime;
+  fallbackBandsRef.current = audioBands;
 
   useEffect(() => {
     const toMotionBandValue = (value: number) => {
       const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0;
       return Math.min(255, safeValue <= 1 ? safeValue * 255 : safeValue);
     };
-    bass.set(toMotionBandValue(bandLevels.bass));
-    lowMid.set(toMotionBandValue(bandLevels.lowMid));
-    mid.set(toMotionBandValue(bandLevels.mid));
-    vocal.set(toMotionBandValue(bandLevels.vocal));
-    treble.set(toMotionBandValue(bandLevels.treble));
-    currentTime.set(safeDisplayedTime);
-    audioPower.set(isPlaying ? 200 : 0);
-  }, [
-    audioPower,
-    bass,
-    bandLevels,
-    currentTime,
-    isPlaying,
-    lowMid,
-    mid,
-    safeDisplayedTime,
-    treble,
-    vocal,
-  ]);
+
+    let frame = 0;
+    const tick = () => {
+      const playing = playingRef.current;
+      const time = timeRef.current;
+      const levels = resolveStageAudioBands({
+        isPlaying: playing,
+        displayedTime: time,
+        liveBands: sampleLocalAudioBands(playing),
+        fallbackBands: fallbackBandsRef.current,
+      });
+      bass.set(toMotionBandValue(levels.bass));
+      lowMid.set(toMotionBandValue(levels.lowMid));
+      mid.set(toMotionBandValue(levels.mid));
+      vocal.set(toMotionBandValue(levels.vocal));
+      treble.set(toMotionBandValue(levels.treble));
+      currentTime.set(time);
+      audioPower.set(playing ? 70 + levels.bass * 150 + levels.mid * 40 : 0);
+      frame = window.requestAnimationFrame(tick);
+    };
+
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [audioPower, bass, currentTime, lowMid, mid, treble, vocal]);
 
   return (
     <div

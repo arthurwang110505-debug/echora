@@ -11,24 +11,47 @@ const normalizeRepeatedToken = (value: string) => {
   return trimmed;
 };
 
-// LRC parser - standard [mm:ss.xx] format
+const parseClock = (minutes: string, seconds: string, fraction?: string) => {
+  const msStr = (fraction || '0').padEnd(3, '0').slice(0, 3);
+  return parseInt(minutes, 10) * 60 + parseInt(seconds, 10) + parseInt(msStr, 10) / 1000;
+};
+
+const parseEnhancedWords = (body: string, lineTime: number): LyricWord[] | undefined => {
+  const wordRegex = /<(\d{2}):(\d{2})\.(\d{2,3})>([^<]*)/g;
+  const words: LyricWord[] = [];
+  let match;
+  while ((match = wordRegex.exec(body)) !== null) {
+    const text = match[4];
+    if (!text) continue;
+    words.push({
+      time: parseClock(match[1], match[2], match[3]),
+      text,
+    });
+  }
+  if (words.length === 0) return undefined;
+  for (let index = 0; index < words.length - 1; index += 1) {
+    words[index].end = words[index + 1].time;
+  }
+  if (words[0].time > lineTime + 0.01) {
+    words.unshift({ time: lineTime, text: '', end: words[0].time });
+  }
+  return words.filter(word => word.text);
+};
+
+// LRC parser - standard [mm:ss.xx] and enhanced <mm:ss.xx>word format
 export function parseLRC(raw: string): LyricLine[] {
   const lines: LyricLine[] = [];
-  const regex = /\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/g;
+  const regex = /\[(\d{1,2}):(\d{2})(?:\.(\d{2,3}))?\](.*)/g;
   let match;
 
   while ((match = regex.exec(raw)) !== null) {
-    const minutes = parseInt(match[1], 10);
-    const seconds = parseInt(match[2], 10);
-    const msStr = match[3].padEnd(3, '0');
-    const ms = parseInt(msStr, 10);
-    const text = normalizeRepeatedToken(match[4]);
+    const time = parseClock(match[1], match[2], match[3]);
+    const body = match[4] || '';
+    const words = parseEnhancedWords(body, time);
+    const text = normalizeRepeatedToken(body.replace(/<\d{1,2}:\d{2}\.\d{2,3}>/g, ''));
 
-    if (text) {
-      lines.push({
-        time: minutes * 60 + seconds + ms / 1000,
-        text,
-      });
+    if (text || words?.length) {
+      lines.push(words?.length ? { time, text, words } : { time, text });
     }
   }
 
@@ -113,27 +136,35 @@ export function parseVTT(raw: string): LyricLine[] {
     i++;
   }
 
-  // Parse timing blocks
+  const parseVttClock = (value: string) => {
+    const parts = value.trim().split(':');
+    if (parts.length === 3) {
+      return parseInt(parts[0], 10) * 3600 + parseInt(parts[1], 10) * 60 + parseFloat(parts[2]);
+    }
+    if (parts.length === 2) {
+      return parseInt(parts[0], 10) * 60 + parseFloat(parts[1]);
+    }
+    return parseFloat(parts[0] || '0');
+  };
+
+  // Parse timing blocks. Cue identifiers (1, intro, etc.) are skipped until a --> line.
   while (i < linesArr.length) {
     const timingLine = linesArr[i];
-    const timingMatch = timingLine.match(/(\d{2}):(\d{2})\.(\d{3}) --> (\d{2}):(\d{2})\.(\d{3})/);
+    const timingMatch = timingLine.match(/((?:\d{2}:)?\d{2}:\d{2}\.\d{3})\s*-->\s*((?:\d{2}:)?\d{2}:\d{2}\.\d{3})/);
 
     if (timingMatch) {
-      const startMin = parseInt(timingMatch[1], 10);
-      const startSec = parseInt(timingMatch[2], 10);
-      const startMs = parseInt(timingMatch[3], 10);
+      const startTime = parseVttClock(timingMatch[1]);
 
-      // Collect text lines until next timing or end
       i++;
       let text = '';
-      while (i < linesArr.length && !linesArr[i].includes('-->')) {
-        text += linesArr[i] + ' ';
+      while (i < linesArr.length && !linesArr[i].includes('-->') && linesArr[i].trim() !== '') {
+        if (!/^\d+$/.test(linesArr[i].trim())) text += linesArr[i] + ' ';
         i++;
       }
 
       if (text.trim()) {
         lines.push({
-          time: startMin * 60 + startSec + startMs / 1000,
+          time: startTime,
           text: text.trim(),
         });
       }

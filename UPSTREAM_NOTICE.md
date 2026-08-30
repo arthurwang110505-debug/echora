@@ -9,6 +9,5 @@ work. When this application is made available over a network, users must be
 offered the complete corresponding source code for the version being run.
 
 Upstream copyright and license notices are retained in the imported source.
-The complete upstream license text is available in the adjacent imported
-source at `../folia-major-main/folia-major-main/LICENSE` and must be included
-with every public distribution of Echora.
+The complete license text is available in [`LICENSE`](./LICENSE) and must be
+included with every public distribution of Echora.

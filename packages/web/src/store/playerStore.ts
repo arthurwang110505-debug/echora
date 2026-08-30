@@ -20,6 +20,8 @@ import { getBundledDemoLyrics } from './demoLyrics';
 import { LOCAL_DEMO_LYRICS, LOCAL_DEMO_SONGS } from './localDemoSongs';
 import { recordDiagnostic } from '../lib/diagnostics';
 import { isYouTubeVideo } from '../utils/youtubePlayback';
+import { IDLE_MEDIA_COMMAND, nextMediaCommand, type MediaCommand } from '../playback/mediaCommand';
+import { parseUploadedLyrics, readUploadedLyrics, writeUploadedLyrics } from '../playback/lyricsImport';
 
 const RECENT_SONGS_STORAGE_KEY = 'echora.recent-songs';
 const FAVORITE_SONGS_STORAGE_KEY = 'echora.favorite-songs';
@@ -93,6 +95,37 @@ const writePlaybackSnapshot = (state: PlayerState) => {
   }));
 };
 
+const SNAPSHOT_THROTTLE_MS = 2000;
+let snapshotTimer: ReturnType<typeof setTimeout> | null = null;
+let lastSnapshotAt = 0;
+
+const flushPlaybackSnapshot = (state: PlayerState) => {
+  lastSnapshotAt = Date.now();
+  writePlaybackSnapshot(state);
+  if (snapshotTimer) {
+    clearTimeout(snapshotTimer);
+    snapshotTimer = null;
+  }
+};
+
+const schedulePlaybackSnapshot = (state: PlayerState) => {
+  if (typeof window === 'undefined' || !state.currentSong) return;
+  if (!state.isPlaying || state.playbackState === 'paused' || state.playbackState === 'ended') {
+    flushPlaybackSnapshot(state);
+    return;
+  }
+  const wait = Math.max(0, SNAPSHOT_THROTTLE_MS - (Date.now() - lastSnapshotAt));
+  if (wait === 0) {
+    flushPlaybackSnapshot(state);
+    return;
+  }
+  if (snapshotTimer) return;
+  snapshotTimer = setTimeout(() => {
+    snapshotTimer = null;
+    schedulePlaybackSnapshot(usePlayerStore.getState());
+  }, wait);
+};
+
 const getYouTubeErrorMessage = (error: unknown, prefix = 'YouTube 連線失敗') => {
   const message = error instanceof Error ? error.message : String(error || '未知錯誤');
   return message.includes('401')
@@ -140,6 +173,8 @@ interface PlayerState {
   lastLibrarySyncAt: number | null;
   activeSource: 'spotify' | 'ytmusic' | 'local';
   localError: string | null;
+  localCommand: MediaCommand;
+  youtubeCommand: MediaCommand;
 
   // Actions
   play: (song: Song, playlist?: Song[]) => void;
@@ -170,6 +205,7 @@ interface PlayerState {
   disconnectSpotify: () => void;
   syncSpotifyPlayback: () => Promise<void>;
   fetchLyrics: (song: Song) => Promise<void>;
+  importLyricsText: (raw: string) => boolean;
   loadSourcePlaylists: () => Promise<void>;
   loadSpotifyPlaylist: (playlistId: string) => Promise<void>;
   loadYouTubePlaylist: (playlistId: string, options?: { autoplay?: boolean }) => Promise<void>;
@@ -212,6 +248,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   lastLibrarySyncAt: null,
   activeSource: 'local',
   localError: null,
+  localCommand: IDLE_MEDIA_COMMAND,
+  youtubeCommand: IDLE_MEDIA_COMMAND,
 
   play: (song, playlist) => {
     const { spotifyProvider, spotifyToken, currentSong } = get();
@@ -244,7 +282,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (song.source === 'spotify' && spotifyToken) void spotifyProvider.play(song.audioUrl || `spotify:track:${song.id}`);
     if (song.source === 'local') {
       recordDiagnostic('song_selected', { source: 'local' });
-      window.dispatchEvent(new CustomEvent('echora:local-load', { detail: { audioUrl: song.audioUrl, autoplay: true } }));
+      set({ localCommand: nextMediaCommand(get().localCommand, { action: 'load', url: song.audioUrl, autoplay: true }) });
       void get().fetchLyrics(song);
       return;
     }
@@ -255,14 +293,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       if (videoId) {
         if (song.audioUrl !== videoId) set({ currentSong: { ...song, audioUrl: videoId } });
         set({ youtubeError: null });
-        window.dispatchEvent(new CustomEvent('echora:youtube-load', { detail: { videoId, autoplay: true } }));
+        set({ youtubeCommand: nextMediaCommand(get().youtubeCommand, { action: 'load', url: videoId, autoplay: true }) });
       } else {
         set({ isPlaying: false, playbackState: 'loading', youtubeError: '正在查找可播放的 YouTube 影片…' });
         void get().ytProvider.searchTracks(`${song.title} ${artist}`).then(results => {
           const resolved = extractYouTubeVideoId(results[0]?.audioUrl || results[0]?.id);
           if (resolved) {
             set({ currentSong: { ...song, audioUrl: resolved }, isPlaying: false, playbackState: 'loading', youtubeError: null });
-            window.dispatchEvent(new CustomEvent('echora:youtube-load', { detail: { videoId: resolved, autoplay: true } }));
+            set({ youtubeCommand: nextMediaCommand(get().youtubeCommand, { action: 'load', url: resolved, autoplay: true }) });
           } else {
             set({ isPlaying: false, playbackState: 'error', youtubeError: '找不到可嵌入播放的 YouTube 影片。請改選你的私人歌單曲目，或稍後再試。' });
           }
@@ -281,8 +319,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     recordDiagnostic('pause_requested', { source: currentSong?.source || 'none' });
     if (currentSong?.source === 'spotify' && spotifyToken) void spotifyProvider.pause();
     set({ isPlaying: false, playbackState: 'paused' });
-    if (currentSong?.source === 'ytmusic') window.dispatchEvent(new CustomEvent('echora:youtube-pause'));
-    if (currentSong?.source === 'local') window.dispatchEvent(new CustomEvent('echora:local-pause'));
+    if (currentSong?.source === 'ytmusic') set({ youtubeCommand: nextMediaCommand(get().youtubeCommand, { action: 'pause' }) });
+    if (currentSong?.source === 'local') set({ localCommand: nextMediaCommand(get().localCommand, { action: 'pause' }) });
   },
 
   playPause: () => {
@@ -297,13 +335,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       if (currentSong?.source === 'spotify' && spotifyToken) void spotifyProvider.play(currentSong.audioUrl || `spotify:track:${currentSong.id}`);
       if (currentSong?.source === 'ytmusic') {
         recordDiagnostic('play_requested', { source: 'ytmusic' });
-        window.dispatchEvent(new CustomEvent('echora:youtube-play'));
+        set({ youtubeCommand: nextMediaCommand(get().youtubeCommand, { action: 'play' }) });
         set({ playbackState: 'loading' });
         return;
       }
       if (currentSong?.source === 'local') {
         recordDiagnostic('play_requested', { source: 'local' });
-        window.dispatchEvent(new CustomEvent('echora:local-play'));
+        set({ localCommand: nextMediaCommand(get().localCommand, { action: 'play' }) });
         set({ playbackState: 'loading', localError: null });
         return;
       }
@@ -343,8 +381,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   seek: (time) => {
     const { spotifyProvider, spotifyToken, currentSong } = get();
     if (spotifyToken) void spotifyProvider.seek(time * 1000);
-    if (currentSong?.source === 'ytmusic') window.dispatchEvent(new CustomEvent('echora:youtube-seek', { detail: time }));
-    if (currentSong?.source === 'local') window.dispatchEvent(new CustomEvent('echora:local-seek', { detail: { time } }));
+    if (currentSong?.source === 'ytmusic') set({ youtubeCommand: nextMediaCommand(get().youtubeCommand, { action: 'seek', time }) });
+    if (currentSong?.source === 'local') set({ localCommand: nextMediaCommand(get().localCommand, { action: 'seek', time }) });
     set({ currentTime: time });
   },
 
@@ -513,9 +551,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     // Check bundled demo lyrics first for an instant rich experience. The fallback
     // keeps lyrics when a restored/provider song has replaced the catalog id with
     // a canonical YouTube video id.
+    const uploaded = readUploadedLyrics(song);
+    if (uploaded?.lines?.length) {
+      if (get().currentSong?.id === requestedSongId) set({ currentLyrics: { ...uploaded, origin: 'upload', availability: 'available' }, isLoadingLyrics: false, lyricsStatus: 'available' });
+      return;
+    }
+
     const bundledLyrics = getBundledDemoLyrics(song);
     if (bundledLyrics) {
-      if (get().currentSong?.id === requestedSongId) set({ currentLyrics: { ...bundledLyrics, availability: 'available' }, isLoadingLyrics: false, lyricsStatus: 'available' });
+      if (get().currentSong?.id === requestedSongId) set({ currentLyrics: { ...bundledLyrics, origin: bundledLyrics.origin || 'bundled', availability: 'available' }, isLoadingLyrics: false, lyricsStatus: 'available' });
       return;
     }
 
@@ -542,7 +586,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       });
 
       const resolved = lyrics || { title: song.title, artist: artistName, isWordByWord: false, lines: [], availability: 'unavailable' as const };
-      if (get().currentSong?.id === requestedSongId) set({ currentLyrics: resolved, isLoadingLyrics: false, lyricsStatus: resolved.availability || 'available' });
+      if (get().currentSong?.id === requestedSongId) set({ currentLyrics: { ...resolved, origin: resolved.origin || 'lrclib' }, isLoadingLyrics: false, lyricsStatus: resolved.availability || 'available' });
     } catch {
       if (get().currentSong?.id === requestedSongId) set({ currentLyrics: { title: song.title, artist: artistName, isWordByWord: false, lines: [], availability: 'error' }, isLoadingLyrics: false, lyricsStatus: 'error' });
     }
@@ -595,6 +639,23 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ playlist: tracks, currentIndex: 0, selectedPlaylistId: playlistId, loadedPlaylistId: playlistId });
     if (tracks[0] && options.autoplay !== false) get().play(tracks[0], tracks);
   },
+
+  importLyricsText: (raw) => {
+    const song = get().currentSong;
+    if (!song) return false;
+    const artistName = typeof song.artists[0] === 'string' ? song.artists[0] : song.artists[0]?.name || 'Unknown';
+    const parsed = parseUploadedLyrics(raw, song.title, artistName);
+    if (!parsed?.lines.length) return false;
+    writeUploadedLyrics(song, parsed);
+    set({ currentLyrics: parsed, isLoadingLyrics: false, lyricsStatus: 'available' });
+    return true;
+  },
 }));
 
-usePlayerStore.subscribe(state => writePlaybackSnapshot(state));
+usePlayerStore.subscribe(state => schedulePlaybackSnapshot(state));
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushPlaybackSnapshot(usePlayerStore.getState());
+  });
+}

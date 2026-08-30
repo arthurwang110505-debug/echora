@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { DioramaTuning, SonnetTuning } from '../../types';
+import type { DioramaTuning, SonnetTuning } from '../types';
 
 export interface CompactStageViewportInput {
     width: number;

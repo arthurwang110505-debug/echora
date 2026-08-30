@@ -1,5 +1,7 @@
 import type { CSSProperties } from 'react';
 import { useMemo } from 'react';
+import { resolveStageAudioBands } from '../playback/audioBands';
+import { sampleLocalAudioBands } from '../playback/localAudioAnalyser';
 import { CoverImage } from './LoadingSkeletons';
 
 type SoundscapeTheme = {
@@ -34,12 +36,18 @@ export default function LyriclessSoundscapeStage({ coverUrl, songTitle, songArti
   const primary = theme.primaryColor || '#6366f1';
   const secondary = theme.secondaryColor || '#22d3ee';
   const background = theme.backgroundColor || '#07090e';
-  const pulse = isPlaying ? 0.72 + (Math.sin(displayedTime * 3.6) + 1) * 0.1 : 0.28;
+  const bands = resolveStageAudioBands({
+    isPlaying,
+    displayedTime,
+    liveBands: sampleLocalAudioBands(isPlaying),
+  });
+  const pulse = isPlaying ? 0.48 + bands.bass * 0.42 : 0.28;
 
   const bars = useMemo(() => Array.from({ length: 19 }, (_, index) => {
+    const mix = index % 3 === 0 ? bands.bass : index % 3 === 1 ? bands.mid : bands.treble;
     const wave = Math.abs(Math.sin(index * 0.78 + displayedTime * 2.4));
-    return Math.round((isPlaying ? 18 + wave * 46 : 12 + wave * 10));
-  }), [displayedTime, isPlaying]);
+    return Math.round(isPlaying ? 12 + mix * 54 + wave * 8 : 12);
+  }), [bands.bass, bands.mid, bands.treble, displayedTime, isPlaying]);
 
   const rootStyle = {
     '--soundscape-accent': accent,

@@ -5,7 +5,12 @@ import { resolve } from 'path';
 import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 
+const gitCommitSha = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || '';
+
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_GIT_COMMIT_SHA': JSON.stringify(gitCommitSha),
+  },
   plugins: [
     react(),
     VitePWA({
@@ -56,23 +61,37 @@ export default defineConfig({
         // does not download the whole application before first paint.
         globPatterns: [
           'registerSW.js',
+          'favicon.png',
           'echora-icon.svg',
+          'echora-icon-180.png',
           'echora-icon-192.png',
           'echora-icon-512.png',
           'echora-icon-maskable.png',
           'assets/index-*.{js,css}',
           'assets/AppHome-*.js',
           'assets/Welcome-*.js',
+          'covers/*.{svg,png,jpg,webp}',
         ],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/api\.echora\.example\.com\/.*/i,
-            handler: 'NetworkFirst',
+            urlPattern: /^https:\/\/files\.manuscdn\.com\/.*\.(mp3|m4a|ogg|wav)/i,
+            handler: 'CacheFirst',
             options: {
-              cacheName: 'api-cache',
+              cacheName: 'demo-audio-cache',
               expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24
+                maxEntries: 12,
+                maxAgeSeconds: 60 * 60 * 24 * 14
+              }
+            }
+          },
+          {
+            urlPattern: /\/covers\/.*\.(png|jpg|jpeg|svg|webp)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'demo-cover-cache',
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 60 * 24 * 30
               }
             }
           },
@@ -118,6 +137,7 @@ export default defineConfig({
     }
   },
   server: {
+    host: '0.0.0.0',
     port: 3000,
     // The Arena preview proxies the sandbox through *.e2b.app; allow those hosts.
     allowedHosts: true,

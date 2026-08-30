@@ -137,12 +137,15 @@ export interface LineRenderHints {
   animationIntensity?: number;
 }
 
+export type LyricOrigin = 'lrclib' | 'demo-transcript' | 'upload' | 'bundled';
+
 export interface LyricData {
   lines: Line[];
   title?: string;
   artist?: string;
   isWordByWord?: boolean;
   availability?: 'available' | 'instrumental' | 'unavailable' | 'error';
+  origin?: LyricOrigin;
 }
 
 export type LyricParseFormat = 'lrc' | 'enhanced-lrc' | 'yrc' | 'qrc' | 'krc' | 'vtt' | 'ttml';

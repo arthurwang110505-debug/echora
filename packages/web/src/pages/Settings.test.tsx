@@ -55,5 +55,7 @@ describe('Settings AI stage experience', () => {
     expect(markup).not.toContain('Agnes');
     expect(markup).not.toContain('本機診斷紀錄');
     expect(markup).toContain('v0.1.0');
+    expect(markup).toContain('原始碼');
+    expect(markup).toContain('隱私權說明');
   });
 });
