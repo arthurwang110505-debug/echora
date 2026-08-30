@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ClipboardList, Smartphone, Sparkles } from 'lucide-react';
 import BrandMark from '../BrandMark';
 
@@ -28,13 +29,14 @@ export default function PlayerHeader({
   onOpenConnect,
   onTogglePlaylist,
 }: PlayerHeaderProps) {
+  const { t } = useTranslation();
   const connected = activeSource === 'spotify' ? spotifyConnected : youtubeConnected;
   const sourceLabel = activeSource === 'spotify'
-    ? (spotifyConnected ? 'Spotify 已連線' : '我的音樂')
-    : (youtubeConnected ? 'YouTube 已連線' : '我的音樂');
+    ? (spotifyConnected ? t('player.spotifyConnected') : t('player.myMusic'))
+    : (youtubeConnected ? t('player.ytConnected') : t('player.myMusic'));
   const compactLabel = activeSource === 'spotify'
-    ? (spotifyConnected ? 'Spotify' : '音樂')
-    : (youtubeConnected ? 'YouTube' : '音樂');
+    ? (spotifyConnected ? 'Spotify' : t('player.music'))
+    : (youtubeConnected ? 'YouTube' : t('player.music'));
 
   return (
     <header className="relative z-20 flex flex-wrap items-center justify-between gap-3 px-3 py-3 glass-panel border-b border-white/[0.08] sm:px-5 sm:py-3.5 md:flex-nowrap md:gap-0 md:px-8">
@@ -42,8 +44,8 @@ export default function PlayerHeader({
         <button
           onClick={onBack}
           className="min-h-11 min-w-11 shrink-0 rounded-2xl bg-white/[0.05] p-2.5 text-white backdrop-blur-md btn-spring hover:bg-white/[0.12]"
-          title="返回主頁"
-          aria-label="返回主頁"
+          title={t('player.backHome')}
+          aria-label={t('player.backHome')}
         >
           <ArrowLeft aria-hidden="true" className="h-5 w-5" strokeWidth={2.5} />
         </button>
@@ -56,14 +58,14 @@ export default function PlayerHeader({
             onClick={onLeaveStage}
             className="min-h-11 min-w-0 flex-1 rounded-xl px-2 py-1.5 text-[11px] font-bold text-black shadow-md transition-all duration-200 btn-spring bg-gradient-to-r from-[#62f5c4] to-teal-400 sm:flex-none sm:px-4 sm:text-xs"
           >
-            <Smartphone aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />播放器
+            <Smartphone aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />{t('player.playerView')}
           </button>
           {!isYouTubeVideoMode && (
             <button
               onClick={onEnterStage}
               className="min-h-11 min-w-0 flex-1 rounded-xl px-2 py-1.5 text-[11px] font-bold text-slate-400 transition-all duration-200 btn-spring hover:text-white sm:flex-none sm:px-4 sm:text-xs"
             >
-              <Sparkles aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />進入 Stage
+              <Sparkles aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />{t('player.enterStage')}
             </button>
           )}
         </div>
@@ -85,12 +87,12 @@ export default function PlayerHeader({
                 ? 'border-white/20 bg-white/15 text-white shadow-sm'
                 : 'border-white/10 bg-white/[0.05] text-slate-400 hover:text-white'
             }`}
-            title={showPlaylistDrawer ? '關閉歌單' : '開啟歌單'}
-            aria-label={showPlaylistDrawer ? '關閉歌單' : '開啟歌單'}
+            title={showPlaylistDrawer ? t('player.closePlaylist') : t('player.openPlaylist')}
+            aria-label={showPlaylistDrawer ? t('player.closePlaylist') : t('player.openPlaylist')}
             aria-expanded={showPlaylistDrawer}
           >
             <ClipboardList aria-hidden="true" className="h-4 w-4" />
-            <span>歌單</span>
+            <span>{t('player.playlist')}</span>
           </button>
         )}
       </div>

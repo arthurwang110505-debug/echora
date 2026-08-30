@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { MotionConfig, motion, useScroll } from 'framer-motion';
 import { ArrowRight, Download, ListMusic, Mic2, MonitorSmartphone, Play, Radio, Sparkles } from 'lucide-react';
 import { LOCAL_DEMO_SONGS } from '../store/localDemoSongs';
@@ -18,21 +19,9 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const FEATURES = [
-  {
-    icon: Mic2,
-    title: '動態歌詞舞台',
-    description: '逐字同步的歌詞、AI 生成舞台配色與可調校的視覺模式，讓每一首歌都有專屬的呼吸舞台。',
-  },
-  {
-    icon: ListMusic,
-    title: '連接你的音樂',
-    description: '支援 YouTube Music 私人歌單與免登入本機展示曲目，選歌後立即上台。',
-  },
-  {
-    icon: MonitorSmartphone,
-    title: '手機、iPad、電腦都能裝',
-    description: '以 PWA 安裝到主畫面，之後每次開啟都直接進入歌單選擇，不需要先經過任何介紹頁。',
-  },
+  { icon: Mic2, title: 'welcome.featureStageTitle', description: 'welcome.featureStageDesc' },
+  { icon: ListMusic, title: 'welcome.featureMusicTitle', description: 'welcome.featureMusicDesc' },
+  { icon: MonitorSmartphone, title: 'welcome.featureInstallTitle', description: 'welcome.featureInstallDesc' },
 ] as const;
 
 const PREVIEW_SONGS = LOCAL_DEMO_SONGS.slice(0, 4);
@@ -42,12 +31,12 @@ const STAGE_MODES = ['Luminous', 'Fume', 'Monet', '镜台', '云阶', 'Pendolo',
 
 /** The big stage-demo section cycles these scenes in sync with the lyrics. */
 const DEMO_SCENES = [
-  { line: '燈光為這句歌詞亮起', mode: 'Luminous', bg: 'radial-gradient(120% 90% at 50% 110%, rgba(98,245,196,0.16), transparent 62%)', accent: 'rgba(98, 245, 196, 0.6)' },
-  { line: '每個字，都落在節拍上', mode: 'Fume', bg: 'radial-gradient(120% 90% at 50% 110%, rgba(129,140,248,0.18), transparent 62%)', accent: 'rgba(165, 180, 252, 0.62)' },
-  { line: '副歌一起，舞台開始呼吸', mode: 'Monet', bg: 'radial-gradient(120% 90% at 50% 110%, rgba(167,139,250,0.17), transparent 62%)', accent: 'rgba(196, 181, 253, 0.62)' },
+  { line: 'welcome.demoScene1Line', mode: 'Luminous', bg: 'radial-gradient(120% 90% at 50% 110%, rgba(98,245,196,0.16), transparent 62%)', accent: 'rgba(98, 245, 196, 0.6)' },
+  { line: 'welcome.demoScene2Line', mode: 'Fume', bg: 'radial-gradient(120% 90% at 50% 110%, rgba(129,140,248,0.18), transparent 62%)', accent: 'rgba(165, 180, 252, 0.62)' },
+  { line: 'welcome.demoScene3Line', mode: 'Monet', bg: 'radial-gradient(120% 90% at 50% 110%, rgba(167,139,250,0.17), transparent 62%)', accent: 'rgba(196, 181, 253, 0.62)' },
 ] as const;
 
-const HERO_KARAOKE_LINES = ['燈光為這一句亮起', '每個字都踩在節拍上', '整座舞台隨旋律呼吸'];
+const HERO_KARAOKE_LINES = ['welcome.heroKaraokeLine1', 'welcome.heroKaraokeLine2', 'welcome.heroKaraokeLine3'];
 
 /** Landing "開始體驗" target: the demo experience inside the app shell. */
 export const WELCOME_DEMO_TARGET = '/app?demo=1';
@@ -55,6 +44,7 @@ export const WELCOME_DEMO_TARGET = '/app?demo=1';
 export const WELCOME_APP_TARGET = '/app';
 
 export default function Welcome() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const { scrollYProgress } = useScroll();
@@ -102,7 +92,7 @@ export default function Welcome() {
               onClick={() => navigate(WELCOME_APP_TARGET)}
               className="min-h-11 rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-xs font-bold text-white transition hover:bg-white/10 active:scale-95 sm:text-sm"
             >
-              開啟播放器
+              {t('welcome.openPlayer')}
             </button>
           </div>
           {/* Reading progress: a thin stage-light bar riding the header edge. */}
@@ -131,20 +121,20 @@ export default function Welcome() {
                     <span className="stage-eq flex h-4 items-end gap-[3px]" aria-hidden="true">
                       <span className="equalizer-bar" /><span className="equalizer-bar" /><span className="equalizer-bar" /><span className="equalizer-bar" />
                     </span>
-                    免安裝、免登入，先聽再說
+                    {t('welcome.heroBadge')}
                   </span>
                 </Reveal>
 
                 <Reveal delay={0.08} y={22}>
                   <h1 className="max-w-2xl font-heading text-[2.2rem] font-black leading-[0.98] tracking-[-0.04em] text-white sm:text-5xl lg:text-7xl">
-                    讓每一首歌，<br />
-                    <span className="stage-headline-accent">都成為一座舞台。</span>
+                    {t('welcome.heroLine1')}<br />
+                    <span className="stage-headline-accent">{t('welcome.heroLine2')}</span>
                   </h1>
                 </Reveal>
 
                 <Reveal delay={0.16} y={20}>
                   <p className="mt-4 max-w-xl text-[13px] leading-6 text-slate-300/80 sm:mt-6 sm:text-base sm:leading-7">
-                    Echora 是一款沉浸式動態歌詞播放器：選一首展示曲目，立即體驗逐字歌詞、舞台視覺與播放控制。喜歡之後，再連接 YouTube Music 讀取自己的歌單。
+                    {t('welcome.heroParagraph')}
                   </p>
                 </Reveal>
 
@@ -154,7 +144,7 @@ export default function Welcome() {
                     <span className="flex shrink-0 items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-[#62f5c4]">
                       <Radio aria-hidden="true" className="h-3 w-3" /> PREVIEW
                     </span>
-                    <KaraokeLine lines={HERO_KARAOKE_LINES} className="min-w-0 truncate font-heading text-base font-bold sm:text-lg" wordMs={360} holdMs={1700} />
+                    <KaraokeLine lines={HERO_KARAOKE_LINES.map(line => t(line))} className="min-w-0 truncate font-heading text-base font-bold sm:text-lg" wordMs={360} holdMs={1700} />
                   </div>
                 </Reveal>
 
@@ -164,7 +154,7 @@ export default function Welcome() {
                       onClick={() => navigate(WELCOME_DEMO_TARGET)}
                       className="group inline-flex items-center rounded-xl bg-[#62f5c4] px-6 py-3.5 text-sm font-extrabold text-black shadow-[0_10px_35px_rgba(98,245,196,0.25)] transition-shadow hover:shadow-[0_14px_48px_rgba(98,245,196,0.4)] sm:text-base"
                     >
-                      開始體驗
+                      {t('welcome.startDemo')}
                       <ArrowRight aria-hidden="true" className="ml-2 inline-block h-4 w-4 align-[-3px] transition-transform duration-300 group-hover:translate-x-1" />
                     </MagneticButton>
                     {deferredPrompt && (
@@ -173,7 +163,7 @@ export default function Welcome() {
                         onClick={() => void handleInstall()}
                         className="rounded-xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-5 py-3 text-sm font-bold text-[#62f5c4] transition hover:bg-[#62f5c4]/20"
                       >
-                        <Download aria-hidden="true" className="mr-2 inline-block h-4 w-4 align-[-3px]" />加到主畫面
+                        <Download aria-hidden="true" className="mr-2 inline-block h-4 w-4 align-[-3px]" />{t('welcome.addToHome')}
                       </button>
                     )}
                   </div>
@@ -181,7 +171,7 @@ export default function Welcome() {
 
                 <Reveal delay={0.34} y={14}>
                   <p className="mt-4 text-[11px] leading-5 text-slate-500">
-                    「開始體驗」會帶你進入展示歌單；已經是回訪使用者？上方「開啟播放器」直接進入歌單選擇。
+                    {t('welcome.demoHint')}
                   </p>
                 </Reveal>
               </div>
@@ -195,7 +185,7 @@ export default function Welcome() {
                         <CoverImage src={PREVIEW_SONGS[0].coverUrl} alt="" wrapperClassName="h-[300px] w-full rounded-[32px]" className="h-full w-full rounded-[32px] object-cover opacity-90" />
                         <div className="absolute inset-x-7 bottom-7 rounded-2xl border border-white/15 bg-[#07090e]/75 p-3 backdrop-blur-xl">
                           <p className="text-xs font-bold text-white">{PREVIEW_SONGS[0].title}</p>
-                          <p className="mt-1 text-[10px] text-[#62f5c4]">{typeof PREVIEW_SONGS[0].artists[0] === 'string' ? PREVIEW_SONGS[0].artists[0] : PREVIEW_SONGS[0].artists[0]?.name} · 本機音檔展示</p>
+                          <p className="mt-1 text-[10px] text-[#62f5c4]">{typeof PREVIEW_SONGS[0].artists[0] === 'string' ? PREVIEW_SONGS[0].artists[0] : PREVIEW_SONGS[0].artists[0]?.name} · {t('welcome.localAudioLabel')}</p>
                         </div>
                       </>
                     )}
@@ -211,7 +201,7 @@ export default function Welcome() {
           </section>
 
           {/* ---------------- Stage modes marquee ---------------- */}
-          <section className="stage-marquee-mask mt-6 overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.025] py-3.5" aria-label="Echora 舞台視覺模式">
+          <section className="stage-marquee-mask mt-6 overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.025] py-3.5" aria-label={t('welcome.stageModesAria')}>
             <div className="stage-marquee flex w-max">
               {[0, 1].map(copy => (
                 <div key={copy} className="flex shrink-0 items-center" aria-hidden={copy === 1}>
@@ -249,7 +239,7 @@ export default function Welcome() {
                 </div>
 
                 <KaraokeLine
-                  lines={DEMO_SCENES.map(scene => scene.line)}
+                  lines={DEMO_SCENES.map(scene => t(scene.line))}
                   onLineChange={handleDemoSceneChange}
                   accent={activeScene.accent}
                   className="mt-8 max-w-3xl font-heading text-[1.7rem] font-black leading-snug tracking-tight sm:text-4xl sm:leading-snug lg:text-5xl"
@@ -261,7 +251,7 @@ export default function Welcome() {
                   {[0, 1, 2, 3, 4].map(index => <span key={index} className="beat-dot" />)}
                 </div>
                 <p className="mt-4 max-w-md text-[11px] leading-5 text-slate-500">
-                  實際播放時，燈光、歌詞與視覺模式會跟著音樂的節奏走——上面只是靜靜的預覽。
+                  {t('welcome.stagePreviewHint')}
                 </p>
               </div>
             </section>
@@ -269,15 +259,15 @@ export default function Welcome() {
 
           {/* ---------------- Flow strip ---------------- */}
           <Reveal className="mt-6" y={20}>
-            <section className="flex items-center justify-center gap-2 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-3 text-center text-[11px] font-bold tracking-wide text-slate-400 sm:text-xs" aria-label="Echora 使用流程">
-              <span className="text-white">選歌</span><span aria-hidden="true" className="text-[#62f5c4]">→</span>
-              <span>播放</span><span aria-hidden="true" className="text-[#62f5c4]">→</span>
+            <section className="flex items-center justify-center gap-2 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-3 text-center text-[11px] font-bold tracking-wide text-slate-400 sm:text-xs" aria-label={t('welcome.flowAria')}>
+              <span className="text-white">{t('welcome.flowPick')}</span><span aria-hidden="true" className="text-[#62f5c4]">→</span>
+              <span>{t('welcome.flowPlay')}</span><span aria-hidden="true" className="text-[#62f5c4]">→</span>
               <span className="text-[#b8ffe2]">Stage</span>
             </section>
           </Reveal>
 
           {/* ---------------- Features: tilt + spotlight cards ---------------- */}
-          <section className="mt-10 grid gap-4 sm:grid-cols-3" aria-label="Echora 功能特色">
+          <section className="mt-10 grid gap-4 sm:grid-cols-3" aria-label={t('welcome.featuresAria')}>
             {FEATURES.map((feature, index) => (
               <Reveal key={feature.title} delay={index * 0.09} y={30}>
                 <TiltCard className="h-full">
@@ -285,8 +275,8 @@ export default function Welcome() {
                     <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 text-[#62f5c4] transition-transform duration-300">
                       <feature.icon aria-hidden="true" className="h-5 w-5" />
                     </span>
-                    <h2 className="mt-4 font-heading text-lg font-extrabold text-white">{feature.title}</h2>
-                    <p className="mt-2 text-[13px] leading-6 text-slate-400">{feature.description}</p>
+                    <h2 className="mt-4 font-heading text-lg font-extrabold text-white">{t(feature.title)}</h2>
+                    <p className="mt-2 text-[13px] leading-6 text-slate-400">{t(feature.description)}</p>
                   </article>
                 </TiltCard>
               </Reveal>
@@ -300,14 +290,14 @@ export default function Welcome() {
                 <div className="stage-aurora stage-aurora-1 absolute left-1/2 top-full h-64 w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#62f5c4]/15" />
               </div>
               <span className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 text-[#62f5c4]"><Sparkles aria-hidden="true" className="h-5 w-5" /></span>
-              <h2 className="relative mt-4 font-heading text-2xl font-extrabold tracking-tight text-white sm:text-3xl">準備好上台了嗎？</h2>
-              <p className="relative mx-auto mt-2 max-w-md text-[13px] leading-6 text-slate-400">不需要帳號，五首免版稅展示曲目已經就位。安裝到主畫面後，Echora 會直接從歌單選擇開始。</p>
+              <h2 className="relative mt-4 font-heading text-2xl font-extrabold tracking-tight text-white sm:text-3xl">{t('welcome.readyTitle')}</h2>
+              <p className="relative mx-auto mt-2 max-w-md text-[13px] leading-6 text-slate-400">{t('welcome.readyParagraph')}</p>
               <div className="relative mt-6 flex flex-wrap items-center justify-center gap-3">
                 <MagneticButton
                   onClick={() => navigate(WELCOME_DEMO_TARGET)}
                   className="inline-flex items-center rounded-xl bg-[#62f5c4] px-6 py-3.5 text-sm font-extrabold text-black shadow-[0_10px_35px_rgba(98,245,196,0.25)] transition-shadow hover:shadow-[0_14px_48px_rgba(98,245,196,0.4)]"
                 >
-                  <Play aria-hidden="true" className="mr-2 inline-block h-4 w-4 align-[-3px]" />開始體驗
+                  <Play aria-hidden="true" className="mr-2 inline-block h-4 w-4 align-[-3px]" />{t('welcome.startDemo')}
                 </MagneticButton>
                 {deferredPrompt && (
                   <button
@@ -315,7 +305,7 @@ export default function Welcome() {
                     onClick={() => void handleInstall()}
                     className="rounded-xl border border-white/15 bg-white/[0.05] px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10"
                   >
-                    <Download aria-hidden="true" className="mr-2 inline-block h-4 w-4 align-[-3px]" />加到主畫面
+                    <Download aria-hidden="true" className="mr-2 inline-block h-4 w-4 align-[-3px]" />{t('welcome.addToHome')}
                   </button>
                 )}
               </div>
@@ -325,10 +315,10 @@ export default function Welcome() {
 
         <footer className="relative z-10 border-t border-white/[0.07] px-5 py-8 text-center sm:px-8">
           <p className="text-[11px] leading-5 text-slate-500">
-            Echora · AGPL-3.0 開源專案，視覺技術來自 <a href="https://github.com/chthollyphile/folia-major" target="_blank" rel="noreferrer" className="font-bold text-slate-400 underline decoration-white/20 underline-offset-2 transition hover:text-[#62f5c4]">folia-major</a>。
+            {t('welcome.footerAttribution')} <a href="https://github.com/chthollyphile/folia-major" target="_blank" rel="noreferrer" className="font-bold text-slate-400 underline decoration-white/20 underline-offset-2 transition hover:text-[#62f5c4]">folia-major</a>。
           </p>
           <button type="button" onClick={() => navigate(WELCOME_APP_TARGET)} className="mt-3 min-h-11 rounded-xl px-3 text-xs font-bold text-slate-400 transition hover:text-[#62f5c4]">
-            直接開啟播放器 →
+            {t('welcome.footerOpenPlayer')}
           </button>
         </footer>
       </div>

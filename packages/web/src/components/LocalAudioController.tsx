@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import i18n from '../i18n';
 import { attachLocalAudioAnalyser, detachLocalAudioAnalyser, resumeLocalAudioAnalyser } from '../playback/localAudioAnalyser';
 import { usePlayerStore } from '../store/playerStore';
 
@@ -58,7 +59,7 @@ export default function LocalAudioController() {
         store.setLocalPlaybackState('playing', true);
       }
     };
-    const onError = () => setError('本機音檔載入失敗，請稍後重試或選擇其他展示曲目。');
+    const onError = () => setError(i18n.t('player.localLoadFailed'));
 
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
     audio.addEventListener('timeupdate', onTimeUpdate);
@@ -98,7 +99,7 @@ export default function LocalAudioController() {
         if (playPromise && typeof playPromise.then === 'function') {
           void playPromise.then(() => {
             if (!audio.paused) usePlayerStore.getState().setLocalPlaybackState('playing', true);
-          }).catch(() => usePlayerStore.getState().setLocalPlaybackError('本機音檔無法播放，請確認瀏覽器允許播放或稍後再試。'));
+          }).catch(() => usePlayerStore.getState().setLocalPlaybackError(i18n.t('player.localPlayUnavailable')));
         } else if (!audio.paused) {
           usePlayerStore.getState().setLocalPlaybackState('playing', true);
         }
@@ -109,7 +110,7 @@ export default function LocalAudioController() {
     if (localCommand.action === 'load') {
       const audioUrl = localCommand.url || '';
       if (!audioUrl) {
-        usePlayerStore.getState().setLocalPlaybackError('這首展示曲目沒有可用的音檔。');
+        usePlayerStore.getState().setLocalPlaybackError(i18n.t('player.localNoAudioFile'));
         return;
       }
       if (audio.getAttribute('src') !== audioUrl) {

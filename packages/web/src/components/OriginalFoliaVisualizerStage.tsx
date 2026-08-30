@@ -8,6 +8,7 @@ import {
 } from "react";
 import { useMotionValue } from "framer-motion";
 import type { Line, ThemeConfig } from "@echora/core";
+import i18n from "../i18n";
 import { resolveStageAudioBands } from "../playback/audioBands";
 import { sampleLocalAudioBands } from "../playback/localAudioAnalyser";
 import OriginalVisualizerRenderer from "./OriginalVisualizerRendererProxy";
@@ -147,11 +148,10 @@ class SceneErrorBoundary extends Component<
         <div className="flex h-full items-center justify-center bg-[#07090e] p-6 text-center text-sm text-slate-300">
           <div className="max-w-sm space-y-3">
             <p className="font-semibold text-white">
-              {this.props.mode} 舞台暫時無法載入
+              {i18n.t('player.sceneLoadFailed', { mode: this.props.mode })}
             </p>
             <p className="text-xs leading-5 text-slate-400">
-              已保留目前舞台選擇，不會未經同意切回
-              Classic。你可以重試，或手動選擇 Classic。
+              {i18n.t('player.sceneFallbackCopy')}
             </p>
             <div className="flex justify-center gap-2">
               <button
@@ -162,7 +162,7 @@ class SceneErrorBoundary extends Component<
                 }}
                 className="rounded-xl border border-[#62f5c4]/30 bg-[#62f5c4]/10 px-3 py-2 text-xs font-bold text-[#b8ffe2] hover:bg-[#62f5c4]/20"
               >
-                重試 {this.props.mode}
+                {i18n.t('player.retryScene', { mode: this.props.mode })}
               </button>
               {this.props.mode !== "classic" && (
                 <button
@@ -170,7 +170,7 @@ class SceneErrorBoundary extends Component<
                   onClick={this.props.onFallback}
                   className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/15"
                 >
-                  切換到 Classic
+                  {i18n.t('player.switchToClassic')}
                 </button>
               )}
             </div>

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePlayer } from '../contexts/PlayerContext';
 import { extractYouTubeVideoId } from '@echora/core';
 import { recordDiagnostic } from '../lib/diagnostics';
@@ -16,6 +17,7 @@ export function getYouTubeVideoSurfaceClass() {
 }
 
 export default function YouTubePlayer({ immersive = false, concealed = false, videoMode = false }: { immersive?: boolean; concealed?: boolean; videoMode?: boolean }) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
@@ -60,13 +62,13 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
           onError: (event: any) => {
             recordDiagnostic('youtube_error', { code: Number(event.data) || 0 });
             const messages: Record<number, string> = {
-              2: 'YouTube 拒絕了這支影片的播放參數。',
-              5: '此影片無法由 HTML5 播放器播放。',
-              100: '此影片已不存在或設為私人。',
-              101: '影片擁有者禁止在其他網站嵌入播放。',
-              150: '影片擁有者禁止在其他網站嵌入播放。',
+              2: t('player.ytErrorInvalidParams'),
+              5: t('player.ytErrorHtml5'),
+              100: t('player.ytErrorUnavailable'),
+              101: t('player.ytErrorEmbedDisabled'),
+              150: t('player.ytErrorEmbedDisabled'),
             };
-            usePlayer.setState({ isPlaying: false, playbackState: 'error', youtubeError: messages[event.data] || 'YouTube 無法播放此影片。' });
+            usePlayer.setState({ isPlaying: false, playbackState: 'error', youtubeError: messages[event.data] || t('player.ytErrorGeneric') });
           },
         },
       });
@@ -101,7 +103,7 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
     if (youtubeCommand.action === 'load') {
       const videoId = extractYouTubeVideoId(youtubeCommand.url);
       if (!videoId) {
-        usePlayer.setState({ isPlaying: false, playbackState: 'error', youtubeError: '缺少有效的 YouTube video ID。' });
+        usePlayer.setState({ isPlaying: false, playbackState: 'error', youtubeError: t('player.ytErrorNoVideoId') });
         return;
       }
       if (!disposedRef.current && typeof playerRef.current?.loadVideoById === 'function') playerRef.current.loadVideoById(videoId);
@@ -140,14 +142,14 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
   // Keep its native play surface visible until the user starts audio so browsers can preserve the gesture.
   const awaitingUserGesture = currentSong?.source === 'ytmusic' && !isPlaying;
   const playerMessage = youtubeError
-    || (playbackState === 'buffering' ? 'YouTube 正在緩衝，請稍候。' : '請按 YouTube 原生播放鍵以啟動音訊；若瀏覽器要求驗證，請在 YouTube 播放器內完成。');
+    || (playbackState === 'buffering' ? t('player.ytBuffering') : t('player.ytGestureHint'));
   const visibleSurfaceClass = videoMode ? getYouTubeVideoSurfaceClass() : getYouTubeSurfaceClass(immersive);
   const surfaceClass = concealed
     ? `${visibleSurfaceClass} pointer-events-none opacity-0`
     : awaitingUserGesture || videoMode
       ? visibleSurfaceClass
       : 'pointer-events-none fixed -left-[10000px] top-0 h-[200px] w-[356px] overflow-hidden';
-  return <div className={surfaceClass} aria-hidden={concealed || (!awaitingUserGesture && !videoMode)} aria-label={concealed ? undefined : 'YouTube 原生播放器'}>
+  return <div className={surfaceClass} aria-hidden={concealed || (!awaitingUserGesture && !videoMode)} aria-label={concealed ? undefined : t('player.ytNativePlayer')}>
     {awaitingUserGesture && !concealed &&         <div role={youtubeError ? 'alert' : 'status'} className={`${immersive && !youtubeError ? 'sr-only' : 'pointer-events-none absolute inset-x-0 top-0 z-10 px-3 py-2 text-center text-xs font-semibold'} ${youtubeError ? 'bg-rose-950/90 text-rose-100' : 'bg-black/70 text-white'}`}>{playerMessage}</div>}
 
     <div ref={containerRef} className={videoMode ? 'h-full w-full aspect-video' : undefined} />

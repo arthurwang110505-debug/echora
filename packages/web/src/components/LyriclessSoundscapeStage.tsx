@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { resolveStageAudioBands } from '../playback/audioBands';
 import { sampleLocalAudioBands } from '../playback/localAudioAnalyser';
 import { CoverImage } from './LoadingSkeletons';
@@ -32,6 +33,7 @@ const PARTICLES = [
 ];
 
 export default function LyriclessSoundscapeStage({ coverUrl, songTitle, songArtist, displayedTime, isPlaying, theme }: Props) {
+  const { t } = useTranslation();
   const accent = theme.accentColor || '#62f5c4';
   const primary = theme.primaryColor || '#6366f1';
   const secondary = theme.secondaryColor || '#22d3ee';
@@ -58,7 +60,7 @@ export default function LyriclessSoundscapeStage({ coverUrl, songTitle, songArti
   } as CSSProperties;
 
   return (
-    <section className="soundscape-stage" style={rootStyle} aria-label={`${songTitle} 無歌詞聲景舞台`}>
+    <section className="soundscape-stage" style={rootStyle} aria-label={t('player.soundscapeStageAria', { title: songTitle })}>
       <div className="soundscape-backdrop" aria-hidden="true">
         {coverUrl && <img src={coverUrl} alt="" className="soundscape-backdrop-art" />}
         <div className="soundscape-wash" />
@@ -77,24 +79,24 @@ export default function LyriclessSoundscapeStage({ coverUrl, songTitle, songArti
       </div>
 
       <div className="soundscape-content">
-        <div className="soundscape-kicker"><span className="soundscape-kicker-dot" /> Echora Soundscape <span className="soundscape-kicker-divider" /> 無同步歌詞</div>
+        <div className="soundscape-kicker"><span className="soundscape-kicker-dot" /> Echora Soundscape <span className="soundscape-kicker-divider" /> {t('player.soundscapeNoLyrics')}</div>
         <div className={`soundscape-artwork-shell ${isPlaying ? 'soundscape-is-playing' : 'soundscape-is-paused'}`}>
           <div className="soundscape-orbit soundscape-orbit-outer" aria-hidden="true" />
           <div className="soundscape-orbit soundscape-orbit-inner" aria-hidden="true" />
           <div className="soundscape-artwork-frame">
-            {coverUrl ? <CoverImage src={coverUrl} alt={`${songTitle} 封面`} wrapperClassName="echora-soundscape-artwork-media" className="soundscape-artwork" /> : <div className="soundscape-artwork-fallback">E</div>}
+            {coverUrl ? <CoverImage src={coverUrl} alt={t('player.coverAlt', { title: songTitle })} wrapperClassName="echora-soundscape-artwork-media" className="soundscape-artwork" /> : <div className="soundscape-artwork-fallback">E</div>}
             <div className="soundscape-artwork-shine" aria-hidden="true" />
           </div>
         </div>
         <div className="soundscape-copy">
-          <p className="soundscape-eyebrow">純音樂 · 背景音樂 · 讓畫面跟著聲音呼吸</p>
+          <p className="soundscape-eyebrow">{t('player.soundscapeEyebrow')}</p>
           <h2>{songTitle}</h2>
           <p>{songArtist}</p>
         </div>
-        <div className="soundscape-waveform" aria-label={isPlaying ? '聲景脈動中' : '聲景已暫停'} role="img">
+        <div className="soundscape-waveform" aria-label={isPlaying ? t('player.soundscapePulsing') : t('player.soundscapePaused')} role="img">
           {bars.map((height, index) => <span key={index} style={{ height: `${height}px`, animationDelay: `${index * -0.08}s` }} />)}
         </div>
-        <p className="soundscape-status">{isPlaying ? '正在播放，光影會隨音樂緩慢流動' : '按下播放，讓聲景舞台開始呼吸'}</p>
+        <p className="soundscape-status">{isPlaying ? t('player.soundscapePlaying') : t('player.soundscapePrompt')}</p>
       </div>
     </section>
   );

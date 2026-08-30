@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowRight, Check, LayoutGrid, Library, Orbit, Play, Search, Settings2, X } from 'lucide-react';
 import { usePlayer } from '../contexts/PlayerContext';
 import { type Song } from '@echora/core';
@@ -52,11 +53,12 @@ const FEATURED_SONGS: Song[] = [
 ];
 
 const sources = [
-  { id: 'ytmusic' as const, label: 'YouTube Music', dot: 'bg-[#ff3d57]' },
-  { id: 'local' as const, label: '本機展示', dot: 'bg-amber-300' },
+  { id: 'ytmusic' as const, labelKey: 'appHome.ytSource', dot: 'bg-[#ff3d57]' },
+  { id: 'local' as const, labelKey: 'appHome.localSource', dot: 'bg-amber-300' },
 ];
 
 export default function AppHome() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const {
@@ -190,12 +192,12 @@ export default function AppHome() {
   };
 
   const syncCopy = youtubeConnectionState === 'syncing' || isSyncingLibrary
-    ? '歌單同步中…'
+    ? t('appHome.syncingLibrary')
     : youtubeConnectionState === 'expired'
-      ? '授權已過期，請重新登入'
+      ? t('appHome.authExpired')
       : lastLibrarySyncAt
-        ? `已同步 ${userPlaylists.length} 個歌單`
-        : '尚未同步歌單';
+        ? t('appHome.syncedPlaylists', { count: userPlaylists.length })
+        : t('appHome.notSynced');
   const selectedPlaylist = userPlaylists.find(item => item.id === selectedPlaylistId);
   // Auxiliary restore hint (localStorage): if the visitor played a demo song
   // before, offer to continue it instead of restarting from the first track.
@@ -207,13 +209,13 @@ export default function AppHome() {
   // landing page: no marketing headline, just context + the next action).
   const consoleCopy = activeSource === 'ytmusic'
     ? youtubeConnected
-      ? { eyebrow: '你的 YouTube Music', description: selectedPlaylist ? `目前顯示「${selectedPlaylist.name}」；選一首歌後，使用 YouTube 原生播放與同步歌詞舞台。` : '你的私人歌單正在同步；完成後會直接出現在下方 3D 輪播。', primary: currentSong ? '返回播放舞台' : '開啟我的音樂庫', secondary: '同步我的音樂庫' }
-      : { eyebrow: '先體驗 Echora 舞台', description: '先用展示曲目體驗動態歌詞、視覺舞台與播放控制；喜歡後再連接 YouTube Music 讀取私人歌單。', primary: '立即播放展示曲目', secondary: '播放自己的音樂' }
+      ? { eyebrow: t('appHome.yourYtMusic'), description: selectedPlaylist ? t('appHome.consoleYtPlaying', { name: selectedPlaylist.name }) : t('appHome.consoleYtSyncing'), primary: currentSong ? t('appHome.backToStage') : t('appHome.openMyLibrary'), secondary: t('appHome.syncMyLibrary') }
+      : { eyebrow: t('appHome.tryStageFirst'), description: t('appHome.consoleYtConnect'), primary: t('appHome.playDemoNow'), secondary: t('appHome.playMyMusic') }
     : activeSource === 'spotify'
-      ? { eyebrow: 'Spotify 尚未啟用', description: '目前尚未設定 Spotify 開發者權限，因此不能登入或播放；這不是播放故障。', primary: '先體驗展示舞台', secondary: '查看連線方式' }
-      : lastLocalDemoSong && !currentSong
-        ? { eyebrow: 'Echora 本機展示', description: `上次聽到「${lastLocalDemoSong.title}」；可以從上次曲目繼續，或直接在下方換一首展示歌曲。`, primary: '繼續上次的展示曲目', secondary: '播放自己的音樂' }
-        : { eyebrow: 'Echora 本機展示', description: '五首免版稅本機音檔已準備好；不需登入或依賴 YouTube Music，就能先體驗真實播放、舞台視覺與播放控制。', primary: '立即播放展示曲目', secondary: '播放自己的音樂' };
+      ? { eyebrow: t('appHome.spotifyDisabled'), description: t('appHome.consoleSpotifyDisabled'), primary: t('appHome.tryShowcaseStage'), secondary: t('appHome.viewConnectGuide') }
+      : lastLocalDemoSong
+        ? { eyebrow: t('appHome.localShowcase'), description: t('appHome.consoleLocalContinue', { title: lastLocalDemoSong.title }), primary: t('appHome.continueLast'), secondary: t('appHome.playMyMusic') }
+        : { eyebrow: t('appHome.localShowcase'), description: t('appHome.consoleLocalDefault'), primary: t('appHome.playDemoNow'), secondary: t('appHome.playMyMusic') };
 
   const handleHeroPrimary = () => {
     if (currentSong) { navigate('/player'); return; }
@@ -272,30 +274,30 @@ export default function AppHome() {
             </span>
           </button>
 
-          <nav className="hidden items-center gap-1 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-1 md:flex" aria-label="主要導覽">
-            <button type="button" className="rounded-xl bg-white/[0.09] px-4 py-2 text-xs font-bold text-white">探索</button>
-            <button type="button" onClick={() => navigate('/library')} className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-400 transition hover:text-white">我的音樂</button>
-            <button type="button" onClick={() => navigate('/settings')} className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-400 transition hover:text-white">設定</button>
+          <nav className="hidden items-center gap-1 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-1 md:flex" aria-label={t('appHome.navAria')}>
+            <button type="button" className="rounded-xl bg-white/[0.09] px-4 py-2 text-xs font-bold text-white">{t('appHome.navExplore')}</button>
+            <button type="button" onClick={() => navigate('/library')} className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-400 transition hover:text-white">{t('appHome.navMyMusic')}</button>
+            <button type="button" onClick={() => navigate('/settings')} className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-400 transition hover:text-white">{t('appHome.navSettings')}</button>
           </nav>
 
           <div className="flex items-center gap-2">
-            {youtubeConnected && youtubeProfile && <div className="hidden items-center gap-2 rounded-full border border-[#ff3d57]/30 bg-[#ff3d57]/10 px-2 py-1 sm:flex"><span className="relative"><img src={youtubeProfile.avatarUrl} alt="YouTube 頭像" className="h-7 w-7 rounded-full object-cover" /><span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 animate-pulse rounded-full bg-emerald-400 ring-2 ring-[#111720]" /></span><span className="max-w-24 truncate text-[11px] font-bold text-white">{youtubeProfile.name}</span></div>}
-            {deferredPrompt && <button type="button" onClick={handleInstall} className="hidden rounded-xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-3 py-2 text-xs font-bold text-[#62f5c4] transition hover:bg-[#62f5c4]/20 sm:block">加到主畫面</button>}
-            <button type="button" onClick={() => navigate('/library')} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-slate-300 transition hover:border-[#62f5c4]/40 hover:bg-[#62f5c4]/10 hover:text-[#62f5c4] active:scale-95 md:hidden" aria-label="我的音樂庫">
+            {youtubeConnected && youtubeProfile && <div className="hidden items-center gap-2 rounded-full border border-[#ff3d57]/30 bg-[#ff3d57]/10 px-2 py-1 sm:flex"><span className="relative"><img src={youtubeProfile.avatarUrl} alt={t('appHome.ytAvatarAlt')} className="h-7 w-7 rounded-full object-cover" /><span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 animate-pulse rounded-full bg-emerald-400 ring-2 ring-[#111720]" /></span><span className="max-w-24 truncate text-[11px] font-bold text-white">{youtubeProfile.name}</span></div>}
+            {deferredPrompt && <button type="button" onClick={handleInstall} className="hidden rounded-xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-3 py-2 text-xs font-bold text-[#62f5c4] transition hover:bg-[#62f5c4]/20 sm:block">{t('appHome.addToHome')}</button>}
+            <button type="button" onClick={() => navigate('/library')} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-slate-300 transition hover:border-[#62f5c4]/40 hover:bg-[#62f5c4]/10 hover:text-[#62f5c4] active:scale-95 md:hidden" aria-label={t('appHome.myLibraryAria')}>
               <Library aria-hidden="true" className="h-4 w-4" />
             </button>
-            <button type="button" onClick={() => navigate('/settings')} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-slate-400 transition hover:border-white/20 hover:text-white active:scale-90" aria-label="設定"><Settings2 aria-hidden="true" className="h-4 w-4" /></button>
+            <button type="button" onClick={() => navigate('/settings')} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-slate-400 transition hover:border-white/20 hover:text-white active:scale-90" aria-label={t('appHome.navSettings')}><Settings2 aria-hidden="true" className="h-4 w-4" /></button>
           </div>
         </div>
       </header>
 
       {connectionNotice && <div role="status" aria-live="polite" className="fixed right-5 top-24 z-50 flex items-center gap-3 rounded-2xl border border-emerald-400/30 bg-[#111720]/95 px-4 py-3 text-sm font-bold text-white shadow-2xl backdrop-blur-xl"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400/20 text-emerald-300"><Check aria-hidden="true" className="h-4 w-4" /></span>
-<span>YouTube Music 已連線，歌單正在載入</span></div>}
+<span>{t('appHome.ytConnectedNotice')}</span></div>}
 
       <main className="relative z-10 mx-auto max-w-[1440px] space-y-7 px-5 pb-[calc(6.75rem+env(safe-area-inset-bottom))] pt-5 sm:space-y-10 sm:px-8 sm:pb-32 sm:pt-7 lg:px-12 lg:pt-12">
         {/* Compact playback console: context + next action, no landing hero.
             (The marketing narrative lives on the landing page only.) */}
-        <section aria-label="播放控制台" className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 shadow-xl backdrop-blur-xl sm:p-5">
+        <section aria-label={t('appHome.consoleAria')} className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 shadow-xl backdrop-blur-xl sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
               <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#62f5c4]/80">
@@ -309,16 +311,16 @@ export default function AppHome() {
                 <ArrowRight aria-hidden="true" className="ml-1.5 inline-block h-4 w-4 align-[-3px]" />
               </button>
               <button type="button" onClick={handleHeroSecondary} className="hidden min-h-11 items-center rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-white/10 active:scale-95 sm:inline-flex">{consoleCopy.secondary}</button>
-              <a href="#explore-library" className="inline-flex min-h-11 items-center rounded-xl px-2 py-2 text-xs font-bold text-slate-300 transition hover:text-[#62f5c4] sm:hidden">瀏覽展示歌曲 <span aria-hidden="true" className="ml-1">↓</span></a>
+              <a href="#explore-library" className="inline-flex min-h-11 items-center rounded-xl px-2 py-2 text-xs font-bold text-slate-300 transition hover:text-[#62f5c4] sm:hidden">{t('appHome.browseShowcase')} <span aria-hidden="true" className="ml-1">↓</span></a>
             </div>
           </div>
 
           {currentSong && (
-            <button type="button" onClick={() => navigate('/player')} className="group mt-4 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 text-left transition hover:border-[#62f5c4]/35 hover:bg-white/[0.06]" aria-label={`返回播放舞台：目前播放 ${currentSong.title}`}>
+            <button type="button" onClick={() => navigate('/player')} className="group mt-4 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 text-left transition hover:border-[#62f5c4]/35 hover:bg-white/[0.06]" aria-label={t('appHome.backToStageAria', { title: currentSong.title })}>
               <CoverImage src={currentSong.coverUrl} alt="" wrapperClassName="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/10" className="h-full w-full object-cover" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13px] font-extrabold text-white transition-colors group-hover:text-[#62f5c4]">{currentSong.title}</span>
-                <span className="mt-0.5 block truncate text-[11px] text-slate-400">{typeof currentSong.artists[0] === 'string' ? currentSong.artists[0] : currentSong.artists[0]?.name || '未知歌手'} · 播放中</span>
+                <span className="mt-0.5 block truncate text-[11px] text-slate-400">{typeof currentSong.artists[0] === 'string' ? currentSong.artists[0] : currentSong.artists[0]?.name || t('appHome.unknownArtist')} · {t('appHome.nowPlaying')}</span>
               </span>
               <span className="mr-1 flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-[#62f5c4] shadow-[0_0_8px_#62f5c4]" aria-hidden="true" />
               <Play aria-hidden="true" className="h-4 w-4 shrink-0 text-[#62f5c4]" fill="currentColor" />
@@ -329,19 +331,19 @@ export default function AppHome() {
         <section id="explore-library" className="space-y-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[#62f5c4]/80">音樂庫</p>
-              <h2 className="font-heading text-2xl font-extrabold tracking-tight text-white sm:text-3xl">探索你的音樂</h2>
+              <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[#62f5c4]/80">{t('appHome.libraryEyebrow')}</p>
+              <h2 className="font-heading text-2xl font-extrabold tracking-tight text-white sm:text-3xl">{t('appHome.exploreHeading')}</h2>
             </div>
 
             <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-end">
               {/* Music source switcher */}
-              <div className="space-y-1"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">你的音樂</p><div className="flex w-full rounded-2xl border border-white/[0.1] bg-white/[0.04] p-1 backdrop-blur-md sm:w-fit" role="group" aria-label="音樂來源">
-                {[...sources, ...(spotifyAvailable ? [{ id: 'spotify' as const, label: 'Spotify', dot: 'bg-[#1ed760]' }] : [])].map(source => (
+              <div className="space-y-1"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{t('appHome.yourMusic')}</p><div className="flex w-full rounded-2xl border border-white/[0.1] bg-white/[0.04] p-1 backdrop-blur-md sm:w-fit" role="group" aria-label={t('appHome.sourceGroupAria')}>
+                {[...sources, ...(spotifyAvailable ? [{ id: 'spotify' as const, labelKey: 'appHome.spotifySource', dot: 'bg-[#1ed760]' }] : [])].map(source => (
                   <button
                     type="button"
                     key={source.id}
                     onClick={() => changeSource(source.id)}
-                    aria-label={`切換來源至 ${source.label}`}
+                    aria-label={t('appHome.switchSourceAria', { label: t(source.labelKey) })}
                     aria-pressed={activeSource === source.id}
                     className={`flex min-h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-all duration-200 btn-spring sm:flex-none sm:px-3.5 ${
                       activeSource === source.id
@@ -350,17 +352,17 @@ export default function AppHome() {
                     }`}
                   >
                     <span className={`h-2 w-2 rounded-full ${source.dot}`} />
-                    {source.label}
+                    {t(source.labelKey)}
                   </button>
                 ))}
               </div></div>
 
               {/* 3D Carousel vs Grid Toggle */}
-              <div className="space-y-1"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">瀏覽方式</p><div className="flex rounded-2xl border border-white/10 bg-white/[0.04] p-1 backdrop-blur-md" role="group" aria-label="瀏覽方式">
+              <div className="space-y-1"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{t('appHome.viewMode')}</p><div className="flex rounded-2xl border border-white/10 bg-white/[0.04] p-1 backdrop-blur-md" role="group" aria-label={t('appHome.viewMode')}>
                 <button
                   type="button"
                   onClick={() => requestViewMode('3d')}
-                  aria-label="以 3D 輪播瀏覽"
+                  aria-label={t('appHome.view3dAria')}
                   aria-pressed={songViewMode === '3d'}
                   className={`min-h-11 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
                     songViewMode === '3d'
@@ -368,12 +370,12 @@ export default function AppHome() {
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <Orbit aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />3D 輪播
+                  <Orbit aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />{t('appHome.view3d')}
                 </button>
                 <button
                   type="button"
                   onClick={() => requestViewMode('grid')}
-                  aria-label="以網格列表瀏覽"
+                  aria-label={t('appHome.viewGridAria')}
                   aria-pressed={songViewMode === 'grid'}
                   className={`min-h-11 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
                     songViewMode === 'grid'
@@ -381,7 +383,7 @@ export default function AppHome() {
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <LayoutGrid aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />網格列表
+                  <LayoutGrid aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-[-3px]" />{t('appHome.viewGrid')}
                 </button>
               </div></div>
 
@@ -391,8 +393,8 @@ export default function AppHome() {
                   value={searchQuery}
                   onChange={event => setSearchQuery(event.target.value)}
                   className="w-full bg-transparent text-xs text-white outline-none placeholder:text-slate-500"
-                  placeholder="搜尋歌曲、歌手..."
-                  aria-label="搜尋歌曲、歌手或專輯"
+                  placeholder={t('appHome.searchPlaceholder')}
+                  aria-label={t('appHome.searchAria')}
                 />
               </label>
             </div>
@@ -400,11 +402,11 @@ export default function AppHome() {
 
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-slate-300" aria-live="polite">
-              {activeSource === 'ytmusic' ? (youtubeConnected ? (selectedPlaylist ? `你的歌單 · ${selectedPlaylist.name}` : '你的 YouTube Music 歌單') : 'YouTube Music 示範歌曲') : activeSource === 'local' ? 'Echora 本機展示曲目' : 'Spotify 歌曲'} <span className="ml-1 text-slate-500">{filteredSongs.length.toString().padStart(2, '0')}</span>
+              {activeSource === 'ytmusic' ? (youtubeConnected ? (selectedPlaylist ? t('appHome.yourPlaylist', { name: selectedPlaylist.name }) : t('appHome.yourYtPlaylists')) : t('appHome.ytDemoSongs')) : activeSource === 'local' ? t('appHome.localDemoTracks') : t('appHome.spotifySongs')} <span className="ml-1 text-slate-500">{filteredSongs.length.toString().padStart(2, '0')}</span>
             </p>
             {searchQuery && (
-              <button type="button" onClick={() => setSearchQuery('')} aria-label="清除歌曲篩選" className="min-h-11 min-w-24 rounded-xl px-3 text-xs font-bold text-slate-400 transition hover:bg-white/[0.05] hover:text-[#62f5c4]">
-                清除篩選
+              <button type="button" onClick={() => setSearchQuery('')} aria-label={t('appHome.clearFilterAria')} className="min-h-11 min-w-24 rounded-xl px-3 text-xs font-bold text-slate-400 transition hover:bg-white/[0.05] hover:text-[#62f5c4]">
+                {t('appHome.clearFilter')}
               </button>
             )}
           </div>
@@ -435,9 +437,9 @@ export default function AppHome() {
             )
           ) : (
             <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.025] px-6 py-16 text-center">
-              <p className="text-sm font-bold text-slate-300">{searchQuery ? '找不到符合的歌曲' : activeSource === 'local' ? '展示音檔暫時無法載入' : '這個來源目前還沒有歌曲'}</p>
-              <p className="mt-2 text-xs text-slate-500">{searchQuery ? '可清除篩選、改用其他關鍵字，或從你的音樂庫選取已同步歌單。' : activeSource === 'local' ? '請重新整理頁面；若問題持續，稍後再試或連接 YouTube Music。' : activeSource === 'ytmusic' && youtubeConnected ? (isSyncingLibrary ? '歌單同步完成後，歌曲會出現在這裡。' : '可到我的音樂庫選擇其他歌單，或重新同步目前帳戶。') : '連接音樂服務後，內容會出現在這裡。'}</p>
-              {youtubeConnected && <button type="button" onClick={() => navigate('/library')} className="mt-4 rounded-xl border border-[#62f5c4]/25 px-4 py-2 text-xs font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/10">前往我的音樂庫</button>}
+              <p className="text-sm font-bold text-slate-300">{searchQuery ? t('appHome.noResults') : activeSource === 'local' ? t('appHome.localUnavailable') : t('appHome.sourceEmpty')}</p>
+              <p className="mt-2 text-xs text-slate-500">{searchQuery ? t('appHome.noResultsHint') : activeSource === 'local' ? t('appHome.localUnavailableHint') : activeSource === 'ytmusic' && youtubeConnected ? (isSyncingLibrary ? t('appHome.syncingHint') : t('appHome.ytEmptyHint')) : t('appHome.connectHint')}</p>
+              {youtubeConnected && <button type="button" onClick={() => navigate('/library')} className="mt-4 rounded-xl border border-[#62f5c4]/25 px-4 py-2 text-xs font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/10">{t('appHome.goToLibrary')}</button>}
             </div>
           )}
         </section>
@@ -451,43 +453,43 @@ export default function AppHome() {
             <div className="mb-6 flex items-start justify-between">
               <div>
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#62f5c4]">Music connection</p>
-                <h2 id="connect-title" className="font-heading text-2xl font-extrabold text-white">連接你的音樂</h2>
+                <h2 id="connect-title" className="font-heading text-2xl font-extrabold text-white">{t('appHome.connectTitle')}</h2>
               </div>
-              <button type="button" onClick={() => setShowConnectModal(false)} className="text-slate-400 transition hover:text-white" aria-label="關閉"><X aria-hidden="true" className="h-5 w-5" /></button>
+              <button type="button" onClick={() => setShowConnectModal(false)} className="text-slate-400 transition hover:text-white" aria-label={t('appHome.close')}><X aria-hidden="true" className="h-5 w-5" /></button>
             </div>
-            <p id="connect-description" className="text-sm leading-6 text-slate-300">選擇音樂來源後，使用官方 OAuth 登入；Echora 不會看到你的密碼。按 Escape 可關閉此視窗。</p>
+            <p id="connect-description" className="text-sm leading-6 text-slate-300">{t('appHome.connectDescription')}</p>
             {spotifyError && (
               <p className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs leading-5 text-rose-200">
-                {spotifyError}<br />請先在 Spotify Developer Dashboard 設定 Redirect URI。
+                {spotifyError}<br />{t('appHome.spotifyRedirectHint')}
               </p>
             )}
             {youtubeError && <p className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs leading-5 text-rose-200">{youtubeError}</p>}
-            {activeSource === 'ytmusic' && youtubeConnected && <div className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-xs text-emerald-100"><p className="font-bold">已連線 {youtubeProfile?.name || 'YouTube'} · {syncCopy}</p><p className="mt-1 text-emerald-100/75">歌單會與「我的音樂庫」及播放器共用。</p>{libraryError ? <p className="mt-2 text-rose-200">{libraryError}</p> : null}<div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => void loadSourcePlaylists()} disabled={isSyncingLibrary} className="rounded-lg border border-emerald-200/25 px-3 py-1.5 font-bold transition hover:bg-emerald-300/10 disabled:opacity-60">{isSyncingLibrary ? '同步中…' : '重新同步'}</button><button type="button" onClick={() => { setShowConnectModal(false); navigate('/library'); }} className="rounded-lg border border-emerald-200/25 px-3 py-1.5 font-bold transition hover:bg-emerald-300/10">開啟我的音樂庫</button></div></div>}
+            {activeSource === 'ytmusic' && youtubeConnected && <div className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-xs text-emerald-100"><p className="font-bold">{t('appHome.connectedYt', { name: youtubeProfile?.name || 'YouTube', sync: syncCopy })}</p><p className="mt-1 text-emerald-100/75">{t('appHome.playlistsShared')}</p>{libraryError ? <p className="mt-2 text-rose-200">{libraryError}</p> : null}<div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => void loadSourcePlaylists()} disabled={isSyncingLibrary} className="rounded-lg border border-emerald-200/25 px-3 py-1.5 font-bold transition hover:bg-emerald-300/10 disabled:opacity-60">{isSyncingLibrary ? t('appHome.syncing') : t('appHome.resync')}</button><button type="button" onClick={() => { setShowConnectModal(false); navigate('/library'); }} className="rounded-lg border border-emerald-200/25 px-3 py-1.5 font-bold transition hover:bg-emerald-300/10">{t('appHome.openLibrary')}</button></div></div>}
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => changeSource('ytmusic')} className={`min-h-16 rounded-xl border px-4 py-3 text-left text-xs font-bold transition ${activeSource === 'ytmusic' ? 'border-[#ff3d57]/60 bg-[#ff3d57]/10 text-white' : 'border-white/10 bg-white/[0.03] text-slate-400'}`}>
                 <span className="block text-sm text-[#ff7180]">YouTube Music</span>
-                <span className="mt-1 block font-normal text-slate-500">讀取你的私人歌單</span>
+                <span className="mt-1 block font-normal text-slate-500">{t('appHome.readPrivatePlaylists')}</span>
               </button>
               {spotifyAvailable ? (
               <button type="button" onClick={() => changeSource('spotify')} className={`min-h-16 rounded-xl border px-4 py-3 text-left text-xs font-bold transition ${activeSource === 'spotify' ? 'border-[#1ed760]/60 bg-[#1ed760]/10 text-white' : 'border-white/10 bg-white/[0.03] text-slate-400'}`}>
                 <span className="block text-sm text-[#1ed760]">Spotify</span>
-                <span className="mt-1 block font-normal text-slate-500">同步 Spotify 歌單</span>
+                <span className="mt-1 block font-normal text-slate-500">{t('appHome.syncSpotify')}</span>
               </button>
               ) : null}
             </div>
             <div className="mt-6 flex justify-end gap-2">
-              <button type="button" onClick={() => setShowConnectModal(false)} className="rounded-xl px-4 py-2.5 text-xs font-bold text-slate-400 transition hover:bg-white/5 hover:text-white">稍後</button>
+              <button type="button" onClick={() => setShowConnectModal(false)} className="rounded-xl px-4 py-2.5 text-xs font-bold text-slate-400 transition hover:bg-white/5 hover:text-white">{t('appHome.later')}</button>
               {(!spotifyAvailable || activeSource !== 'spotify') ? (youtubeConnected ? (
                 <div className="flex flex-wrap justify-end gap-2">
-                  <button type="button" onClick={() => void switchYouTubeAccount()} className="rounded-xl border border-[#ff7180]/35 bg-[#ff3d57]/10 px-4 py-2.5 text-xs font-extrabold text-[#ffb0b8] transition hover:bg-[#ff3d57]/20">切換帳號</button>
-                  <button type="button" onClick={() => { disconnectYouTube(); setShowConnectModal(false); }} className="rounded-xl border border-rose-400/25 px-4 py-2.5 text-xs font-extrabold text-rose-200 transition hover:bg-rose-400/10">登出 YouTube</button>
+                  <button type="button" onClick={() => void switchYouTubeAccount()} className="rounded-xl border border-[#ff7180]/35 bg-[#ff3d57]/10 px-4 py-2.5 text-xs font-extrabold text-[#ffb0b8] transition hover:bg-[#ff3d57]/20">{t('appHome.switchAccount')}</button>
+                  <button type="button" onClick={() => { disconnectYouTube(); setShowConnectModal(false); }} className="rounded-xl border border-rose-400/25 px-4 py-2.5 text-xs font-extrabold text-rose-200 transition hover:bg-rose-400/10">{t('appHome.signOutYouTube')}</button>
                 </div>
               ) : (
-                <button type="button" onClick={() => void connectYouTube()} className="rounded-xl bg-[#ff3d57] px-5 py-2.5 text-xs font-extrabold text-white transition hover:brightness-110 active:scale-95">使用 Google 登入 YouTube</button>
+                <button type="button" onClick={() => void connectYouTube()} className="rounded-xl bg-[#ff3d57] px-5 py-2.5 text-xs font-extrabold text-white transition hover:brightness-110 active:scale-95">{t('appHome.signInYouTube')}</button>
               )) : spotifyConnected ? (
-                <button type="button" onClick={() => { disconnectSpotify(); setShowConnectModal(false); }} className="rounded-xl border border-rose-400/25 px-5 py-2.5 text-xs font-extrabold text-rose-200 transition hover:bg-rose-400/10">解除連線</button>
+                <button type="button" onClick={() => { disconnectSpotify(); setShowConnectModal(false); }} className="rounded-xl border border-rose-400/25 px-5 py-2.5 text-xs font-extrabold text-rose-200 transition hover:bg-rose-400/10">{t('appHome.disconnect')}</button>
               ) : (
-                <button type="button" onClick={() => void connectSpotify()} className="rounded-xl bg-[#62f5c4] px-5 py-2.5 text-xs font-extrabold text-black transition hover:brightness-110 active:scale-95">使用 Spotify 登入</button>
+                <button type="button" onClick={() => void connectSpotify()} className="rounded-xl bg-[#62f5c4] px-5 py-2.5 text-xs font-extrabold text-black transition hover:brightness-110 active:scale-95">{t('appHome.signInSpotify')}</button>
               )}
             </div>
           </div>
@@ -498,14 +500,15 @@ export default function AppHome() {
 }
 
 function SongCard({ song, selected, onPlay }: { song: Song; selected: boolean; onPlay: () => void }) {
-  const artist = typeof song.artists[0] === 'string' ? song.artists[0] : song.artists[0]?.name || 'Unknown artist';
+  const { t } = useTranslation();
+  const artist = typeof song.artists[0] === 'string' ? song.artists[0] : song.artists[0]?.name || t('appHome.unknownArtist');
   return (
-    <button type="button" onClick={onPlay} aria-label={`播放 ${song.title}，${artist}`} aria-current={selected ? 'true' : undefined} className={`group block min-w-0 rounded-3xl text-left outline-none transition-transform duration-200 focus-visible:ring-2 focus-visible:ring-[#62f5c4] focus-visible:ring-offset-2 focus-visible:ring-offset-[#07090e] active:scale-[0.98] ${selected ? 'ring-2 ring-[#62f5c4]/70' : ''}`}>
+    <button type="button" onClick={onPlay} aria-label={t('appHome.playAria', { title: song.title, artist })} aria-current={selected ? 'true' : undefined} className={`group block min-w-0 rounded-3xl text-left outline-none transition-transform duration-200 focus-visible:ring-2 focus-visible:ring-[#62f5c4] focus-visible:ring-offset-2 focus-visible:ring-offset-[#07090e] active:scale-[0.98] ${selected ? 'ring-2 ring-[#62f5c4]/70' : ''}`}>
       <div className={`relative aspect-square overflow-hidden rounded-3xl border bg-white/[0.055] shadow-xl transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_18px_45px_rgba(0,0,0,0.35)] ${selected ? 'border-[#62f5c4]/55' : 'border-white/[0.15] group-hover:border-[#62f5c4]/45'}`}>
-        <CoverImage src={song.coverUrl} alt={`${song.title} 封面`} loading="lazy" wrapperClassName="h-full w-full" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        <CoverImage src={song.coverUrl} alt={t('appHome.coverAlt', { title: song.title })} loading="lazy" wrapperClassName="h-full w-full" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-black/10 opacity-70" />
         <span className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/35 px-2 py-1 text-[8px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
-          {song.source === 'ytmusic' ? 'YT MUSIC' : song.source === 'local' ? '本機音檔' : 'SPOTIFY'}
+          {song.source === 'ytmusic' ? 'YT MUSIC' : song.source === 'local' ? t('appHome.localBadge') : 'SPOTIFY'}
         </span>
         <span className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-[#62f5c4] text-black opacity-95 shadow-lg transition-all duration-300 sm:h-10 sm:w-10 sm:translate-y-2 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
           <Play aria-hidden="true" className="h-4 w-4" fill="currentColor" />

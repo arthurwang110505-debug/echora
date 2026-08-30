@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Play, ChevronLeft, ChevronRight } from 'lucide-react';
 import { type Song } from '@echora/core';
@@ -31,6 +32,7 @@ const CarouselItem: React.FC<CarouselItemProps> = ({
   onSelect,
   onFocus,
 }) => {
+  const { t } = useTranslation();
   const blurTarget = isActive ? 0 : 1.5;
   const blurMotion = useMotionValue(blurTarget);
   const blurString = useTransform(blurMotion, (value) => {
@@ -54,7 +56,7 @@ const CarouselItem: React.FC<CarouselItemProps> = ({
       initial={false}
               role="button"
         tabIndex={isActive ? 0 : -1}
-        aria-label={`${item.title}，${isActive ? '目前選取，按 Enter 播放' : '按 Enter 選取'}`}
+        aria-label={t('appHome.carouselItemAria', { title: item.title, state: isActive ? t('appHome.carouselSelected') : t('appHome.carouselUnselected') })}
         aria-current={isActive ? 'true' : undefined}
         aria-describedby={isActive ? 'carousel-selection-hint' : undefined}
 
@@ -98,7 +100,7 @@ const CarouselItem: React.FC<CarouselItemProps> = ({
         <div className={`absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10 transition-opacity ${isActive ? 'opacity-45' : 'opacity-35 group-hover:opacity-25'}`} />
 
         <span className="absolute top-3 left-3 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-black/40 backdrop-blur-md text-white border border-white/10">
-          {item.source === 'ytmusic' ? 'YT MUSIC' : item.source === 'local' ? '本機音檔' : 'SPOTIFY'}
+          {item.source === 'ytmusic' ? 'YT MUSIC' : item.source === 'local' ? t('appHome.localBadge') : 'SPOTIFY'}
         </span>
 
         {isActive && (
@@ -127,6 +129,7 @@ export const Carousel3D: React.FC<Carousel3DProps> = ({
   initialFocusedIndex = 0,
   onFocusedIndexChange,
 }) => {
+  const { t } = useTranslation();
   const [focusedIndex, setFocusedIndex] = useState(initialFocusedIndex);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(800);
@@ -196,7 +199,7 @@ export const Carousel3D: React.FC<Carousel3DProps> = ({
         className="relative w-full flex flex-col items-center justify-center py-6 select-none overflow-hidden"
         style={{ perspective: 1100 }}
         role="group"
-        aria-label="3D 歌曲輪播"
+        aria-label={t('appHome.carouselAria')}
         aria-roledescription="carousel"
       >
 
@@ -207,7 +210,7 @@ export const Carousel3D: React.FC<Carousel3DProps> = ({
           onClick={prevCover}
           disabled={focusedIndex === 0}
           className="min-h-11 min-w-11 rounded-full p-3 bg-black/40 border border-white/10 text-white backdrop-blur-xl pointer-events-auto hover:bg-white/20 disabled:opacity-20 disabled:cursor-not-allowed transition-all active:scale-90"
-          aria-label="前一張專輯"
+          aria-label={t('appHome.prevCover')}
         >
           <ChevronLeft size={22} />
         </button>
@@ -216,7 +219,7 @@ export const Carousel3D: React.FC<Carousel3DProps> = ({
           onClick={nextCover}
           disabled={focusedIndex === items.length - 1}
           className="min-h-11 min-w-11 rounded-full p-3 bg-black/40 border border-white/10 text-white backdrop-blur-xl pointer-events-auto hover:bg-white/20 disabled:opacity-20 disabled:cursor-not-allowed transition-all active:scale-90"
-          aria-label="後一張專輯"
+          aria-label={t('appHome.nextCover')}
         >
           <ChevronRight size={22} />
         </button>
@@ -261,7 +264,7 @@ export const Carousel3D: React.FC<Carousel3DProps> = ({
         })}
       </div>
 
-      <p id="carousel-selection-hint" className="sr-only" aria-live="polite">目前選取第 {focusedIndex + 1} 首，共 {items.length} 首；按 Enter 播放，方向鍵切換歌曲。</p>
+      <p id="carousel-selection-hint" className="sr-only" aria-live="polite">{t('appHome.carouselHint', { current: focusedIndex + 1, total: items.length })}</p>
 
       {/* Focused Song Details with AnimatePresence */}
       <AnimatePresence mode="wait">
@@ -286,7 +289,7 @@ export const Carousel3D: React.FC<Carousel3DProps> = ({
                 onClick={() => onSelect(currentSong)}
                 className="min-h-11 px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#62f5c4] to-teal-400 text-black text-xs font-black shadow-[0_0_20px_rgba(98,245,196,0.35)] hover:brightness-110 active:scale-95 transition-all"
               >
-                立即播放舞台 <ArrowRight aria-hidden="true" className="ml-1.5 inline-block h-3.5 w-3.5 align-[-2px]" />
+                {t('appHome.playStageNow')} <ArrowRight aria-hidden="true" className="ml-1.5 inline-block h-3.5 w-3.5 align-[-2px]" />
               </button>
             </div>
           </motion.div>
