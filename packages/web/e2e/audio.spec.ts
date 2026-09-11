@@ -11,6 +11,9 @@ const startFirstDemoSong = async (page: import('@playwright/test').Page) => {
   await page.getByRole('button', { name: '以網格列表瀏覽' }).click();
   await page.getByRole('button', { name: /^播放 / }).first().click();
   await expect(page).toHaveURL(/\/player/);
+  // /player is a lazy route: the page (and its keyboard shortcuts) only exists once the
+  // chunk resolves, so waiting on its heading keeps key presses from racing hydration.
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 };
 
 const demoCdnReachable = async (request: import('@playwright/test').APIRequestContext) => {
@@ -45,18 +48,26 @@ test.describe('local audio wiring', () => {
 
   test('volume survives a mute / unmute round trip and a reload', async ({ page }) => {
     await startFirstDemoSong(page);
+    const audio = page.locator('audio');
+    const readVolume = () => audio.evaluate(element => element.volume);
 
     await page.keyboard.press('m');
-    const muted = await page.locator('audio').evaluate(element => ({ volume: element.volume, muted: element.muted }));
-    expect(muted.volume).toBe(0);
+    await expect.poll(readVolume).toBe(0);
+    // Mute is a level of 0 on the element, not the element's own muted flag.
+    expect(await audio.evaluate(element => element.muted)).toBe(false);
 
     await page.keyboard.press('m');
-    const restored = await page.locator('audio').evaluate(element => element.volume);
-    expect(restored).toBeGreaterThan(0);
+    await expect.poll(readVolume).toBeGreaterThan(0);
+
+    // The store snapshots on every playback tick (throttled to 2s), so polling proves the
+    // level was persisted without depending on what the transport button currently reads.
+    await expect
+      .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('echora.playback-snapshot') || '{}').volume ?? 0))
+      .toBeGreaterThan(0);
 
     await page.reload();
-    const afterReload = await page.evaluate(() => JSON.parse(localStorage.getItem('echora.playback-snapshot') || '{}'));
-    expect(afterReload.volume).toBeGreaterThan(0);
+    await expect(page.locator('audio')).toBeAttached();
+    expect(await readVolume()).toBeGreaterThan(0);
   });
 
   test('never shows volume controls inside the immersive stage, and shows them outside it', async ({ page }) => {
