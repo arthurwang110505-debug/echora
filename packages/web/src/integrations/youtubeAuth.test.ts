@@ -22,11 +22,16 @@ describe('YouTube OAuth authorization URL', () => {
     state: 'oauth-state',
   };
 
-  it('keeps the normal login flow free of account-selection prompting', () => {
+  it('always asks Google to show the account chooser, including the normal login flow', () => {
     const url = new URL(buildYouTubeAuthorizationUrl(baseOptions));
     expect(url.searchParams.get('client_id')).toBe('client-id');
     expect(url.searchParams.get('redirect_uri')).toBe(baseOptions.redirectUri);
     expect(url.searchParams.get('state')).toBe('oauth-state');
+    expect(url.searchParams.get('prompt')).toBe('select_account');
+  });
+
+  it('can opt out of the chooser for silent re-auth flows', () => {
+    const url = new URL(buildYouTubeAuthorizationUrl({ ...baseOptions, selectAccount: false }));
     expect(url.searchParams.get('prompt')).toBeNull();
   });
 

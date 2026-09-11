@@ -76,7 +76,11 @@ export const getStoredYouTubeSession = (): YouTubeSession | null => {
   }
 };
 
-export const buildYouTubeAuthorizationUrl = ({ clientId: authorizationClientId, redirectUri, state, selectAccount = false }: YouTubeAuthorizationUrlOptions) => {
+// Google skips the account chooser whenever the browser holds an existing
+// session with a prior grant, silently re-issuing the token and bouncing the
+// user straight back. Always ask for the chooser so users can see which
+// account they are connecting.
+export const buildYouTubeAuthorizationUrl = ({ clientId: authorizationClientId, redirectUri, state, selectAccount = true }: YouTubeAuthorizationUrlOptions) => {
   const params = new URLSearchParams({
     client_id: authorizationClientId,
     redirect_uri: redirectUri,
