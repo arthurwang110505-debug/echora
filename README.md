@@ -54,6 +54,7 @@ pnpm --filter=@echora/web preview
 ```text
 VITE_SPOTIFY_CLIENT_ID
 VITE_SPOTIFY_REDIRECT_URI=https://你的-vercel-domain.vercel.app/app
+VITE_GOOGLE_CLIENT_ID（YouTube Music 登入用；origin 需加入 OAuth 用戶端的「已授權的 JavaScript 來源」）
 YOUTUBE_API_KEY（伺服器端可選，用於公開歌曲搜尋；不要使用 VITE_ 前綴）
 AGNES_API_KEY（伺服器端必要；不要使用 VITE_ 前綴）
 ```
@@ -69,6 +70,15 @@ AGNES_API_KEY（伺服器端必要；不要使用 VITE_ 前綴）
 自己的歌請連接 **YouTube Music**（官方 OAuth）。未設定 `VITE_SPOTIFY_CLIENT_ID` 時，介面不會把 Spotify 當成現有功能。
 
 YouTube Music 使用官方 Data API 讀取私人歌單，歌曲以嵌入播放器播放。官方沒有提供可讓第三方 PWA 讀取個人 YouTube Music 播放狀態的公開 API，因此 Echora 不會依賴 Piped／Invidious 這類不穩定的非官方鏡像。
+
+### YouTube Music OAuth 設定清單
+
+1. 在 [Google Cloud Console](https://console.cloud.google.com/) 建立專案，到「API 和服務 → 媒體庫」**啟用 YouTube Data API v3**（未啟用時可完成 Google 登入，但讀取頻道／歌單會回 403）。
+2. 「API 和服務 → 憑證」建立 **OAuth 用戶端 ID（Web 應用程式）」，「已授權的 JavaScript 來源」加入部署網址 origin：本機 `http://localhost:3000`、正式環境 `https://你的網域.vercel.app`（Echora 使用隱含流程，導回網址固定為 `{origin}/oauth/youtube/callback`，由來源設定涵蓋）。
+3. 「OAuth 同意畫面」新增 `https://www.googleapis.com/auth/youtube.readonly` scope；若發布狀態為「測試中」，請把要登入的 Google 帳號**加入測試使用者**（正式版則不用）。
+4. 把用戶端 ID 填入 `packages/web/.env` 的 `VITE_GOOGLE_CLIENT_ID`，重新啟動／重新部署。
+
+連線後若顯示「YouTube API 拒絕存取（403 …）」，錯誤訊息會標明原因：`accessNotConfigured` 表示專案未啟用 YouTube Data API v3；`quotaExceeded` 表示每日配額用盡；`forbidden` 通常代表該帳號（如 Workspace 帳號）無法使用 YouTube Data API。
 
 Spotify 程式仍保留，但在 Client ID 設定完成前不會出現在 Landing、來源列或 README 賣點。若要啟用：
 

@@ -141,11 +141,22 @@ const schedulePlaybackSnapshot = (state: PlayerState) => {
   }, wait);
 };
 
-const getYouTubeErrorMessage = (error: unknown, prefix = 'YouTube 連線失敗') => {
+// Google Data API 403 reasons mapped to actionable guidance. The generic 403
+// copy covers every other rejection (policy, disabled service, etc.).
+const YOUTUBE_403_REASONS: Array<{ match: RegExp; message: string }> = [
+  { match: /accessNotConfigured/i, message: 'YouTube API 拒絕存取（403 accessNotConfigured）：Google Cloud 專案尚未啟用 YouTube Data API v3。請到 Google Cloud Console →「API 和服務 → 媒體庫」啟用 YouTube Data API v3（選擇 OAuth 用戶端所屬的專案），儲存後重新連線。' },
+  { match: /quotaExceeded|rateLimitExceeded|dailyLimitExceeded/i, message: 'YouTube API 拒絕存取（403 quotaExceeded）：此 Google Cloud 專案的每日 API 配額已用盡，請隔天再試，或到 Google Cloud Console 申請提高配額。' },
+  { match: /forbidden/i, message: 'YouTube API 拒絕存取（403 forbidden）：這個帳號無法使用 YouTube Data API（常見於受管理的 Workspace 帳號）。請改用一般 Google 個人帳號重新連線。' },
+];
+
+export const getYouTubeErrorMessage = (error: unknown, prefix = 'YouTube 連線失敗') => {
   const message = error instanceof Error ? error.message : String(error || '未知錯誤');
-  return message.includes('401')
-    ? 'YouTube 授權已失效，請解除連線後重新使用 Google 登入。'
-    : `${prefix}：${message}`;
+  if (message.includes('401')) return 'YouTube 授權已失效，請解除連線後重新使用 Google 登入。';
+  if (message.includes('403')) {
+    const reason = YOUTUBE_403_REASONS.find(item => item.match.test(message));
+    return reason?.message || 'YouTube API 拒絕存取（403）：請確認 OAuth 用戶端所屬的 Google Cloud 專案已啟用 YouTube Data API v3，且 OAuth 同意畫面在「測試中」狀態時已將此帳號加入測試使用者（或已發布成正式版）。';
+  }
+  return `${prefix}：${message}`;
 };
 
 export type DisplayMode = 'stage' | 'full';

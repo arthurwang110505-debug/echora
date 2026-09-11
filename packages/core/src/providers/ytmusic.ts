@@ -71,8 +71,24 @@ export class YouTubeMusicProvider {
   private async authorized<T>(url: string): Promise<T> {
     if (!this.accessToken) throw new Error('YouTube 尚未登入');
     const response = await fetch(url, { headers: { Authorization: `Bearer ${this.accessToken}` } });
-    if (!response.ok) throw new Error(`YouTube API failed: ${response.status}`);
+    if (!response.ok) {
+      // Google's 401/403 responses carry a machine-readable reason (e.g.
+      // accessNotConfigured, quotaExceeded). Surfacing it lets the UI explain
+      // the fix instead of showing a bare status code.
+      const reason = await YouTubeMusicProvider.readErrorReason(response);
+      throw new Error(`YouTube API failed: ${response.status}${reason ? ` (${reason})` : ''}`);
+    }
     return response.json() as Promise<T>;
+  }
+
+  private static async readErrorReason(response: Response): Promise<string | null> {
+    try {
+      const data = await response.json() as { error?: { errors?: Array<{ reason?: string }> } };
+      const reason = data.error?.errors?.[0]?.reason;
+      return typeof reason === 'string' && reason ? reason : null;
+    } catch {
+      return null;
+    }
   }
 
   async getUserPlaylists(): Promise<Playlist[]> {

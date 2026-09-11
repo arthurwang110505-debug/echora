@@ -81,4 +81,19 @@ describe('YouTubeMusicProvider metadata and pagination', () => {
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(playlists).toMatchObject([{ id: 'first', trackCount: 1 }, { id: 'second', trackCount: 2 }]);
   });
+
+  it('surfaces Google rejection reasons so the UI can explain 401/403 failures', async () => {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        error: { errors: [{ reason: 'accessNotConfigured', message: 'YouTube Data API has not been used in project 123 before or it is disabled.' }] },
+      }), { status: 403 }))
+      .mockResolvedValueOnce(new Response('upstream unavailable', { status: 502 }));
+    vi.stubGlobal('fetch', fetch);
+
+    const provider = new YouTubeMusicProvider();
+    provider.setAccessToken('token');
+
+    await expect(provider.getProfile()).rejects.toThrow('YouTube API failed: 403 (accessNotConfigured)');
+    await expect(provider.getProfile()).rejects.toThrow('YouTube API failed: 502');
+  });
 });
