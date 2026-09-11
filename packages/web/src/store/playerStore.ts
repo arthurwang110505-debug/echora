@@ -22,6 +22,13 @@ import { recordDiagnostic } from '../lib/diagnostics';
 import { isYouTubeVideo } from '../utils/youtubePlayback';
 import { IDLE_MEDIA_COMMAND, nextMediaCommand, type MediaCommand } from '../playback/mediaCommand';
 import { parseUploadedLyrics, readUploadedLyrics, writeUploadedLyrics } from '../playback/lyricsImport';
+import {
+  DEFAULT_PLAYBACK_VOLUME,
+  applyMuteToggle,
+  applyVolumeChange,
+  applyVolumeNudge,
+  sanitizeStoredVolume,
+} from '../playback/volumeState';
 
 const RECENT_SONGS_STORAGE_KEY = 'echora.recent-songs';
 const FAVORITE_SONGS_STORAGE_KEY = 'echora.favorite-songs';
@@ -68,7 +75,9 @@ const writeFavoriteSongs = (songs: Song[]) => {
   if (typeof window !== 'undefined') window.localStorage.setItem(FAVORITE_SONGS_STORAGE_KEY, JSON.stringify(songs));
 };
 
-const readPlaybackSnapshot = (): Pick<PlayerState, 'currentSong' | 'playlist' | 'currentIndex' | 'currentTime' | 'duration' | 'volume'> | null => {
+type PlaybackSnapshot = Pick<PlayerState, 'currentSong' | 'playlist' | 'currentIndex' | 'currentTime' | 'duration' | 'volume' | 'isMuted'>;
+
+const readPlaybackSnapshot = (): PlaybackSnapshot | null => {
   if (typeof window === 'undefined') return null;
   try {
     const snapshot = JSON.parse(window.localStorage.getItem(PLAYBACK_SNAPSHOT_STORAGE_KEY) || 'null');
@@ -77,6 +86,11 @@ const readPlaybackSnapshot = (): Pick<PlayerState, 'currentSong' | 'playlist' | 
       ...snapshot,
       currentSong: refreshLocalDemoArtwork(snapshot.currentSong),
       playlist: Array.isArray(snapshot.playlist) ? refreshLocalDemoArtworkList(snapshot.playlist) : [],
+      // A snapshot written by the old mute model holds `volume: 0` with no mute flag.
+      // Restoring that verbatim is a permanently silent player with no way out, so the
+      // level is sanitized and the mute flag is the only thing that can silence it.
+      volume: sanitizeStoredVolume(snapshot.volume),
+      isMuted: snapshot.isMuted === true,
     };
   } catch {
     return null;
@@ -92,6 +106,7 @@ const writePlaybackSnapshot = (state: PlayerState) => {
     currentTime: state.currentTime,
     duration: state.duration,
     volume: state.volume,
+    isMuted: state.isMuted,
   }));
 };
 
@@ -146,6 +161,8 @@ interface PlayerState {
   duration: number;
   volume: number;
   isMuted: boolean;
+  /** How the local element's audio is wired: analysed (real spectrum) or native (guaranteed sound). */
+  localSpectrum: { mode: 'analyser' | 'direct'; reason: string } | null;
   playlist: Song[];
   currentIndex: number;
   loopMode: 'off' | 'list' | 'single';
@@ -185,7 +202,9 @@ interface PlayerState {
   seek: (time: number) => void;
   tickTime: (delta: number) => void;
   setVolume: (volume: number) => void;
+  nudgeVolume: (delta: number) => void;
   toggleMute: () => void;
+  setLocalSpectrum: (spectrum: { mode: 'analyser' | 'direct'; reason: string } | null) => void;
   setPlaylist: (playlist: Song[]) => void;
   setLoopMode: (mode: 'off' | 'list' | 'single') => void;
   setDisplayMode: (mode: DisplayMode) => void;
@@ -220,8 +239,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   playbackState: 'idle',
   currentTime: 0,
   duration: 210,
-  volume: 0.8,
+  volume: DEFAULT_PLAYBACK_VOLUME,
   isMuted: false,
+  localSpectrum: null,
   playlist: [],
   currentIndex: 0,
   loopMode: 'list',
@@ -401,12 +421,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
   },
 
-  setVolume: (volume) => set({ volume, isMuted: volume === 0 }),
+  // `volume` always keeps the last audible level; only `isMuted` can silence the output.
+  setVolume: (volume) => set(applyVolumeChange({ volume: get().volume, isMuted: get().isMuted }, volume)),
 
-  toggleMute: () => {
-    const { isMuted, volume } = get();
-    set({ isMuted: !isMuted, volume: isMuted ? volume : 0 });
-  },
+  nudgeVolume: (delta) => set(applyVolumeNudge({ volume: get().volume, isMuted: get().isMuted }, delta)),
+
+  toggleMute: () => set(applyMuteToggle({ volume: get().volume, isMuted: get().isMuted })),
+
+  setLocalSpectrum: (localSpectrum) => set({ localSpectrum }),
 
   setPlaylist: (playlist) => set({ playlist, currentIndex: 0 }),
 

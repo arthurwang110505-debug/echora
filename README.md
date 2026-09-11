@@ -77,6 +77,27 @@ Spotify 程式仍保留，但在 Client ID 設定完成前不會出現在 Landin
 3. 複製 `packages/web/.env.example` 為 `packages/web/.env`，填入 `VITE_SPOTIFY_CLIENT_ID`。
 4. 重新啟動 `pnpm dev`。
 
+## 疑難排解：畫面在動但沒聲音
+
+播放器的 `<audio>` 是否要繞經 Web Audio（給頻譜視覺化取樣）取決於音檔來源，規則寫在
+`packages/web/src/playback/audioRouting.ts`：
+
+- 同網域、`blob:`（使用者本機檔案）→ 直接接管，聲音與真實頻譜都有。
+- 跨網域 → 必須同時滿足「元素設定 `crossorigin="anonymous"`」與「主機回 `Access-Control-Allow-Origin`」，
+  否則依 Web Audio 規格，被標記為 CORS-cross-origin 的媒體经 `createMediaElementSource()` 後**必須輸出靜音**。
+  因此未通過檢查的來源會保留原生輸出（有聲音、畫面改用節奏脈衝），不會再出現「看似播放、其實無聲」。
+- 展示曲放在 `https://cdn.jsdelivr.net/gh/<owner>/<repo>@main/*.mp3`：jsDelivr 回 `Access-Control-Allow-Origin: *`
+  且支援 Range（拖條可用），所以聲音與真實頻譜都正常。更換來源只需改 `store/localDemoSongs.ts` 的 `DEMO_AUDIO_BASE`。
+- Service Worker 刻意**不**快取音檔（declarative CacheFirst 會用整份快取回應 Range 需求而破壞拖條）；
+  舊版殘留的 `demo-audio-cache` 由 `utils/staleCacheCleanup.ts` 在啟動時清掉。
+- 音量：`volume` 只保存「最後可聽音量」，靜音是獨立的 `isMuted` 旗標，兩者都會寫進播放快照。
+  舊版把靜音寫成 `volume: 0` 且不保存靜音旗標，重整後就是「圖示顯示未靜音、實際無聲」，
+  `sanitizeStoredVolume()` 會在還原時把這種 0 修正回預設值。
+- 音量控制只在一般播放頁與設定頁出現；**全螢幕 stage 不放置任何音量元件**（由
+  `components/player/stageVolumeGuard.test.ts` 守住），舞台內改用鍵盤 `↑` / `↓` 調整、`M` 靜音。
+- 開發模式下可在 Console 執行 `__echoraAnalyserHealth()`，會同時回報路由決策、
+  `AudioContext.state` 與 `<audio>` 元素狀態。
+
 ## 功能
 
 - 11 種歌詞視覺舞台，本機展示曲會跟著真實頻譜動

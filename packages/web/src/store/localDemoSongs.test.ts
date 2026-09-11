@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import { resolveAudioRouting } from '../playback/audioRouting';
 import { LOCAL_DEMO_LYRICS, LOCAL_DEMO_SONGS, refineTranscriptSegments } from './localDemoSongs';
 
 describe('local demo showcase songs', () => {
   it('contains the five uploaded royalty-free tracks', () => {
     expect(LOCAL_DEMO_SONGS).toHaveLength(5);
     expect(LOCAL_DEMO_SONGS.every(song => song.source === 'local')).toBe(true);
-    expect(LOCAL_DEMO_SONGS.every(song => song.audioUrl?.startsWith('https://files.manuscdn.com/'))).toBe(true);
+    // The showcase audio moved off the expired `files.manuscdn.com` uploads onto a CDN
+    // that answers with `Access-Control-Allow-Origin: *`, which is what lets the stage
+    // read a real spectrum instead of being muted by the cross-origin Web Audio rule.
+    expect(LOCAL_DEMO_SONGS.every(song => song.audioUrl?.startsWith('https://cdn.jsdelivr.net/gh/'))).toBe(true);
+    expect(LOCAL_DEMO_SONGS.every(song => resolveAudioRouting(song.audioUrl!, 'https://echora.app').mode === 'analyser')).toBe(true);
     expect(LOCAL_DEMO_SONGS.every(song => (song.durationMs || 0) > 0)).toBe(true);
     expect(LOCAL_DEMO_SONGS.every(song => song.coverUrl?.startsWith('/covers/') && song.coverUrl?.endsWith('.webp'))).toBe(true);
   });

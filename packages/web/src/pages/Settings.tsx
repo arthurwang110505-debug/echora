@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import packageJson from '../../package.json';
 import { ArrowLeft, CheckCircle2, CircleAlert, LoaderCircle, Sparkles } from 'lucide-react';
 import BrandMark from '../components/BrandMark';
+import VolumeControl from '../components/VolumeControl';
 import { useTheme } from '../contexts/ThemeProvider';
 import { usePlayer } from '../contexts/PlayerContext';
 import { getAgnesApiStatus, generateAgnesTheme, type AgnesApiStatus } from '../services/agnesAi';
@@ -16,7 +17,14 @@ export default function Settings() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { currentTheme, activeTheme, setTheme, toggleTheme, enableAiTheme, aiThemeEnabled, motionPreference, setMotionPreference } = useTheme();
-  const { currentSong, currentLyrics } = usePlayer();
+  const { currentSong, currentLyrics, localSpectrum } = usePlayer();
+  // Plain-language read-out of the audio routing decision, so a silent stage can be
+  // diagnosed from the UI instead of the Web Audio console.
+  const spectrumLabel = !localSpectrum
+    ? t('settings.spectrumIdle')
+    : localSpectrum.mode === 'analyser'
+      ? t('settings.spectrumAnalyser', { reason: localSpectrum.reason })
+      : t('settings.spectrumDirect', { reason: localSpectrum.reason });
   const [agnesStatus, setAgnesStatus] = useState<AgnesApiStatus>('unavailable');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedTheme, setGeneratedTheme] = useState<ThemeConfig | null>(null);
@@ -212,6 +220,25 @@ export default function Settings() {
                 <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={applyGeneratedTheme} className="rounded-xl bg-[#62f5c4] px-4 py-2 text-xs font-extrabold text-black transition hover:brightness-110">{t('settings.applyToStage')}</button><button type="button" onClick={() => setGeneratedTheme(null)} className="rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10">{t('settings.keepCurrentStage')}</button></div>
               </div>
             ) : null}
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="font-mono text-xs font-extrabold uppercase tracking-widest text-[#62f5c4]">{t('settings.playbackTitle')}</h2>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-bold text-white">{t('settings.playbackVolume')}</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">{t('settings.playbackVolumeHint')}</p>
+              </div>
+              <VolumeControl showLabel={false} />
+            </div>
+            <p className="mt-3 text-[11px] leading-5 text-slate-400">{t('player.volumeShortcutHint')}</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs leading-6 text-slate-300">
+            <p className="font-bold text-white">{t('settings.spectrumTitle')}</p>
+            <p className="mt-1">{spectrumLabel}</p>
+            <p className="mt-1 text-[11px] text-slate-500">{t('settings.spectrumHint')}</p>
           </div>
         </section>
 

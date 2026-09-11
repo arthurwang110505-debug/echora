@@ -1,7 +1,8 @@
-export type DiagnosticEventName = 'song_selected' | 'play_requested' | 'pause_requested' | 'youtube_error' | 'render_error' | 'web_vital';
+export type DiagnosticEventName = 'song_selected' | 'play_requested' | 'pause_requested' | 'youtube_error' | 'render_error' | 'web_vital' | 'audio_routing';
 
 const diagnosticLabels: Record<DiagnosticEventName, string> = {
   song_selected: '已選取歌曲',
+  audio_routing: '本地音訊路徑設定',
   play_requested: '已要求播放',
   pause_requested: '已要求暫停',
   youtube_error: 'YouTube 播放器錯誤',

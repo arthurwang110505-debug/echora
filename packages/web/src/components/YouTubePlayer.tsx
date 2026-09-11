@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { usePlayer } from '../contexts/PlayerContext';
 import { extractYouTubeVideoId } from '@echora/core';
 import { recordDiagnostic } from '../lib/diagnostics';
+import { derivePlaybackVolume } from '../playback/volumeState';
 
 declare global { interface Window { YT?: any; onYouTubeIframeAPIReady?: () => void; } }
 
@@ -22,7 +23,7 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
   const disposedRef = useRef(false);
-  const { currentSong, isPlaying, volume, youtubeError, playbackState } = usePlayer();
+  const { currentSong, isPlaying, volume, isMuted, youtubeError, playbackState } = usePlayer();
 
   useEffect(() => {
     if (currentSong?.source !== 'ytmusic') return;
@@ -43,7 +44,7 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
           onReady: (event: any) => {
             const state = usePlayer.getState();
             const videoId = extractYouTubeVideoId(state.currentSong?.audioUrl || state.currentSong?.id);
-            if (typeof event.target.setVolume === 'function') event.target.setVolume(Math.round(state.volume * 100));
+            if (typeof event.target.setVolume === 'function') event.target.setVolume(Math.round(derivePlaybackVolume(state.volume, state.isMuted) * 100));
             if (videoId) {
               event.target.cueVideoById(videoId);
               usePlayer.setState({ isPlaying: false, playbackState: 'paused', currentTime: 0, youtubeError: null });
@@ -123,8 +124,9 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
   }, [youtubeCommand]);
 
   useEffect(() => {
-    if (typeof playerRef.current?.setVolume === 'function') playerRef.current.setVolume(Math.round((volume || 0) * 100));
-  }, [volume]);
+    // Mute is a flag now, so the iframe must follow the derived level instead of a zeroed volume.
+    if (typeof playerRef.current?.setVolume === 'function') playerRef.current.setVolume(Math.round(derivePlaybackVolume(volume, isMuted) * 100));
+  }, [volume, isMuted]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {

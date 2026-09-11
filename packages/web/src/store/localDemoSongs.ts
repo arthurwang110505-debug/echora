@@ -11,6 +11,8 @@ export interface LocalDemoSong extends Song {
   attribution: LocalDemoAttribution;
 }
 
+const DEMO_AUDIO_BASE = 'https://cdn.jsdelivr.net/gh/arthurwang110505-debug/video@main';
+
 const showcaseAlbum = { id: 'echora-pixabay-showcase', name: 'Echora 本機展示' };
 
 export type TranscriptSegment = readonly [startSeconds: number, endSeconds: number, text: string];
@@ -145,7 +147,7 @@ export const LOCAL_DEMO_SONGS: LocalDemoSong[] = [
     album: showcaseAlbum,
     durationMs: 118440,
     coverUrl: '/covers/dancing-in-the-stardust.webp',
-    audioUrl: 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663524799294/tDiAzOyrXMtgfJhq.mp3',
+    audioUrl: `${DEMO_AUDIO_BASE}/tDiAzOyrXMtgfJhq.mp3`,
     source: 'local',
     isPureMusic: false,
     attribution: {
@@ -161,7 +163,7 @@ export const LOCAL_DEMO_SONGS: LocalDemoSong[] = [
     album: showcaseAlbum,
     durationMs: 175032,
     coverUrl: '/covers/blue-knot.webp',
-    audioUrl: 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663524799294/cgebEptTCRfxgpKp.mp3',
+    audioUrl: `${DEMO_AUDIO_BASE}/cgebEptTCRfxgpKp.mp3`,
     source: 'local',
     isPureMusic: false,
     attribution: {
@@ -177,7 +179,7 @@ export const LOCAL_DEMO_SONGS: LocalDemoSong[] = [
     album: showcaseAlbum,
     durationMs: 205536,
     coverUrl: '/covers/sun-beneath-a-song.webp',
-    audioUrl: 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663524799294/LtNbhIIjpeGNszlP.mp3',
+    audioUrl: `${DEMO_AUDIO_BASE}/LtNbhIIjpeGNszlP.mp3`,
     source: 'local',
     isPureMusic: false,
     attribution: {
@@ -193,7 +195,7 @@ export const LOCAL_DEMO_SONGS: LocalDemoSong[] = [
     album: showcaseAlbum,
     durationMs: 251184,
     coverUrl: '/covers/stardust-pop-idol.webp',
-    audioUrl: 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663524799294/TxNMTIzdSSWKkbMY.mp3',
+    audioUrl: `${DEMO_AUDIO_BASE}/TxNMTIzdSSWKkbMY.mp3`,
     source: 'local',
     isPureMusic: false,
     attribution: {
@@ -209,7 +211,7 @@ export const LOCAL_DEMO_SONGS: LocalDemoSong[] = [
     album: showcaseAlbum,
     durationMs: 188832,
     coverUrl: '/covers/ocean-morning.webp',
-    audioUrl: 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663524799294/DIrpYlnunrVgXDna.mp3',
+    audioUrl: `${DEMO_AUDIO_BASE}/DIrpYlnunrVgXDna.mp3`,
     source: 'local',
     isPureMusic: false,
     attribution: {

@@ -13,6 +13,7 @@ import { adjustLyricsOffset, getActiveLyricIndex } from '../utils/lyrics/activeL
 import { lazyWithRetry } from '../utils/recovery';
 import { pickAutoVisualizerMode, resolveStageAudioBands, visualizerEnergy } from '../playback/audioBands';
 import { sampleLocalAudioBands } from '../playback/localAudioAnalyser';
+import { VOLUME_STEP } from '../playback/volumeState';
 import { isYouTubeVideo } from '../utils/youtubePlayback';
 import { songOffsetKey, useStageStore } from '../store/stageStore';
 import { lyricsOriginLabel } from '../playback/lyricsImport';
@@ -71,6 +72,8 @@ export default function Player() {
     playbackState,
     localError,
     importLyricsText,
+    nudgeVolume,
+    toggleMute,
   } = usePlayer();
   const { currentTheme } = useTheme();
 
@@ -200,15 +203,31 @@ export default function Player() {
   }, [showStageSettings]);
 
   useEffect(() => {
+    const isEditableTarget = (target: EventTarget | null) => (
+      target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement
+    );
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'Space' && !event.repeat && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) {
+      if (event.repeat || isEditableTarget(event.target)) return;
+      if (event.code === 'Space') {
         event.preventDefault();
         handlePlayPause();
+        return;
+      }
+      // Volume stays keyboard-only inside the player so the immersive stage never grows
+      // a transport widget: ↑ / ↓ trim the level, M toggles mute.
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        nudgeVolume(VOLUME_STEP);
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        nudgeVolume(-VOLUME_STEP);
+      } else if (event.key.toLowerCase() === 'm') {
+        toggleMute();
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handlePlayPause]);
+  }, [handlePlayPause, nudgeVolume, toggleMute]);
 
   const lyricsOffsetSeconds = lyricsOffsets[songOffsetKey(currentSong)] || 0;
 
