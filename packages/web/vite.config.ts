@@ -72,18 +72,9 @@ export default defineConfig({
           'assets/Welcome-*.js',
           'covers/*.{svg,png,jpg,webp}',
         ],
+        // NOTE: demo audio is deliberately absent from runtimeCaching: see the comment
+        // above the first entry for why a service-worker audio cache breaks this player.
         runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/files\.manuscdn\.com\/.*\.(mp3|m4a|ogg|wav)/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'demo-audio-cache',
-              expiration: {
-                maxEntries: 12,
-                maxAgeSeconds: 60 * 60 * 24 * 14
-              }
-            }
-          },
           {
             urlPattern: /\/covers\/.*\.(png|jpg|jpeg|svg|webp)$/i,
             handler: 'CacheFirst',
