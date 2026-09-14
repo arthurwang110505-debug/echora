@@ -445,6 +445,19 @@ export default function AppHome() {
         </section>
       </main>
 
+      <footer className="relative z-10 mx-auto max-w-[1440px] border-t border-white/[0.07] px-5 py-8 sm:px-8 lg:px-12">
+        <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+          <p className="text-[11px] text-slate-500">© {new Date().getFullYear()} Echora · AGPL-3.0 · {t('welcome.footerAttribution')} folia-major</p>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => navigate('/privacy')} className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 text-[11px] font-bold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
+              {t('footer.privacy')}
+            </button>
+            <button type="button" onClick={() => navigate('/terms')} className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 text-[11px] font-bold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
+              {t('footer.terms')}
+            </button>
+          </div>
+        </div>
+      </footer>
 
       {/* Spotify Connect Modal */}
       {showConnectModal && (

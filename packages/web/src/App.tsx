@@ -15,6 +15,8 @@ const Player = lazyWithRetry(() => import('./pages/Player'), 'route-player');
 const Settings = lazyWithRetry(() => import('./pages/Settings'), 'route-settings');
 const Library = lazyWithRetry(() => import('./pages/Library'), 'route-library');
 const YouTubeCallback = lazyWithRetry(() => import('./pages/YouTubeCallback'), 'route-youtube-callback');
+const Privacy = lazyWithRetry(() => import('./pages/Privacy'), 'route-privacy');
+const Terms = lazyWithRetry(() => import('./pages/Terms'), 'route-terms');
 
 function RouteLoader() {
   return <RouteSkeleton />;
@@ -29,6 +31,8 @@ function AppShell() {
   const hidePersistentMiniPlayer =
     location.pathname === '/settings' ||
     location.pathname === '/library' ||
+    location.pathname === '/privacy' ||
+    location.pathname === '/terms' ||
     LANDING_PATHS.has(location.pathname);
 
   return <><Outlet />{hidePersistentMiniPlayer ? null : <PersistentMiniPlayer />}</>;
@@ -81,6 +85,8 @@ const router = createBrowserRouter([
       { path: '/player', element: <Player /> },
       { path: '/settings', element: <Settings /> },
       { path: '/library', element: <Library /> },
+      { path: '/privacy', element: <Privacy /> },
+      { path: '/terms', element: <Terms /> },
       { path: '/oauth/youtube/callback', element: <YouTubeCallback /> },
     ],
   },
