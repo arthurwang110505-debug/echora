@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MotionConfig, motion, useScroll } from 'framer-motion';
 import { ArrowRight, Download, ListMusic, Mic2, MonitorSmartphone, Play, Radio, Sparkles } from 'lucide-react';
@@ -314,19 +314,38 @@ export default function Welcome() {
         </main>
 
         <footer className="relative z-10 border-t border-white/[0.07] px-5 py-8 text-center sm:px-8">
-          <p className="text-[11px] leading-5 text-slate-500">
+          <p className="mx-auto max-w-2xl text-[11px] leading-5 text-slate-500">{t('welcome.footerDataNote')}</p>
+          {/* Bilingual brand statement: the UI ships in zh-TW + en, and the
+              homepage must describe the app for English-reading reviewers. */}
+          <p className="mx-auto mt-2 max-w-2xl text-[11px] leading-5 text-slate-500">
+            Echora is a browser-based immersive lyrics stage: play the built-in demo tracks, or connect your own YouTube
+            Music playlists for word-by-word lyrics, visualizer stages and AI-generated themes.
+          </p>
+          <p className="mt-3 text-[11px] leading-5 text-slate-500">
             {t('welcome.footerAttribution')} <a href="https://github.com/chthollyphile/folia-major" target="_blank" rel="noreferrer" className="font-bold text-slate-400 underline decoration-white/20 underline-offset-2 transition hover:text-[#62f5c4]">folia-major</a>。
           </p>
+          {/*
+            Real anchors (not onClick buttons): Google's OAuth brand verification
+            requires the homepage to host a plain link to the privacy policy and
+            terms, and a linked policy is what crawlers can follow. Keep these
+            hrefs identical to the URLs configured on the consent screen.
+          */}
           <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-[11px]">
-            <button type="button" onClick={() => navigate('/privacy')} className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 font-bold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
+            <Link to="/privacy" className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 font-bold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
               {t('welcome.footerPrivacy')}
-            </button>
-            <button type="button" onClick={() => navigate('/terms')} className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 font-bold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
+            </Link>
+            <Link to="/terms" className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 font-bold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
               {t('welcome.footerTerms')}
-            </button>
-            <button type="button" onClick={() => navigate(WELCOME_APP_TARGET)} className="min-h-11 rounded-xl px-3 text-xs font-bold text-slate-400 transition hover:text-[#62f5c4]">
+            </Link>
+            <a href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer" className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 font-bold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
+              {t('welcome.footerYoutubeTerms')}
+            </a>
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer" className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 font-bold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
+              {t('welcome.footerGooglePrivacy')}
+            </a>
+            <Link to={WELCOME_APP_TARGET} className="min-h-11 rounded-xl px-3 text-xs font-bold text-slate-400 transition hover:text-[#62f5c4]">
               {t('welcome.footerOpenPlayer')}
-            </button>
+            </Link>
           </div>
         </footer>
       </div>

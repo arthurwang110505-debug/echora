@@ -7,6 +7,28 @@ test.describe('Echora smoke paths', () => {
     await expect(page.getByRole('button', { name: '開始體驗' }).first()).toBeVisible();
   });
 
+  test('landing page links the policies Google verification asks for', async ({ page }) => {
+    await page.goto('/');
+    // Plain anchors, not onClick buttons: Google's OAuth brand verification and
+    // crawlers both need to follow these links from the homepage.
+    await expect(page.getByRole('link', { name: '隱私權政策' }).first()).toHaveAttribute('href', '/privacy');
+    await expect(page.getByRole('link', { name: '服務條款' }).first()).toHaveAttribute('href', '/terms');
+    await expect(page.getByRole('link', { name: 'Manage Google access' }).first()).toHaveAttribute(
+      'href',
+      'https://myaccount.google.com/permissions',
+    );
+  });
+
+  test('robots.txt and sitemap.xml are served instead of the app shell', async ({ request }) => {
+    const robots = await request.get('/robots.txt');
+    expect(robots.status()).toBe(200);
+    expect(await robots.text()).toContain('Sitemap:');
+
+    const sitemap = await request.get('/sitemap.xml');
+    expect(sitemap.status()).toBe(200);
+    expect(await sitemap.text()).toContain('<loc>');
+  });
+
   test('app shell loads the local demo catalog', async ({ page }) => {
     await page.goto('/app?demo=1');
     await expect(page.getByRole('button', { name: '切換來源至 本機展示' })).toBeVisible();

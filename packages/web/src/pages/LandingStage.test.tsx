@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
-import { act } from 'react';
+import { act, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import Welcome, { WELCOME_APP_TARGET, WELCOME_DEMO_TARGET } from './Welcome';
 import KaraokeLine from '../components/landing/KaraokeLine';
 
-vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => vi.fn(),
+  Link: ({ to, className, children }: { to: string; className?: string; children?: ReactNode }) => (
+    <a href={to} className={className}>{children}</a>
+  ),
+}));
 
 // jsdom lacks a few browser APIs the landing stage relies on; the components
 // must tolerate their absence (real browsers always provide them).

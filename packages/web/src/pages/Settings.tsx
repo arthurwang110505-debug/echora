@@ -277,6 +277,11 @@ export default function Settings() {
               <button type="button" onClick={() => navigate('/terms')} className="text-left text-[11px] font-bold text-slate-400 underline decoration-white/20 underline-offset-2 transition hover:text-white">
                 {t('settings.viewFullTerms')} →
               </button>
+              {/* YouTube API Services require an in-product way to reach the
+                  Google revocation page; sign-out above also revokes the token. */}
+              <a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer" className="text-left text-[11px] font-bold text-slate-400 underline decoration-white/20 underline-offset-2 transition hover:text-white">
+                {t('settings.googleAccessLink')} →
+              </a>
             </div>
           </div>
         </section>

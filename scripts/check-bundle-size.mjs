@@ -14,7 +14,12 @@ const DIST = resolve(process.cwd(), 'packages/web/dist/assets');
 const BUDGETS = [
   // The app shell now bundles the react-i18next runtime plus inline zh-TW/en
   // resources (P1-5), which legitimately grew index by ~35 kB over the baseline.
-  { prefix: 'index-', name: 'app shell (index)', maxKb: 360 },
+  // Bumped 360 → 390 kB when the privacy policy and terms gained the Google API
+  // Services / Limited Use disclosures (OAuth verification): every locale's copy
+  // ships in this chunk because the legal routes resolve `t()` from the shared
+  // resources. Moving that copy into route-level resource bundles would let this
+  // budget come back down.
+  { prefix: 'index-', name: 'app shell (index)', maxKb: 390 },
   { prefix: 'three-runtime-', name: 'three-runtime', maxKb: 950 },
   { prefix: 'sonnet-scene-', name: 'sonnet-scene', maxKb: 2500 },
   { prefix: 'stage-runtime-', name: 'stage-runtime', maxKb: 200 },

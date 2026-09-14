@@ -55,8 +55,27 @@ pnpm --filter=@echora/web preview
 VITE_SPOTIFY_CLIENT_ID
 VITE_SPOTIFY_REDIRECT_URI=https://你的-vercel-domain.vercel.app/app
 VITE_GOOGLE_CLIENT_ID（YouTube Music 登入用；origin 需加入 OAuth 用戶端的「已授權的 JavaScript 來源」）
+VITE_SITE_URL=https://你的-vercel-domain.vercel.app（選填；canonical / OG / sitemap 用）
+VITE_GOOGLE_SITE_VERIFICATION（選填；Google Search Console “HTML 標記”驗證用）
 YOUTUBE_API_KEY（伺服器端可選，用於公開歌曲搜尋；不要使用 VITE_ 前綴）
 AGNES_API_KEY（伺服器端必要；不要使用 VITE_ 前綴）
+```
+
+## Google OAuth 品牌驗證 / Search Console 網域驗證
+
+OAuth 品牌驗證要求「首頁說明 App 功能 + 連到同網域的隱私權政策 + 網域已在 Search Console 完成驗證」。
+首頁靜態摘要、`/privacy`、`/terms`、robots.txt / sitemap.xml 與驗證 meta 標籤的注入都已經在這個
+repo 裡處理好；需要你自己操作的部分（Search Console 驗證、Branding 欄位、敏感範圍驗證與示範影片）
+整理在 [`docs/google-oauth-brand-verification.md`](./docs/google-oauth-brand-verification.md)。
+
+驗證用的指令：
+
+```bash
+# HTML 標記法（把 token 設成 Vercel 環境變數，重新部署即可）
+node scripts/google-search-console-verify.mjs meta <驗證內容或整段 meta 標籤>
+
+# HTML 檔案法（會寫入 packages/web/public/，commit + push 後自動部署）
+node scripts/google-search-console-verify.mjs file google1a2b3c4d5e6f.html
 ```
 
 `AGNES_API_KEY` 必須設定在 Vercel Project Settings → Environment Variables，並套用到需要的 deployment environment。它只會由 `/api/ai/theme` serverless proxy 讀取；瀏覽器 Settings 不再要求使用者貼上 Gemini／OpenAI 金鑰。Agnes 使用 OpenAI-compatible API，proxy 呼叫 `https://apihub.agnes-ai.com/v1/chat/completions`，並以 `Authorization: Bearer` 驗證。
