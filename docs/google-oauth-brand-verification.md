@@ -171,7 +171,7 @@ VITE_GOOGLE_SITE_VERIFICATION=                    # Search Console HTML 標記�
 | 品牌驗證退件說首頁／隱私權政策不合規 | 首頁沒有描述功能、隱私權政策沒有揭露 Google 資料用途、或政策頁連不到 | 本 repo 已補上（見上一節表格）。若還被退，請把 Google 的原文要求貼給我，我照著改條文 |
 | `Invalid domain: must be a top private domain` | 在 Authorized domains 填了 `vercel.app` | 改填 `echora-three.vercel.app` |
 | 同意畫面還是顯示「未驗證的應用程式」 | 品牌驗證還沒通過，或 scope 還沒通過敏感範圍驗證 | 這是預期行為；測試期間可先把測試帳號加進 Audience → Test users（上限 100 個） |
-| Google 抓不到網頁（回 401/403 或登入頁） | Vercel 專案的 Deployment Protection / Vercel Authentication 開啟中，只有團隊成員能開網站 | Vercel → Settings → Deployment Protection 關閉（或至少讓 Production 公開） |
+| Google 抓不到網頁（回 401/403 或登入頁） | Vercel 專案的 Deployment Protection / Vercel Authentication 開啟中，只有團隊成員能開網站 | Vercel → Settings → Deployment Protection 關閉（或至少讓 Production 公開）。**實測：本專案的 Preview 部署目前受 SSO 保護**（會跳到「Protected Deployment – Vercel」登入頁），Production（`echora-three.vercel.app`）目前公開可用。所以驗證一定要在正式網域上做，不要在 preview 網址上測，會看到登入頁 |
 | Google 要求「隱私權政策頁面」的原始 HTML | 這是 SPA：`/privacy`、`/terms` 由瀏覽器端渲染，非 JS 抓取只會拿到首頁外殼（外殼裡有完整說明與 Limited Use 聲明，但沒有整份政策） | 目前通常不影響審查（審查人員用瀏覽器看）；真的被要求時可以替這兩個路由加 prerender／靜態輸出，我再處理 |
 | 使用者人數／權杖 7 天就過期 | 發布狀態仍是 Testing | 通過驗證後改為 Published |
 
