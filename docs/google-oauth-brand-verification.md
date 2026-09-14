@@ -144,7 +144,7 @@ git push      # Vercel 自動部署
 | 要有撤銷存取權的入口 | 隱私權政策 + 服務條款 + Settings 的「管理 Google 帳號存取權」連結；App 內登出同時呼叫 `oauth2.googleapis.com/revoke` | ✅ |
 | YouTube API Services 條款連結 | 首頁 footer、隱私權政策、服務條款都放了 YouTube ToS / Google 隱私權政策 / YouTube API Services ToS | ✅ |
 | Search Console 的 HTML 標記 | `packages/web/vite-plugins/siteMetadata.ts`，由 `VITE_GOOGLE_SITE_VERIFICATION` 注入，dev 與 build 都會注入 | ✅ |
-| Search Console 的 HTML 檔案 | `scripts/google-search-console-verify.mjs file …` 會寫進 `packages/web/public/` | ✅ |
+| Search Console 的 HTML 檔案 | `packages/web/public/googleb0a01cb655415705.html`（內容 `google-site-verification: googleb0a01cb655415705.html`）；`scripts/google-search-console-verify.mjs file …` 可再產生其他 token 的檔案；`siteMetadata.test.ts` 會守著它不被誤刪 | ✅ |
 | 網站要有 robots.txt / sitemap.xml | 同一個 plugin 會產生（dev 由 middleware 供應、build 產生實體檔案），並在 robots.txt 指向 sitemap | ✅ |
 | 頁面要有 canonical / OG 標籤 | 同一個 plugin 依 `VITE_SITE_URL` 產生 | ✅ |
 

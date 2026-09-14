@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
@@ -103,6 +104,19 @@ describe('homepage HTML for OAuth brand verification', () => {
     const app = readWebFile('src/App.tsx');
     expect(app).toContain("path: '/privacy'");
     expect(app).toContain("path: '/terms'");
+  });
+
+  it('keeps a Search Console HTML verification file whose content matches its name', () => {
+    // Search Console re-checks this file periodically, so it has to stay in
+    // `packages/web/public/` (Vercel serves real files before the catch-all
+    // rewrite in vercel.json). Content is fixed by Google's spec.
+    const publicDir = fileURLToPath(new URL('../public', import.meta.url));
+    const verificationFiles = readdirSync(publicDir).filter((name) => /^google[0-9a-z_-]+\.html$/i.test(name));
+
+    expect(verificationFiles.length).toBeGreaterThan(0);
+    for (const file of verificationFiles) {
+      expect(readFileSync(resolve(publicDir, file), 'utf8').trim()).toBe(`google-site-verification: ${file}`);
+    }
   });
 
   it('injects the Search Console meta tag into the served homepage when a token is set', () => {
