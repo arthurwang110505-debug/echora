@@ -114,6 +114,20 @@ export default function Library() {
         {favoriteSongs.length ? <section><div className="mb-4"><div className="flex flex-wrap items-center gap-2"><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#F9F871]">{t('library.favoritesEyebrow')}</p><span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-bold text-slate-400">{t('library.keptForYou')}</span></div><h2 className="mt-1 text-2xl font-extrabold text-white">{t('library.favoritesTitle')}</h2><p className="mt-1 text-xs text-slate-500">{t('library.favoritesHint')}</p></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{favoriteSongs.map(song => <div key={`favorite-${song.source}-${song.id}`} className="flex items-center gap-3 rounded-2xl border border-[#F9F871]/15 bg-[#F9F871]/[0.035] p-3"><button type="button" onClick={() => { play(song, favoriteSongs); navigate('/player'); }} className="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F9F871]"><img src={song.coverUrl || createCoverPlaceholder(song.title, 'artist')} alt="" className="h-12 w-12 rounded-xl object-cover" /><span className="min-w-0"><span className="flex items-center gap-2"><span className="truncate text-sm font-bold text-white">{song.title}</span></span><span className="block truncate text-xs text-slate-500">{typeof song.artists[0] === 'string' ? song.artists[0] : song.artists[0]?.name || t('library.unknownArtist')}</span></span></button><button type="button" onClick={() => toggleFavoriteSong(song)} className="rounded-xl px-2 py-2 text-lg text-[#F9F871] transition hover:bg-white/10" aria-label={t('library.removeFavorite', { title: song.title })}><Star aria-hidden="true" className="h-4 w-4" fill="currentColor" /></button>
 </div>)}</div></section> : null}
       </main>
+
+      <footer className="mx-auto mt-8 max-w-6xl border-t border-white/[0.07] px-5 py-8 sm:px-8">
+        <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+          <p className="text-[11px] text-slate-500">© {new Date().getFullYear()} Echora · AGPL-3.0</p>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => navigate('/privacy')} className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 text-[11px] font-bold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
+              {t('footer.privacy')}
+            </button>
+            <button type="button" onClick={() => navigate('/terms')} className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 text-[11px] font-bold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
+              {t('footer.terms')}
+            </button>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

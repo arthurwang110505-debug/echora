@@ -259,6 +259,26 @@ export default function Settings() {
             <p className="font-bold text-white">{t('settings.privacy')}</p>
             <p className="mt-1">{t('settings.privacyHint')}</p>
           </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs leading-6 text-slate-300">
+            <p className="font-bold text-white">{t('settings.legalLinks')}</p>
+            <p className="mt-1 text-[11px] text-slate-500">{t('settings.privacyHint')}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" onClick={() => navigate('/privacy')} className="rounded-xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-3.5 py-2 text-xs font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/20">
+                {t('settings.privacyPolicy')}
+              </button>
+              <button type="button" onClick={() => navigate('/terms')} className="rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-bold text-slate-300 transition hover:bg-white/10 hover:text-white">
+                {t('settings.termsOfService')}
+              </button>
+            </div>
+            <div className="mt-3 flex flex-col gap-1.5">
+              <button type="button" onClick={() => navigate('/privacy')} className="text-left text-[11px] font-bold text-[#62f5c4] underline decoration-white/20 underline-offset-2 transition hover:text-[#b8ffe2]">
+                {t('settings.viewFullPrivacy')} →
+              </button>
+              <button type="button" onClick={() => navigate('/terms')} className="text-left text-[11px] font-bold text-slate-400 underline decoration-white/20 underline-offset-2 transition hover:text-white">
+                {t('settings.viewFullTerms')} →
+              </button>
+            </div>
+          </div>
         </section>
         </div>
       </main>

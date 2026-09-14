@@ -317,9 +317,17 @@ export default function Welcome() {
           <p className="text-[11px] leading-5 text-slate-500">
             {t('welcome.footerAttribution')} <a href="https://github.com/chthollyphile/folia-major" target="_blank" rel="noreferrer" className="font-bold text-slate-400 underline decoration-white/20 underline-offset-2 transition hover:text-[#62f5c4]">folia-major</a>。
           </p>
-          <button type="button" onClick={() => navigate(WELCOME_APP_TARGET)} className="mt-3 min-h-11 rounded-xl px-3 text-xs font-bold text-slate-400 transition hover:text-[#62f5c4]">
-            {t('welcome.footerOpenPlayer')}
-          </button>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-[11px]">
+            <button type="button" onClick={() => navigate('/privacy')} className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 font-bold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
+              {t('welcome.footerPrivacy')}
+            </button>
+            <button type="button" onClick={() => navigate('/terms')} className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 font-bold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
+              {t('welcome.footerTerms')}
+            </button>
+            <button type="button" onClick={() => navigate(WELCOME_APP_TARGET)} className="min-h-11 rounded-xl px-3 text-xs font-bold text-slate-400 transition hover:text-[#62f5c4]">
+              {t('welcome.footerOpenPlayer')}
+            </button>
+          </div>
         </footer>
       </div>
     </MotionConfig>
