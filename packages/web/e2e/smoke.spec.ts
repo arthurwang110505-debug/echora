@@ -13,9 +13,13 @@ test.describe('Echora smoke paths', () => {
     // crawlers both need to follow these links from the homepage.
     await expect(page.getByRole('link', { name: '隱私權政策' }).first()).toHaveAttribute('href', '/privacy');
     await expect(page.getByRole('link', { name: '服務條款' }).first()).toHaveAttribute('href', '/terms');
-    await expect(page.getByRole('link', { name: 'Manage Google access' }).first()).toHaveAttribute(
+    await expect(page.getByRole('link', { name: 'Google 隱私權政策' }).first()).toHaveAttribute(
       'href',
-      'https://myaccount.google.com/permissions',
+      'https://policies.google.com/privacy',
+    );
+    await expect(page.getByRole('link', { name: 'YouTube 服務條款' }).first()).toHaveAttribute(
+      'href',
+      'https://www.youtube.com/t/terms',
     );
   });
 
