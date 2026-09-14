@@ -32,7 +32,10 @@
     "footerAttribution": "Echora · AGPL-3.0 open source project; visual technology from",
     "footerOpenPlayer": "Open the player directly →",
     "footerPrivacy": "Privacy Policy",
-    "footerTerms": "Terms of Service"
+    "footerTerms": "Terms of Service",
+    "footerDataNote": "Echora uses YouTube API Services. When you connect a Google Account it only reads your playlists (read-only), uses that data solely to display and play them inside the app, and handles it according to the Google API Services User Data Policy, including the Limited Use requirements.",
+    "footerYoutubeTerms": "YouTube Terms of Service",
+    "footerGooglePrivacy": "Google Privacy Policy"
   },
   "appHome": {
     "ytSource": "YouTube Music",
@@ -255,7 +258,8 @@
     "privacyPolicy": "Privacy Policy",
     "termsOfService": "Terms of Service",
     "viewFullPrivacy": "View full privacy policy",
-    "viewFullTerms": "View terms of service"
+    "viewFullTerms": "View terms of service",
+    "googleAccessLink": "Manage Google Account access"
   },
   "player": {
     "synced": "Synced",
@@ -419,7 +423,11 @@
     "sceneLoadFailed": "The {{mode}} stage couldn't load right now",
     "sceneFallbackCopy": "Your stage selection is kept and won't switch back to Classic without consent. You can retry, or manually choose Classic.",
     "retryScene": "Retry {{mode}}",
-    "switchToClassic": "Switch to Classic"
+    "switchToClassic": "Switch to Classic",
+    "connectPrivacyNote": "Signing in reads your YouTube playlists read-only and uses that data only to display and play them inside the app. Nothing is uploaded to Echora servers.",
+    "connectPrivacyLink": "Privacy Policy",
+    "connectYoutubeTermsLink": "YouTube Terms of Service",
+    "connectGooglePrivacyLink": "Google Privacy Policy"
   },
   "ui": {
     "backToHome": "Back to home",
@@ -465,7 +473,19 @@
     "changesTitle": "Changes & contact",
     "changesDesc": "We may update this policy when features change. The new version will be published at /privacy with an updated date.",
     "contactDesc": "Questions? Open an issue or discussion on GitHub — source and deployment are public under AGPL-3.0.",
-    "openGitHub": "Open GitHub"
+    "openGitHub": "Open GitHub",
+    "googleUserDataTitle": "Google user data (YouTube API Services)",
+    "googleUserDataDesc": "When you connect YouTube Music, Echora asks for a read-only OAuth grant (scope: https://www.googleapis.com/auth/youtube.readonly) and reads only your channel name, your playlists and the video ids inside them, so the app can show and play your own playlists. Echora does not read or modify any other Google data.",
+    "googleUserDataItem1": "Data accessed: channel name, playlist list and video ids (read-only — no comments, subscriptions or profile data)",
+    "googleUserDataItem2": "Purpose: to display and play the playlists you choose inside the app. Never used for ads or retargeting, never sold, never transferred to third parties, never read by humans, never used to train AI models",
+    "googleUserDataItem3": "Storage: access tokens and playlist caches stay in this device's browser (localStorage). Echora servers do not store any Google user data",
+    "googleUserDataItem4": "Retention: deleted when you sign out, when the token expires, or when you clear site data. You can revoke access at any time",
+    "googleUserDataLimitedUse": "Echora's use of information received from Google APIs will adhere to the Google API Services User Data Policy, including the Limited Use requirements.",
+    "googleUserDataRevoke": "Revoking access: sign out of YouTube in the app (Settings → Privacy, which also revokes the token) or remove Echora from your Google Account permissions page.",
+    "googlePermissionsLink": "Manage Google Account access",
+    "googlePrivacyLink": "Google Privacy Policy",
+    "youtubeTermsLink": "YouTube Terms of Service",
+    "youtubeApiTermsLink": "YouTube API Services Terms of Service"
   },
   "terms": {
     "back": "Back",
@@ -504,7 +524,14 @@
     "governingTitle": "Governing & contact",
     "governingDesc": "These terms are governed by the laws applicable to the open-source project hosting location, unless otherwise required. For questions, open a GitHub issue.",
     "changesTitle": "Changes to terms",
-    "changesDesc": "We may update these terms when features change. Continued use after posting the new version constitutes acceptance. The latest version is always at /terms."
+    "changesDesc": "We may update these terms when features change. Continued use after posting the new version constitutes acceptance. The latest version is always at /terms.",
+    "youtubeApiTitle": "YouTube API Services",
+    "youtubeApiDesc": "Echora uses YouTube API Services to read your own playlists and plays them through the official YouTube embedded player. By using these features you agree to the YouTube Terms of Service and the Google Privacy Policy.",
+    "youtubeApiRevoke": "You can revoke Echora's access at any time from your Google Account permissions page, or by signing out of YouTube in the app settings.",
+    "youtubeApiTermsLink": "YouTube API Services Terms of Service",
+    "youtubeTermsLink": "YouTube Terms of Service",
+    "googlePrivacyLink": "Google Privacy Policy",
+    "googlePermissionsLink": "Manage Google Account access"
   },
   "footer": {
     "privacy": "Privacy Policy",

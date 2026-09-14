@@ -32,7 +32,10 @@
     "footerAttribution": "Echora · AGPL-3.0 開源專案，視覺技術來自",
     "footerOpenPlayer": "直接開啟播放器 →",
     "footerPrivacy": "隱私權政策",
-    "footerTerms": "服務條款"
+    "footerTerms": "服務條款",
+    "footerDataNote": "Echora 使用 YouTube API Services：連接 Google 帳號時只以唯讀方式讀取你的播放清單，這些資料僅用於在 App 內顯示與播放，並依 Google API Services User Data Policy（含 Limited Use 要求）處理。",
+    "footerYoutubeTerms": "YouTube 服務條款",
+    "footerGooglePrivacy": "Google 隱私權政策"
   },
   "appHome": {
     "ytSource": "YouTube Music",
@@ -255,7 +258,8 @@
     "privacyPolicy": "隱私權政策",
     "termsOfService": "服務條款",
     "viewFullPrivacy": "查看完整隱私權政策",
-    "viewFullTerms": "查看服務條款"
+    "viewFullTerms": "查看服務條款",
+    "googleAccessLink": "管理 Google 帳號存取權"
   },
   "player": {
     "synced": "已同步",
@@ -419,7 +423,11 @@
     "sceneLoadFailed": "{{mode}} 舞台暫時無法載入",
     "sceneFallbackCopy": "已保留目前舞台選擇，不會未經同意切回 Classic。你可以重試，或手動選擇 Classic。",
     "retryScene": "重試 {{mode}}",
-    "switchToClassic": "切換到 Classic"
+    "switchToClassic": "切換到 Classic",
+    "connectPrivacyNote": "登入只會以唯讀方式讀取你的 YouTube 播放清單，資料僅用於在 App 內顯示與播放，不會上傳到 Echora 的伺服器。",
+    "connectPrivacyLink": "隱私權政策",
+    "connectYoutubeTermsLink": "YouTube 服務條款",
+    "connectGooglePrivacyLink": "Google 隱私權政策"
   },
   "ui": {
     "backToHome": "返回首頁",
@@ -465,7 +473,19 @@
     "changesTitle": "變更與聯絡",
     "changesDesc": "當功能變更時我們可能會更新本政策。新版本將發佈在 /privacy 並更新日期。",
     "contactDesc": "有問題？在 GitHub 開啟 issue 或討論——原始碼與部署在 AGPL-3.0 下公開。",
-    "openGitHub": "開啟 GitHub"
+    "openGitHub": "開啟 GitHub",
+    "googleUserDataTitle": "Google 使用者資料（YouTube API Services）",
+    "googleUserDataDesc": "連接 YouTube Music 時，Echora 以官方 OAuth 取得唯讀授權（scope：https://www.googleapis.com/auth/youtube.readonly），只讀取你的頻道名稱、播放清單與其中的影片 ID，用來在 App 內顯示與播放你自己的歌單。Echora 不會讀取或修改其他任何 Google 資料。",
+    "googleUserDataItem1": "存取的資料：頻道名稱、播放清單清單與影片 ID（唯讀，不含留言、訂閱或個人檔案）",
+    "googleUserDataItem2": "用途：只在你選擇播放時，於 App 內顯示與播放你自己的歌單；不用於廣告或再行銷、不販售、不轉移給第三方、不供人員閱讀、也不用於 AI 模型訓練",
+    "googleUserDataItem3": "儲存：存取權杖與歌單快取只留在你這台裝置的瀏覽器（localStorage）；Echora 的伺服器不儲存任何 Google 使用者資料",
+    "googleUserDataItem4": "保存期限：登出、權杖到期或清除網站資料時即刪除；你也可以隨時撤銷存取權",
+    "googleUserDataLimitedUse": "Echora 對自 Google API 接收之資訊的使用，將遵守 Google API Services User Data Policy，包括 Limited Use 要求。",
+    "googleUserDataRevoke": "撤銷存取權：在 App 的「設定 → 隱私權說明」登出 YouTube（同時會撤銷權杖），或前往 Google 帳號權限頁面移除 Echora。",
+    "googlePermissionsLink": "管理 Google 帳號存取權",
+    "googlePrivacyLink": "Google 隱私權政策",
+    "youtubeTermsLink": "YouTube 服務條款",
+    "youtubeApiTermsLink": "YouTube API Services 服務條款"
   },
   "terms": {
     "back": "返回",
@@ -504,7 +524,14 @@
     "governingTitle": "準據法與聯絡",
     "governingDesc": "本條款受開源專案託管地適用的法律管轄，除非另有要求。如有問題，請在 GitHub 開啟 issue。",
     "changesTitle": "條款變更",
-    "changesDesc": "當功能變更時我們可能會更新本條款。在發佈新版本後繼續使用即表示接受。最新版本永遠在 /terms。"
+    "changesDesc": "當功能變更時我們可能會更新本條款。在發佈新版本後繼續使用即表示接受。最新版本永遠在 /terms。",
+    "youtubeApiTitle": "YouTube API Services",
+    "youtubeApiDesc": "Echora 使用 YouTube API Services 讀取你自己的播放清單，並以 YouTube 官方嵌入式播放器播放。使用這些功能即表示你同意 YouTube 服務條款與 Google 隱私權政策。",
+    "youtubeApiRevoke": "你可以隨時在 Google 帳號權限頁面撤銷 Echora 的存取權，或在 App 的設定頁登出 YouTube。",
+    "youtubeApiTermsLink": "YouTube API Services 服務條款",
+    "youtubeTermsLink": "YouTube 服務條款",
+    "googlePrivacyLink": "Google 隱私權政策",
+    "googlePermissionsLink": "管理 Google 帳號存取權"
   },
   "footer": {
     "privacy": "隱私權政策",

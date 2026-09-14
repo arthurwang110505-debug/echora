@@ -1,6 +1,6 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Shield, Lock, Database, Eye, Server } from 'lucide-react';
+import { ArrowLeft, Shield, Lock, Database, Eye, Server, KeyRound, ExternalLink } from 'lucide-react';
 import BrandMark from '../components/BrandMark';
 
 export default function Privacy() {
@@ -82,6 +82,51 @@ export default function Privacy() {
                 </ul>
               </div>
               <p className="text-slate-400">{t('privacy.localStorageDetail')}</p>
+            </div>
+          </section>
+
+          {/*
+            Google API Services User Data Policy ("Limited Use") disclosure. The
+            wording, the scope and the revocation path are what OAuth brand and
+            sensitive-scope reviewers look for, so keep this section, the landing
+            footer and the consent screen URLs consistent.
+          */}
+          <section id="google-user-data" className="rounded-[22px] border border-[#62f5c4]/20 bg-[#62f5c4]/[0.05] p-6 backdrop-blur-xl sm:p-7">
+            <div className="mb-3 flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#62f5c4]/20 bg-[#62f5c4]/10 text-[#62f5c4]">
+                <KeyRound className="h-4 w-4" />
+              </span>
+              <h2 className="text-base font-extrabold text-white">{t('privacy.googleUserDataTitle')}</h2>
+            </div>
+            <p className="text-[13px] leading-6 text-slate-300">{t('privacy.googleUserDataDesc')}</p>
+            <ul className="mt-3 list-disc space-y-1.5 pl-5 text-[13px] leading-6 text-slate-400">
+              <li>{t('privacy.googleUserDataItem1')}</li>
+              <li>{t('privacy.googleUserDataItem2')}</li>
+              <li>{t('privacy.googleUserDataItem3')}</li>
+              <li>{t('privacy.googleUserDataItem4')}</li>
+            </ul>
+            <div className="mt-4 rounded-xl border border-[#62f5c4]/25 bg-black/30 p-4 text-[12px] leading-5 text-[#b8ffe2]">
+              {t('privacy.googleUserDataLimitedUse')}
+            </div>
+            <p className="mt-3 text-[13px] leading-6 text-slate-400">{t('privacy.googleUserDataRevoke')}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {[
+                { href: 'https://myaccount.google.com/permissions', label: t('privacy.googlePermissionsLink') },
+                { href: 'https://policies.google.com/privacy', label: t('privacy.googlePrivacyLink') },
+                { href: 'https://www.youtube.com/t/terms', label: t('privacy.youtubeTermsLink') },
+                { href: 'https://developers.google.com/youtube/terms/api-services-terms-of-service', label: t('privacy.youtubeApiTermsLink') },
+              ].map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-[11px] font-bold text-slate-300 transition hover:bg-white/10 hover:text-white"
+                >
+                  <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
+                  {link.label}
+                </a>
+              ))}
             </div>
           </section>
 

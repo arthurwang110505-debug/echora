@@ -58,6 +58,27 @@ export default function ConnectModal({
             {youtubeError}
           </p>
         )}
+        {/*
+          In-product privacy notice for the Google grant. Google's user-data
+          policy expects the disclosure next to the action that triggers the
+          OAuth flow, not only inside the privacy policy page.
+        */}
+        {showYouTube && (
+          <p className="text-[11px] leading-5 text-slate-400">
+            {t('player.connectPrivacyNote')}{' '}
+            <a href="/privacy" target="_blank" rel="noreferrer" className="font-bold text-[#62f5c4] underline decoration-[#62f5c4]/40 underline-offset-2">
+              {t('player.connectPrivacyLink')}
+            </a>
+            <span className="px-1 opacity-40">·</span>
+            <a href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer" className="font-bold text-slate-300 underline decoration-white/20 underline-offset-2">
+              {t('player.connectYoutubeTermsLink')}
+            </a>
+            <span className="px-1 opacity-40">·</span>
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer" className="font-bold text-slate-300 underline decoration-white/20 underline-offset-2">
+              {t('player.connectGooglePrivacyLink')}
+            </a>
+          </p>
+        )}
         <div className="flex justify-end gap-3 pt-2">
           <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs text-slate-300 transition-colors">
             {t('player.cancel')}

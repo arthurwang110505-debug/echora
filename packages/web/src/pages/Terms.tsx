@@ -1,6 +1,6 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, FileText, Scale, Music, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, FileText, Scale, Music, AlertTriangle, RefreshCw, FileMusic, ExternalLink } from 'lucide-react';
 import BrandMark from '../components/BrandMark';
 
 export default function Terms() {
@@ -104,6 +104,41 @@ export default function Terms() {
               <li>{t('terms.thirdPartyItem2')}</li>
               <li>{t('terms.thirdPartyItem3')}</li>
             </ul>
+          </section>
+
+          {/*
+            YouTube API Services terms require a conspicuous link to YouTube's
+            own terms and to Google's privacy policy, plus a documented way to
+            revoke access. Reviewers of the OAuth verification look for both.
+          */}
+          <section className="rounded-[22px] border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl sm:p-7">
+            <div className="mb-3 flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300">
+                <FileMusic className="h-4 w-4" />
+              </span>
+              <h2 className="text-base font-extrabold text-white">{t('terms.youtubeApiTitle')}</h2>
+            </div>
+            <p className="text-[13px] leading-6 text-slate-400">{t('terms.youtubeApiDesc')}</p>
+            <p className="mt-3 text-[13px] leading-6 text-slate-400">{t('terms.youtubeApiRevoke')}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {[
+                { href: 'https://developers.google.com/youtube/terms/api-services-terms-of-service', label: t('terms.youtubeApiTermsLink') },
+                { href: 'https://www.youtube.com/t/terms', label: t('terms.youtubeTermsLink') },
+                { href: 'https://policies.google.com/privacy', label: t('terms.googlePrivacyLink') },
+                { href: 'https://myaccount.google.com/permissions', label: t('terms.googlePermissionsLink') },
+              ].map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-[11px] font-bold text-slate-300 transition hover:bg-white/10 hover:text-white"
+                >
+                  <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
+                  {link.label}
+                </a>
+              ))}
+            </div>
           </section>
 
           <section className="rounded-[22px] border border-amber-300/20 bg-amber-300/[0.06] p-6 backdrop-blur-xl sm:p-7">
