@@ -20,7 +20,7 @@ describe('stage performance profile', () => {
         expect(shouldUseCompactStageProfile({ width: 390, height: 844 })).toBe(true);
     });
 
-    it('keeps the complete Sonnet composition on compact viewports', () => {
+    it('keeps Sonnet composition while capping compact renderer resolution', () => {
         expect(resolveCompactSonnetTuning(DEFAULT_SONNET_TUNING, false)).toBe(DEFAULT_SONNET_TUNING);
 
         const tuning = {
@@ -39,9 +39,9 @@ describe('stage performance profile', () => {
         };
         const compact = resolveCompactSonnetTuning(tuning, true);
 
-        expect(compact).toEqual(tuning);
+        expect(compact).toEqual({ ...tuning, textureResolution: 1 });
         expect(compact.mgDensity).toBe(0.8);
-        expect(compact.textureResolution).toBe(2);
+        expect(compact.textureResolution).toBe(1);
         expect(compact.showGuide).toBe(true);
         expect(compact.showBackgroundMg).toBe(true);
         expect(compact.showFixedGeo).toBe(true);
@@ -61,8 +61,8 @@ describe('stage performance profile', () => {
 
         expect(compact.geometryVisibility).toBe(DEFAULT_DIORAMA_TUNING.geometryVisibility);
         expect(compact.showParticles).toBe(true);
-        expect(compact.particleDensity).toBe(288);
-        expect(compact.backgroundParticleCircumference).toBe(12);
+        expect(compact.particleDensity).toBe(192);
+        expect(compact.backgroundParticleCircumference).toBe(10);
         expect(compact.backgroundParticleRadial).toBe(1);
         expect(compact.particleGlowEnabled).toBe(false);
     });
@@ -132,10 +132,10 @@ describe('stage performance profile', () => {
         expect(invalid).toEqual({ position: 300, velocity: 0 });
     });
 
-    it('caps Fume canvas DPR at 2 on every device class', () => {
-        // Beyond two device pixels per CSS pixel the glow-heavy canvas gains nothing
-        // visible but rasterizes 2.25x+ more pixels per frame; dpr <= 2 is untouched.
-        expect(resolveFumeCanvasDpr(3, true)).toBe(2);
+    it('caps Fume canvas DPR more aggressively on compact viewports', () => {
+        // Compact Fume redraws the full viewport and uses a separate glow pass.
+        expect(resolveFumeCanvasDpr(3, true)).toBe(1.25);
+        expect(resolveFumeCanvasDpr(1.1, true)).toBe(1.1);
         expect(resolveFumeCanvasDpr(3, false)).toBe(2);
         expect(resolveFumeCanvasDpr(2, false)).toBe(2);
         expect(resolveFumeCanvasDpr(1.5, false)).toBe(1.5);

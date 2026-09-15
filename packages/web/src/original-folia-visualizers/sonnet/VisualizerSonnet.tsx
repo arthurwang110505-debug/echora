@@ -145,9 +145,9 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
                     lyricsFontScale,
                     staticMode,
                     paused: pausedRef.current,
-                    // Keep the complete Sonnet composition on touch viewports; mobile
-                    // performance is handled by scheduling, not layer removal.
-                    performanceTier: 'full',
+                    // Keep the complete Sonnet composition on touch viewports;
+                    // compact mode only reduces renderer work and effect quality.
+                    performanceTier: isCompactStage ? 'compact' : 'full',
                     songTitle: metadata.title,
                     songArtist: metadata.artist,
                     songAlbum: metadata.album,

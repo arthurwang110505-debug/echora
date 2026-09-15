@@ -412,7 +412,7 @@ const RingLine: React.FC<RingLineProps> = ({
     useLayoutEffect(() => {
         const handler = (latestTime: number) => {
             const updateNow = performance.now();
-            if (compactPerformance && updateNow - lastMobileUpdateAtRef.current < 32) return;
+            if (compactPerformance && updateNow - lastMobileUpdateAtRef.current < 1000 / 30) return;
             lastMobileUpdateAtRef.current = updateNow;
 
             if (shouldHoldCladdaghFrameForPlaybackReset(previousTimeRef.current, latestTime, centerLineIndex)) {

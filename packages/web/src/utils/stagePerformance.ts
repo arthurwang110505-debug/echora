@@ -61,7 +61,12 @@ export const useCompactStageProfile = (): boolean => {
 export const resolveCompactSonnetTuning = (
     tuning: SonnetTuning,
     compact: boolean,
-): SonnetTuning => compact ? { ...tuning } : tuning;
+): SonnetTuning => compact ? {
+    ...tuning,
+    // Keep Sonnet's composition intact, but avoid rasterising the full scene at
+    // desktop-quality resolution on a phone-sized viewport.
+    textureResolution: Math.min(tuning.textureResolution, 1),
+} : tuning;
 
 /** Keep Diorama's path and text intact while bounding its mobile point-cloud and glow workload. */
 export const resolveCompactDioramaTuning = (
@@ -69,10 +74,10 @@ export const resolveCompactDioramaTuning = (
     compact: boolean,
 ): DioramaTuning => compact ? {
     ...tuning,
-    particleDensity: Math.min(tuning.particleDensity, 288),
+    particleDensity: Math.min(tuning.particleDensity, 192),
     particleGlowEnabled: false,
     particleGlowIntensity: 0,
-    backgroundParticleCircumference: Math.min(tuning.backgroundParticleCircumference, 12),
+    backgroundParticleCircumference: Math.min(tuning.backgroundParticleCircumference, 10),
     backgroundParticleRadial: Math.min(tuning.backgroundParticleRadial, 1),
     glowIntensity: Math.min(tuning.glowIntensity, 0.65),
     soulIntensity: Math.min(tuning.soulIntensity, 0.65),
@@ -224,9 +229,8 @@ export const resolveFumeCameraSafetyCorrection = (
 
 export const resolveFumeCanvasDpr = (devicePixelRatio: number, compact: boolean): number => {
     const safeDpr = Number.isFinite(devicePixelRatio) && devicePixelRatio > 0 ? devicePixelRatio : 1;
-    // Cap at 2: beyond two device pixels per CSS pixel the glow-heavy canvas gains
-    // nothing visible but rasterizes 2.25x+ more pixels per frame. Devices at or
-    // below dpr 2 (phones, notebooks, most desktops) are unaffected.
-    void compact;
-    return Math.min(safeDpr, 2);
+    // Fume redraws the full viewport and runs a separate glow pass. On compact
+    // viewports, 1.25 is a better quality/performance point than rasterising a
+    // 3x phone screen at its native DPR on every frame.
+    return Math.min(safeDpr, compact ? 1.25 : 2);
 };

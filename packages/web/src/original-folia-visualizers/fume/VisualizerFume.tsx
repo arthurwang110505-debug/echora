@@ -2234,9 +2234,18 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
         }
         let frameId = 0;
         let lastFrameAt: number | null = null;
+        let lastRenderedAt: number | null = null;
 
         const draw = () => {
             const now = performance.now();
+            // requestAnimationFrame still fires at the display refresh rate on
+            // many phones. Keep the full-canvas redraw at a predictable 30 FPS
+            // in compact mode while preserving the same camera/time animation.
+            if (isCompactStage && lastRenderedAt !== null && now - lastRenderedAt < 1000 / 30) {
+                frameId = window.requestAnimationFrame(draw);
+                return;
+            }
+            lastRenderedAt = now;
             const dt = lastFrameAt === null
                 ? 1 / 60
                 : clamp((now - lastFrameAt) / 1000, 1 / 240, 0.05);

@@ -128,6 +128,9 @@ export class SonnetPixiRuntime {
 
     private install() {
         this.resizeToHost();
+        // Sonnet's scene is animation-driven, so a bounded mobile ticker avoids
+        // spending a full Pixi frame on work the display cannot present.
+        this.app.ticker.maxFPS = this.options.performanceTier === 'compact' ? 30 : 60;
         this.app.ticker.add(this.renderFrame);
         this.resizeObserver = new ResizeObserver(() => {
             if (this.destroyed || !this.resizeToHost()) return;
