@@ -1,0 +1,159 @@
+import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { usePlayer } from '../contexts/PlayerContext';
+import { extractYouTubeVideoId } from '@echora/core';
+import { recordDiagnostic } from '../lib/diagnostics';
+import { derivePlaybackVolume } from '../playback/volumeState';
+
+declare global { interface Window { YT?: any; onYouTubeIframeAPIReady?: () => void; } }
+
+export function getYouTubeSurfaceClass(immersive: boolean) {
+  return immersive
+    ? 'fixed bottom-[max(6rem,env(safe-area-inset-bottom))] left-1/2 z-[60] w-[min(356px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-2xl border border-[#62f5c4]/45 bg-black shadow-2xl md:bottom-20 md:left-auto md:right-5 md:translate-x-0'
+    : 'fixed bottom-[max(7rem,calc(env(safe-area-inset-bottom)+6rem))] right-3 z-[60] w-[min(356px,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-[#62f5c4]/45 bg-black shadow-2xl sm:right-5 sm:bottom-5';
+}
+
+export function getYouTubeVideoSurfaceClass() {
+  return 'relative z-20 w-full max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-black shadow-2xl aspect-video';
+}
+
+export default function YouTubePlayer({ immersive = false, concealed = false, videoMode = false }: { immersive?: boolean; concealed?: boolean; videoMode?: boolean }) {
+  const { t } = useTranslation();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<any>(null);
+  const disposedRef = useRef(false);
+  const { currentSong, isPlaying, volume, isMuted, youtubeError, playbackState } = usePlayer();
+
+  useEffect(() => {
+    if (currentSong?.source !== 'ytmusic') return;
+    disposedRef.current = false;
+    if (!hostRef.current && containerRef.current) {
+      const host = document.createElement('div');
+      hostRef.current = host;
+      host.className = videoMode ? 'h-full w-full' : '';
+      containerRef.current.replaceChildren(host);
+    }
+    const create = () => {
+      if (disposedRef.current || !hostRef.current || !window.YT?.Player || playerRef.current) return;
+      playerRef.current = new window.YT.Player(hostRef.current, {
+        width: videoMode ? '100%' : '356',
+        height: videoMode ? '100%' : '200',
+        playerVars: { playsinline: 1, origin: window.location.origin, controls: videoMode ? 1 : 0, rel: 0 },
+        events: {
+          onReady: (event: any) => {
+            const state = usePlayer.getState();
+            const videoId = extractYouTubeVideoId(state.currentSong?.audioUrl || state.currentSong?.id);
+            if (typeof event.target.setVolume === 'function') event.target.setVolume(Math.round(derivePlaybackVolume(state.volume, state.isMuted) * 100));
+            if (videoId) {
+              event.target.cueVideoById(videoId);
+              usePlayer.setState({ isPlaying: false, playbackState: 'paused', currentTime: 0, youtubeError: null });
+            }
+          },
+          onStateChange: (event: any) => {
+            if (disposedRef.current) return;
+            const state = usePlayer.getState();
+            const duration = Number(event.target.getDuration?.() || state.duration);
+            const currentTime = Number(event.target.getCurrentTime?.() || 0);
+            if (event.data === window.YT.PlayerState.PLAYING) usePlayer.setState({ isPlaying: true, playbackState: 'playing', currentTime: Number.isFinite(currentTime) ? currentTime : state.currentTime, duration: Number.isFinite(duration) ? duration : state.duration, youtubeError: null });
+            if (event.data === window.YT.PlayerState.BUFFERING) usePlayer.setState({ isPlaying: false, playbackState: 'buffering', currentTime: Number.isFinite(currentTime) ? currentTime : state.currentTime, duration: Number.isFinite(duration) ? duration : state.duration });
+            if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.CUED) usePlayer.setState({ isPlaying: false, playbackState: 'paused', currentTime, duration });
+            if (event.data === window.YT.PlayerState.ENDED) usePlayer.setState({ isPlaying: false, playbackState: 'ended', currentTime, duration });
+          },
+          onError: (event: any) => {
+            recordDiagnostic('youtube_error', { code: Number(event.data) || 0 });
+            const messages: Record<number, string> = {
+              2: t('player.ytErrorInvalidParams'),
+              5: t('player.ytErrorHtml5'),
+              100: t('player.ytErrorUnavailable'),
+              101: t('player.ytErrorEmbedDisabled'),
+              150: t('player.ytErrorEmbedDisabled'),
+            };
+            usePlayer.setState({ isPlaying: false, playbackState: 'error', youtubeError: messages[event.data] || t('player.ytErrorGeneric') });
+          },
+        },
+      });
+    };
+    const readyHandler = () => create();
+    if (window.YT?.Player) create();
+    else {
+      window.onYouTubeIframeAPIReady = readyHandler;
+      if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+        const script = document.createElement('script');
+        script.src = 'https://www.youtube.com/iframe_api';
+        script.async = true;
+        document.head.appendChild(script);
+      }
+    }
+    return () => {
+      disposedRef.current = true;
+      if (window.onYouTubeIframeAPIReady === readyHandler) window.onYouTubeIframeAPIReady = undefined;
+      const player = playerRef.current;
+      playerRef.current = null;
+      try { player?.stopVideo?.(); } catch { /* The player may have been removed by the browser. */ }
+      try { player?.destroy?.(); } catch { /* The player may have already disposed itself. */ }
+      hostRef.current = null;
+      if (containerRef.current) containerRef.current.replaceChildren();
+    };
+  }, [currentSong?.source, videoMode]);
+
+  const youtubeCommand = usePlayer(state => state.youtubeCommand);
+
+  useEffect(() => {
+    if (!youtubeCommand || youtubeCommand.seq === 0) return;
+    if (youtubeCommand.action === 'load') {
+      const videoId = extractYouTubeVideoId(youtubeCommand.url);
+      if (!videoId) {
+        usePlayer.setState({ isPlaying: false, playbackState: 'error', youtubeError: t('player.ytErrorNoVideoId') });
+        return;
+      }
+      if (!disposedRef.current && typeof playerRef.current?.loadVideoById === 'function') playerRef.current.loadVideoById(videoId);
+      return;
+    }
+    if (youtubeCommand.action === 'play') {
+      if (!disposedRef.current && typeof playerRef.current?.playVideo === 'function') playerRef.current.playVideo();
+      return;
+    }
+    if (youtubeCommand.action === 'pause') {
+      if (!disposedRef.current && typeof playerRef.current?.pauseVideo === 'function') playerRef.current.pauseVideo();
+      return;
+    }
+    if (youtubeCommand.action === 'seek' && typeof playerRef.current?.seekTo === 'function' && Number.isFinite(youtubeCommand.time)) {
+      playerRef.current.seekTo(youtubeCommand.time, true);
+    }
+  }, [youtubeCommand]);
+
+  useEffect(() => {
+    // Mute is a flag now, so the iframe must follow the derived level instead of a zeroed volume.
+    if (typeof playerRef.current?.setVolume === 'function') playerRef.current.setVolume(Math.round(derivePlaybackVolume(volume, isMuted) * 100));
+  }, [volume, isMuted]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (disposedRef.current || typeof playerRef.current?.getCurrentTime !== 'function' || currentSong?.source !== 'ytmusic') return;
+      const state = usePlayer.getState();
+      if (!state.isPlaying) return;
+      const currentTime = Number(playerRef.current.getCurrentTime() || 0);
+      const duration = Number(playerRef.current.getDuration?.() || state.duration);
+      if (Number.isFinite(currentTime) && Number.isFinite(duration) && Math.abs(currentTime - state.currentTime) > 0.04) usePlayer.setState({ currentTime, duration });
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [currentSong]);
+
+  // The official IFrame Player API requires a rendered viewport of at least 200×200px.
+  // Keep its native play surface visible until the user starts audio so browsers can preserve the gesture.
+  const awaitingUserGesture = currentSong?.source === 'ytmusic' && !isPlaying;
+  const playerMessage = youtubeError
+    || (playbackState === 'buffering' ? t('player.ytBuffering') : t('player.ytGestureHint'));
+  const visibleSurfaceClass = videoMode ? getYouTubeVideoSurfaceClass() : getYouTubeSurfaceClass(immersive);
+  const surfaceClass = concealed
+    ? `${visibleSurfaceClass} pointer-events-none opacity-0`
+    : awaitingUserGesture || videoMode
+      ? visibleSurfaceClass
+      : 'pointer-events-none fixed -left-[10000px] top-0 h-[200px] w-[356px] overflow-hidden';
+  return <div className={surfaceClass} aria-hidden={concealed || (!awaitingUserGesture && !videoMode)} aria-label={concealed ? undefined : t('player.ytNativePlayer')}>
+    {awaitingUserGesture && !concealed &&         <div role={youtubeError ? 'alert' : 'status'} className={`${immersive && !youtubeError ? 'sr-only' : 'pointer-events-none absolute inset-x-0 top-0 z-10 px-3 py-2 text-center text-xs font-semibold'} ${youtubeError ? 'bg-rose-950/90 text-rose-100' : 'bg-black/70 text-white'}`}>{playerMessage}</div>}
+
+    <div ref={containerRef} className={videoMode ? 'h-full w-full aspect-video' : undefined} />
+  </div>;
+}

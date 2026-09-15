@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/echora-icon-192.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#07090e" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Echora Stage" />
+    <link rel="apple-touch-icon" href="/echora-icon-180.png" />
+    <meta name="application-name" content="Echora" />
+    <meta
+      name="description"
+      content="Echora 是一款在瀏覽器運行的沉浸式動態歌詞音樂舞台：播放內建展示曲目，或連接自己的 YouTube Music 歌單，享受逐字同步歌詞、視覺舞台與 AI 生成配色。Echora is a browser-based immersive lyrics stage for your own music."
+    />
+    <!--
+      `google-site-verification` (Search Console "HTML tag" method) and the
+      canonical / Open Graph tags are injected at build time by
+      `vite-plugins/siteMetadata.ts`, which reads VITE_GOOGLE_SITE_VERIFICATION
+      and VITE_SITE_URL. See docs/google-oauth-brand-verification.md.
+    -->
+
+    <!-- Google Fonts: Outfit & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <title>Echora - 沉浸式動態歌詞音樂舞台</title>
+
+    <style>
+      /* Boot screen only: shown until React replaces it with the app shell. */
+      .echora-boot {
+        box-sizing: border-box;
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 14vh 22px 48px;
+        color: #cbd5e1;
+        font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+        font-size: 13px;
+        line-height: 1.7;
+      }
+      .echora-boot__brand {
+        margin: 0 0 14px;
+        color: #fff;
+        font-size: 17px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+      }
+      .echora-boot__brand span {
+        display: block;
+        margin-top: 6px;
+        color: #62f5c4;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+      }
+      .echora-boot__lede {
+        margin: 0 0 10px;
+        color: #94a3b8;
+      }
+      .echora-boot__links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        margin: 16px 0;
+        padding: 0;
+        list-style: none;
+      }
+      .echora-boot__links a {
+        color: #62f5c4;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      .echora-boot__note {
+        margin: 0;
+        color: #64748b;
+        font-size: 11px;
+        line-height: 1.6;
+      }
+    </style>
+  </head>
+  <body class="bg-[#07090e] text-slate-100 antialiased selection:bg-[#62f5c4] selection:text-black font-sans">
+    <!--
+      The markup inside #root is the static fallback for everything that reads
+      the HTML without running JavaScript: search crawlers, link previews, and
+      the reviewers of Google's OAuth brand verification, which require the
+      homepage to state what the app does and to link its privacy policy and
+      terms. React clears it on the first render, so it is never visible
+      alongside the app. Keep it in sync with /privacy, /terms and the OAuth
+      consent screen URLs (homepage, privacy policy, terms of service).
+    -->
+    <div id="root">
+      <div class="echora-boot">
+        <p class="echora-boot__brand">ECHORA <span>沉浸式動態歌詞音樂舞台 · Immersive synced-lyrics stage</span></p>
+        <p class="echora-boot__lede">
+          Echora 是一款在瀏覽器運行的沉浸式歌詞與音樂舞台。播放內建展示曲目，或連接自己的 YouTube Music 歌單，就能看到逐字同步歌詞、視覺舞台與 AI 生成配色。Echora 沒有自己的帳號系統，也不會把你的歌單或聽歌紀錄上傳到我們的伺服器。
+        </p>
+        <p class="echora-boot__lede" lang="en">
+          Echora is a browser-based immersive lyrics and music stage. Play the built-in demo tracks, or connect your own
+          YouTube Music playlists for word-by-word lyrics, visualizer stages and AI-generated themes. Echora has no account
+          system of its own and never uploads your playlists or listening history to our servers.
+        </p>
+        <ul class="echora-boot__links">
+          <li><a href="/privacy">隱私權政策 Privacy Policy</a></li>
+          <li><a href="/terms">服務條款 Terms of Service</a></li>
+          <li><a href="https://www.youtube.com/t/terms" rel="noreferrer noopener" target="_blank">YouTube Terms of Service</a></li>
+          <li><a href="https://policies.google.com/privacy" rel="noreferrer noopener" target="_blank">Google Privacy Policy</a></li>
+          <li><a href="https://myaccount.google.com/permissions" rel="noreferrer noopener" target="_blank">管理 Google 帳號存取權 Manage Google access</a></li>
+        </ul>
+        <p class="echora-boot__note">
+          Echora uses YouTube API Services. Information received from Google APIs is read-only, is shown only inside this app,
+          and is handled according to the Google API Services User Data Policy, including the Limited Use requirements.<br />
+          Echora 使用 YouTube API Services：來自 Google API 的資訊僅用於在應用程式內顯示你自己的歌單，並依 Google API Services User Data Policy（含 Limited Use 要求）處理。
+        </p>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
