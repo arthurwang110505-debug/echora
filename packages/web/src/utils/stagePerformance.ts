@@ -74,12 +74,13 @@ const readInitialStageTier = (): StagePerformanceTier => {
  * tier after a streak of slow/good frames, so quality cannot oscillate around a
  * single missed frame.
  */
-export const useStagePerformanceProfile = (): StagePerformanceProfile => {
+export const useStagePerformanceProfile = (paused = false): StagePerformanceProfile => {
     const [tier, setTier] = useState<StagePerformanceTier>(readInitialStageTier);
     const tierRef = useRef(tier);
     tierRef.current = tier;
 
     useEffect(() => {
+        if (paused) return undefined;
         let raf = 0;
         let previous = performance.now();
         let slowFrames = 0;
@@ -112,7 +113,7 @@ export const useStagePerformanceProfile = (): StagePerformanceProfile => {
 
         raf = requestAnimationFrame(sample);
         return () => cancelAnimationFrame(raf);
-    }, []);
+    }, [paused]);
 
     return getStagePerformanceProfile(tier);
 };

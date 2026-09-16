@@ -127,11 +127,12 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
         isPlayerChromeHidden = false,
         hideTranslationSubtitle = false,
         subtitleContentMode,
+        paused = false,
         seed,
         dioramaTuning,
     } = props;
     const { t } = useTranslation();
-    const performanceProfile = useStagePerformanceProfile();
+    const performanceProfile = useStagePerformanceProfile(paused);
     const performanceTier = performanceProfile.tier;
     const isCompactStage = performanceTier === 'compact';
     const effectiveDioramaTuning = useMemo(
@@ -195,6 +196,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
         // So watch PLAYBACK: once the new song has actually PLAYED past INSTRUMENTAL_COMMIT_SECONDS with still
         // no lyrics, treat it as instrumental and fly; while it is merely loading (time not yet advancing) we
         // keep waiting so we never fly early. A wall-clock cap guarantees the gate can never truly hang.
+        if (paused) return undefined;
         let raf = 0;
         let sawReset = false;
         const startWall = performance.now();
@@ -211,7 +213,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
         raf = requestAnimationFrame(watch);
         return () => cancelAnimationFrame(raf);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [seed, lyricsSig, committedSong.seed, committedSig, currentTime]);
+    }, [seed, lyricsSig, committedSong.seed, committedSig, currentTime, paused]);
     const gatedSeed = committedSong.seed;
     const gatedLines = committedSong.lines;
 
@@ -240,6 +242,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
         instrumentalIndexRef.current = 0;
         setInstrumentalIndex(0);
         instrumentalSeedRef.current = gatedSeed;
+        if (paused) return undefined;
         let raf = 0;
         const tick = () => {
             const t = currentTime.get();
@@ -255,7 +258,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
         };
         raf = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(raf);
-    }, [isInstrumental, gatedSeed, currentTime]);
+    }, [isInstrumental, gatedSeed, currentTime, paused]);
 
     // The read-head index the whole machine runs on: the sung line for a lyric song, the time-driven frame
     // for an instrumental. Everything below treats them identically (song change / loop / clamp all reuse it).
@@ -413,7 +416,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
                     gl={{ alpha: true, antialias: !isCompactStage, powerPreference: 'high-performance' }}
                     style={{ background: 'transparent' }}
                 >
-                    <DioramaFrameLimiter enabled={performanceTier !== 'full'} performanceTier={performanceTier} />
+                    <DioramaFrameLimiter enabled={!paused && performanceTier !== 'full'} performanceTier={performanceTier} />
                     <CameraRig
                         currentTime={currentTime}
                         sequencer={seq}

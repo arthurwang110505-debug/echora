@@ -810,7 +810,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
     } = props;
 
     const centerNormalTiltDeg = 90 - claddaghTuning.ellipseTiltDeg;
-    const performanceProfile = useStagePerformanceProfile();
+    const performanceProfile = useStagePerformanceProfile(paused);
     const performanceTier = performanceProfile.tier;
     const isCompactStage = performanceTier === 'compact';
     const reducedEffects = performanceTier !== 'full';

@@ -269,6 +269,14 @@ export default function OriginalFoliaVisualizerStage({
 
     let frame = 0;
     const tick = () => {
+      // The stage used to keep sampling audio and writing all five MotionValues
+      // forever, including while paused. That loop ran alongside every scene's
+      // own renderer and was especially expensive on mobile.
+      if (!playingRef.current) {
+        frame = 0;
+        return;
+      }
+
       const playing = playingRef.current;
       const time = timeRef.current;
       const levels = resolveStageAudioBands({
@@ -287,9 +295,21 @@ export default function OriginalFoliaVisualizerStage({
       frame = window.requestAnimationFrame(tick);
     };
 
-    frame = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frame);
-  }, [audioPower, bass, currentTime, lowMid, mid, treble, vocal]);
+    if (isPlaying) {
+      frame = window.requestAnimationFrame(tick);
+    } else {
+      bass.set(0);
+      lowMid.set(0);
+      mid.set(0);
+      vocal.set(0);
+      treble.set(0);
+      audioPower.set(0);
+    }
+
+    return () => {
+      if (frame !== 0) window.cancelAnimationFrame(frame);
+    };
+  }, [audioPower, bass, currentTime, isPlaying, lowMid, mid, treble, vocal]);
 
   return (
     <div

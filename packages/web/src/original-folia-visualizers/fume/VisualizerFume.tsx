@@ -1964,7 +1964,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
         subtitleContentMode,
         paused = false,
     } = props;
-    const performanceProfile = useStagePerformanceProfile();
+    const performanceProfile = useStagePerformanceProfile(paused);
     const performanceTier = performanceProfile.tier;
     const isCompactStage = performanceTier === 'compact';
     const reducedEffects = performanceTier !== 'full';

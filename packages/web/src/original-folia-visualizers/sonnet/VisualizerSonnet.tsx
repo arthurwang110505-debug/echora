@@ -44,7 +44,7 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
         sonnetTuning = DEFAULT_SONNET_TUNING,
     } = props;
     const { t } = useTranslation();
-    const performanceProfile = useStagePerformanceProfile();
+    const performanceProfile = useStagePerformanceProfile(paused);
     const performanceTier = performanceProfile.tier;
     const effectiveSonnetTuning = useMemo(
         () => resolveCompactSonnetTuning(sonnetTuning, performanceTier),
@@ -79,6 +79,7 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
             setIsInstrumental(false);
             seedRef.current = seed;
         }
+        if (paused) return undefined;
 
         let raf = 0;
         let sawReset = false;
@@ -95,7 +96,7 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
         };
         raf = requestAnimationFrame(watch);
         return () => cancelAnimationFrame(raf);
-    }, [seed, lyricsSig, currentTime]);
+    }, [seed, lyricsSig, currentTime, paused]);
 
     const virtualLines = useMemo(() => {
         if (!isInstrumental) return EMPTY_SONNET_LINES;
