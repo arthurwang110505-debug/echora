@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import * as twgl from 'twgl.js';
 import { Theme } from '../../../types';
 import { parseColorChannels } from '../../colorMix';
+import type { StagePerformanceTier } from '../../../utils/stagePerformance';
+import { resolveStageFrameInterval } from '../../../utils/stagePerformance';
 
 // src/components/visualizer/backgrounds/sora/SoraBackground.tsx
 // SoraBackground component is a shader-based space starfield background.
@@ -11,9 +13,14 @@ interface SoraBackgroundProps {
   theme: Theme;
   isDaylight: boolean;
   paused?: boolean;
+  performanceTier?: StagePerformanceTier;
 }
 
-const PARTICLE_COUNT = 150;
+const PARTICLE_COUNT_BY_TIER: Record<StagePerformanceTier, number> = {
+  full: 150,
+  balanced: 105,
+  compact: 60,
+};
 
 const VERTEX_SHADER = `
 attribute float a_index;
@@ -86,7 +93,7 @@ void main() {
 }
 `;
 
-const SoraBackground: React.FC<SoraBackgroundProps> = ({ theme, isDaylight, paused = false }) => {
+const SoraBackground: React.FC<SoraBackgroundProps> = ({ theme, isDaylight, paused = false, performanceTier = 'full' }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationRef = useRef<number | null>(null);
   const timeRef = useRef<number>(0);
@@ -131,8 +138,9 @@ const SoraBackground: React.FC<SoraBackgroundProps> = ({ theme, isDaylight, paus
     if (!programInfo) return;
     
     // Create an array of particle indices
-    const indices = new Float32Array(PARTICLE_COUNT);
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const particleCount = PARTICLE_COUNT_BY_TIER[performanceTier];
+    const indices = new Float32Array(particleCount);
+    for (let i = 0; i < particleCount; i++) {
       indices[i] = i;
     }
     
@@ -142,15 +150,27 @@ const SoraBackground: React.FC<SoraBackgroundProps> = ({ theme, isDaylight, paus
     const bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
 
     let lastTimestamp = performance.now();
+    let lastRenderedAt = 0;
+    const frameInterval = resolveStageFrameInterval(performanceTier);
 
     const render = (now: number) => {
+      if (lastRenderedAt !== 0 && now - lastRenderedAt < frameInterval) {
+        animationRef.current = requestAnimationFrame(render);
+        return;
+      }
+      lastRenderedAt = now;
       if (!pausedRef.current) {
         const delta = (now - lastTimestamp) / 1000;
         timeRef.current += delta;
       }
       lastTimestamp = now;
 
-      twgl.resizeCanvasToDisplaySize(canvas);
+      const canvasDpr = performanceTier === 'compact'
+        ? 1
+        : performanceTier === 'balanced'
+          ? 1.25
+          : Math.min(window.devicePixelRatio || 1, 2);
+      twgl.resizeCanvasToDisplaySize(canvas, canvasDpr);
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
       // Clear background
@@ -175,7 +195,7 @@ const SoraBackground: React.FC<SoraBackgroundProps> = ({ theme, isDaylight, paus
       
       twgl.drawBufferInfo(gl, bufferInfo, gl.POINTS);
 
-      animationRef.current = requestAnimationFrame(render);
+      animationRef.current = pausedRef.current ? null : requestAnimationFrame(render);
     };
 
     animationRef.current = requestAnimationFrame(render);
@@ -189,7 +209,7 @@ const SoraBackground: React.FC<SoraBackgroundProps> = ({ theme, isDaylight, paus
           gl.deleteBuffer(bufferInfo.attribs.a_index.buffer);
       }
     };
-  }, []);
+  }, [paused, performanceTier]);
 
   return (
     <canvas

@@ -10,9 +10,9 @@ export default defineVisualizerBackground({
     order: 50,
     labelKey: 'options.visualizerBackgroundModeSora',
     labelFallback: 'Sora',
-    render: ({ theme, isDaylight, paused }) => (
+    render: ({ theme, isDaylight, paused, performanceTier }) => (
         <div className="absolute inset-0 z-0">
-            <SoraBackground theme={theme} isDaylight={isDaylight} paused={paused} />
+            <SoraBackground theme={theme} isDaylight={isDaylight} paused={paused} performanceTier={performanceTier} />
         </div>
     ),
 });

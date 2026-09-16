@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { AnimatePresence, motion, MotionValue, useSpring, useTransform } from 'framer-motion';
 import * as LucideIcons from 'lucide-react';
 import { AudioBands, Theme } from '../../../types';
+import type { StagePerformanceTier } from '../../../utils/stagePerformance';
 
 // src/components/visualizer/backgrounds/common/GeometricBackground.tsx
 
@@ -13,6 +14,7 @@ interface GeometricBackgroundProps {
   hideShapes?: boolean;
   disableVignette?: boolean;
   paused?: boolean;
+  performanceTier?: StagePerformanceTier;
 }
 
 type ShapeType = 'circle' | 'square' | 'triangle' | 'cross' | 'icon';
@@ -299,13 +301,16 @@ const GeometricLayer: React.FC<GeometricBackgroundProps> = ({
   hideShapes = false,
   disableVignette = false,
   paused = false,
+  performanceTier = 'full',
 }) => {
+  const shapeCount = performanceTier === 'compact' ? 0 : performanceTier === 'balanced' ? 8 : 15;
+  const particleCount = performanceTier === 'compact' ? 0 : performanceTier === 'balanced' ? 8 : 20;
   const shapes = useMemo<BackgroundShape[]>(() => {
     const shapeTypes: Array<Exclude<ShapeType, 'icon'>> = ['circle', 'square', 'triangle', 'cross'];
     const availableIcons = theme.lyricsIcons || [];
 
     let iconCount = 0;
-    return Array.from({ length: 15 }).map((_, index) => {
+    return Array.from({ length: shapeCount }).map((_, index) => {
       const wantIcon = availableIcons.length > 0 && Math.random() > 0.7;
       const useIcon = wantIcon && iconCount < 6;
       if (useIcon) {
@@ -329,10 +334,10 @@ const GeometricLayer: React.FC<GeometricBackgroundProps> = ({
         initialRotation: Math.random() * 360,
       };
     });
-  }, [theme.lyricsIcons, seed]);
+  }, [shapeCount, theme.lyricsIcons, seed]);
 
   const particles = useMemo<BackgroundParticle[]>(() => (
-    Array.from({ length: 20 }).map((_, index) => ({
+    Array.from({ length: particleCount }).map((_, index) => ({
       id: index,
       size: Math.random() * 4 + 1,
       left: Math.random() * 100,
@@ -341,7 +346,7 @@ const GeometricLayer: React.FC<GeometricBackgroundProps> = ({
       duration: 15 + Math.random() * 20,
       delay: Math.random() * 10,
     }))
-  ), [seed]);
+  ), [particleCount, seed]);
 
   return (
     <motion.div

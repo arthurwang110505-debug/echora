@@ -12,7 +12,7 @@ export default defineVisualizerBackground({
     order: 35,
     labelKey: 'options.visualizerBackgroundModeLatent',
     labelFallback: 'Latent',
-    render: ({ config, theme, coverUrl, audioPower, audioBands, staticMode, paused }) => (
+    render: ({ config, theme, coverUrl, audioPower, audioBands, staticMode, paused, performanceTier }) => (
         <LatentBackground
             theme={theme}
             coverUrl={coverUrl}
@@ -20,6 +20,7 @@ export default defineVisualizerBackground({
             audioBands={audioBands}
             staticMode={staticMode}
             paused={paused}
+            performanceTier={performanceTier}
             tuning={config?.latent?.tuning}
         />
     ),

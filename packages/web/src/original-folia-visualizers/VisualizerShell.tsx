@@ -7,6 +7,7 @@ import { resolveThemeFontStack, resolveThemeFontWeight } from '../utils/fontStac
 import { type VisualizerSharedProps } from './definition';
 import VisualizerBackgroundRenderer from './backgrounds/VisualizerBackgroundRenderer';
 import { getSizedCoverUrl } from '../utils/coverUrl';
+import type { StagePerformanceTier } from '../utils/stagePerformance';
 
 // Shared outer shell for all visualizers.
 // This is where we keep background layering, font injection, and the hover-only back button
@@ -33,6 +34,7 @@ interface VisualizerShellProps {
     audioBands: AudioBands;
     sharedProps?: VisualizerShellSharedProps;
     visualizerOpacity?: number;
+    performanceTier?: StagePerformanceTier;
     children: React.ReactNode;
     className?: string;
 }
@@ -54,6 +56,7 @@ const VisualizerShell = forwardRef<HTMLDivElement, VisualizerShellProps>(({
     visualizerOpacity = 1,
     children,
     className = '',
+    performanceTier = 'full',
 }, ref) => {
     const { t } = useTranslation();
     const [showBackButton, setShowBackButton] = useState(false);
@@ -185,6 +188,7 @@ const VisualizerShell = forwardRef<HTMLDivElement, VisualizerShellProps>(({
                 seed={sharedProps?.seed}
                 staticMode={resolvedStaticMode || resolvedBackgroundStaticMode}
                 paused={resolvedPaused}
+                performanceTier={performanceTier}
             />
 
             {children}

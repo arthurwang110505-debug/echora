@@ -26,6 +26,7 @@ import {
 import { buildSonnetScene, type SceneView, type ShotView } from './sonnetSceneBuilder';
 import { isSonnetEmphasisRole } from './sonnetTypographyLayout';
 import { getSonnetTexturePool } from './sonnetTexturePool';
+import type { StagePerformanceTier } from '../../utils/stagePerformance';
 import {
     destroySonnetContainerChildren,
     unloadSonnetDisplayTree,
@@ -59,7 +60,7 @@ export interface SonnetRuntimeOptions {
     lyricsFontScale: number;
     staticMode: boolean;
     paused: boolean;
-    performanceTier?: 'full' | 'compact';
+    performanceTier?: StagePerformanceTier;
     songTitle?: string | null;
     songArtist?: string | null;
     songAlbum?: string | null;
@@ -130,7 +131,9 @@ export class SonnetPixiRuntime {
         this.resizeToHost();
         // Sonnet's scene is animation-driven, so a bounded mobile ticker avoids
         // spending a full Pixi frame on work the display cannot present.
-        this.app.ticker.maxFPS = this.options.performanceTier === 'compact' ? 30 : 60;
+        this.app.ticker.maxFPS = this.options.performanceTier === 'compact'
+            ? 30
+            : this.options.performanceTier === 'balanced' ? 45 : 60;
         this.app.ticker.add(this.renderFrame);
         this.resizeObserver = new ResizeObserver(() => {
             if (this.destroyed || !this.resizeToHost()) return;
@@ -535,7 +538,7 @@ export class SonnetPixiRuntime {
                 glyph.display.scale.set(scale * depthScale);
                 glyph.display.position.set(x + parallaxX, y + parallaxY);
                 glyph.display.rotation = rotation;
-                const decorativeGlyphEffectsEnabled = this.options.performanceTier !== 'compact';
+                const decorativeGlyphEffectsEnabled = this.options.performanceTier === 'full';
                 if (glyph.halo) {
                     glyph.halo.visible = decorativeGlyphEffectsEnabled && glyphVisible;
                     if (decorativeGlyphEffectsEnabled) {

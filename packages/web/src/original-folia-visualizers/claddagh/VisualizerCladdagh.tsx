@@ -12,7 +12,7 @@ import { colorWithAlpha, mixColors } from '../colorMix';
 import VisualizerShell from '../VisualizerShell';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import { buildWordColorRanges } from '../wordColoring';
-import { useCompactStageProfile } from '../../utils/stagePerformance';
+import { resolveStageFrameInterval, useStagePerformanceProfile } from '../../utils/stagePerformance';
 
 // src/components/visualizer/claddagh/VisualizerCladdagh.tsx
 
@@ -810,7 +810,10 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
     } = props;
 
     const centerNormalTiltDeg = 90 - claddaghTuning.ellipseTiltDeg;
-    const isCompactStage = useCompactStageProfile();
+    const performanceProfile = useStagePerformanceProfile();
+    const performanceTier = performanceProfile.tier;
+    const isCompactStage = performanceTier === 'compact';
+    const reducedEffects = performanceTier !== 'full';
 
     const isRawScaleRef = useRef(false);
     const glowIntensityRef = useRef(0);
@@ -857,7 +860,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
 
         const updateColors = (timestamp?: number) => {
             const now = timestamp ?? performance.now();
-            if (isCompactStage && now - lastUpdateAt < 32) {
+            if (now - lastUpdateAt < resolveStageFrameInterval(performanceTier)) {
                 frameId = requestAnimationFrame(updateColors);
                 return;
             }
@@ -908,7 +911,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
             }
 
             const glowIntensity = glowIntensityRef.current;
-            if (!isCompactStage && glowIntensity > 0.001) {
+            if (!reducedEffects && glowIntensity > 0.001) {
                 const glowSize = (4 + bassPower * 12) * glowIntensity;
                 const glowColor = colorWithAlpha(mixed, glowIntensity);
                 lineEl.style.filter = `drop-shadow(0 0 ${glowSize.toFixed(1)}px ${glowColor})`;
@@ -924,7 +927,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
         return () => {
             cancelAnimationFrame(frameId);
         };
-    }, [smoothedBass, smoothedVocal, theme.primaryColor, theme.accentColor, theme.secondaryColor, centerNormalTiltDeg, paused, isChorus, claddaghTuning.showAxisLine, isCompactStage]);
+    }, [smoothedBass, smoothedVocal, theme.primaryColor, theme.accentColor, theme.secondaryColor, centerNormalTiltDeg, paused, isChorus, claddaghTuning.showAxisLine, performanceTier, reducedEffects]);
 
     // Initialize dimensions on mount to avoid zero size on first render
     useEffect(() => {
@@ -1027,6 +1030,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
             audioPower={audioPower}
             audioBands={audioBands}
             sharedProps={props}
+            performanceTier={performanceTier}
         >
             <motion.div
                 initial={{ opacity: 0, scale: 0.96, filter: 'blur(4px)' }}
@@ -1079,7 +1083,7 @@ const VisualizerCladdagh: React.FC<VisualizerSharedProps> = (props) => {
                             ellipseTiltDeg={claddaghTuning.ellipseTiltDeg}
                             textSpacingScale={activeTextSpacingScale}
                             letterSpacingOffset={claddaghTuning.letterSpacingOffset}
-                            compactPerformance={isCompactStage}
+                            compactPerformance={performanceTier !== 'full'}
                         />
                     ))}
                 </div>

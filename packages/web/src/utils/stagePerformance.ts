@@ -1,5 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { DioramaTuning, SonnetTuning } from '../types';
+
+export type StagePerformanceTier = 'full' | 'balanced' | 'compact';
+
+export interface StagePerformanceProfile {
+    tier: StagePerformanceTier;
+    targetFps: 30 | 45 | 60;
+    canvasDpr: number;
+    enableBlur: boolean;
+    enableGlow: boolean;
+    enableParticles: boolean;
+    particleScale: number;
+    textEffects: 'full' | 'reduced' | 'none';
+}
+
+const PROFILE_BY_TIER: Record<StagePerformanceTier, StagePerformanceProfile> = {
+    full: {
+        tier: 'full', targetFps: 60, canvasDpr: 2, enableBlur: true, enableGlow: true,
+        enableParticles: true, particleScale: 1, textEffects: 'full',
+    },
+    balanced: {
+        tier: 'balanced', targetFps: 45, canvasDpr: 1.5, enableBlur: true, enableGlow: true,
+        enableParticles: true, particleScale: 0.65, textEffects: 'reduced',
+    },
+    compact: {
+        tier: 'compact', targetFps: 30, canvasDpr: 1, enableBlur: false, enableGlow: false,
+        enableParticles: false, particleScale: 0.35, textEffects: 'none',
+    },
+};
+
+export const getStagePerformanceProfile = (tier: StagePerformanceTier): StagePerformanceProfile => PROFILE_BY_TIER[tier];
 
 export interface CompactStageViewportInput {
     width: number;
@@ -21,6 +51,70 @@ export const shouldUseCompactStageProfile = ({
     const minViewportSide = Math.min(width, height);
     const phoneSized = minViewportSide <= 480;
     return minViewportSide <= 600 && (phoneSized || coarsePointer || touchPoints > 0);
+};
+
+const readInitialStageTier = (): StagePerformanceTier => {
+    if (typeof window === 'undefined') return 'full';
+    const mobile = shouldUseCompactStageProfile({
+        width: window.innerWidth,
+        height: window.innerHeight,
+        coarsePointer: window.matchMedia?.('(pointer: coarse)').matches ?? false,
+        touchPoints: navigator.maxTouchPoints ?? 0,
+    });
+    const lowCoreCount = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
+    const lowMemory = typeof (navigator as Navigator & { deviceMemory?: number }).deviceMemory === 'number'
+        && ((navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8) <= 4;
+    if (mobile && (lowCoreCount || lowMemory)) return 'compact';
+    if (mobile || lowCoreCount || lowMemory) return 'balanced';
+    return 'full';
+};
+
+/**
+ * One shared frame-budget observer for the mounted visualizer. It only changes
+ * tier after a streak of slow/good frames, so quality cannot oscillate around a
+ * single missed frame.
+ */
+export const useStagePerformanceProfile = (): StagePerformanceProfile => {
+    const [tier, setTier] = useState<StagePerformanceTier>(readInitialStageTier);
+    const tierRef = useRef(tier);
+    tierRef.current = tier;
+
+    useEffect(() => {
+        let raf = 0;
+        let previous = performance.now();
+        let slowFrames = 0;
+        let goodFrames = 0;
+
+        const sample = (now: number) => {
+            const frameMs = now - previous;
+            previous = now;
+            if (frameMs > 42) {
+                slowFrames += 1;
+                goodFrames = 0;
+            } else if (frameMs < 25) {
+                goodFrames += 1;
+                slowFrames = 0;
+            } else {
+                slowFrames = 0;
+                goodFrames = 0;
+            }
+
+            const current = tierRef.current;
+            if (slowFrames >= 8 && current !== 'compact') {
+                setTier(current === 'full' ? 'balanced' : 'compact');
+                slowFrames = 0;
+            } else if (goodFrames >= 180 && current !== 'full') {
+                setTier(current === 'compact' ? 'balanced' : 'full');
+                goodFrames = 0;
+            }
+            raf = requestAnimationFrame(sample);
+        };
+
+        raf = requestAnimationFrame(sample);
+        return () => cancelAnimationFrame(raf);
+    }, []);
+
+    return getStagePerformanceProfile(tier);
 };
 
 const readCompactStageProfile = (): boolean => {
@@ -60,19 +154,22 @@ export const useCompactStageProfile = (): boolean => {
  */
 export const resolveCompactSonnetTuning = (
     tuning: SonnetTuning,
-    compact: boolean,
-): SonnetTuning => compact ? {
+    compact: boolean | StagePerformanceTier,
+): SonnetTuning => compact === true || compact === 'compact' ? {
     ...tuning,
     // Keep Sonnet's composition intact, but avoid rasterising the full scene at
     // desktop-quality resolution on a phone-sized viewport.
     textureResolution: Math.min(tuning.textureResolution, 1),
+} : compact === 'balanced' ? {
+    ...tuning,
+    textureResolution: Math.min(tuning.textureResolution, 1.25),
 } : tuning;
 
 /** Keep Diorama's path and text intact while bounding its mobile point-cloud and glow workload. */
 export const resolveCompactDioramaTuning = (
     tuning: DioramaTuning,
-    compact: boolean,
-): DioramaTuning => compact ? {
+    compact: boolean | StagePerformanceTier,
+): DioramaTuning => compact === true || compact === 'compact' ? {
     ...tuning,
     particleDensity: Math.min(tuning.particleDensity, 192),
     particleGlowEnabled: false,
@@ -82,6 +179,12 @@ export const resolveCompactDioramaTuning = (
     glowIntensity: Math.min(tuning.glowIntensity, 0.65),
     soulIntensity: Math.min(tuning.soulIntensity, 0.65),
     gradientIntensity: Math.min(tuning.gradientIntensity, 0.75),
+} : compact === 'balanced' ? {
+    ...tuning,
+    particleDensity: Math.min(tuning.particleDensity, 288),
+    backgroundParticleCircumference: Math.min(tuning.backgroundParticleCircumference, 12),
+    backgroundParticleRadial: Math.min(tuning.backgroundParticleRadial, 1),
+    particleGlowIntensity: Math.min(tuning.particleGlowIntensity, 0.25),
 } : tuning;
 
 /** Fume framing uses a narrower target line-height on phones to keep the article inside the viewport. */
@@ -227,10 +330,16 @@ export const resolveFumeCameraSafetyCorrection = (
     };
 };
 
-export const resolveFumeCanvasDpr = (devicePixelRatio: number, compact: boolean): number => {
+export const resolveFumeCanvasDpr = (devicePixelRatio: number, tier: StagePerformanceTier | boolean): number => {
     const safeDpr = Number.isFinite(devicePixelRatio) && devicePixelRatio > 0 ? devicePixelRatio : 1;
-    // Fume redraws the full viewport and runs a separate glow pass. On compact
-    // viewports, 1.25 is a better quality/performance point than rasterising a
-    // 3x phone screen at its native DPR on every frame.
-    return Math.min(safeDpr, compact ? 1.25 : 2);
+    // Fume redraws the full viewport and runs a separate glow pass. Compact
+    // renders at DPR 1; balanced keeps a modest 1.5 ceiling instead of
+    // rasterising a 3x phone screen at its native DPR on every frame.
+    if (tier === true || tier === 'compact') return Math.min(safeDpr, 1);
+    if (tier === 'balanced') return Math.min(safeDpr, 1.5);
+    return Math.min(safeDpr, 2);
 };
+
+export const resolveStageFrameInterval = (tier: StagePerformanceTier): number => (
+    1000 / getStagePerformanceProfile(tier).targetFps
+);

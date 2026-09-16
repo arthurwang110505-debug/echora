@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { type AudioBands, type DioramaGeometryVisibility, type Line, type Theme } from '../../types';
 import { buildLineGraphemeTimeline, splitLyricGraphemes, type GraphemeTiming } from '../../utils/lyrics/graphemeTiming';
 import { resolveThemeFontStack, resolveThemeFontWeight } from '../../utils/fontStacks';
+import type { StagePerformanceTier } from '../../utils/stagePerformance';
 import { prepareDioramaKeywordMatchers, resolveDioramaKeywordUnitColors } from './dioramaKeywordColor';
 import {
     buildFormation,
@@ -88,7 +89,7 @@ interface DioramaSceneProps {
     /** Master lyric visibility (the shared subtitle toggle): hides all 3D text but keeps the world flying. */
     showLyrics: boolean;
     /** Compact touch viewport profile; only trims resident lyric/raster budgets. */
-    performanceTier?: 'full' | 'compact';
+    performanceTier?: StagePerformanceTier;
     /** Background particle-mote layer toggle (from the diorama tuning panel). */
     showParticles: boolean;
     /** Background dust shell's two independent axes; the field clamps each to its cap and multiplies them
@@ -502,7 +503,7 @@ const DioramaScene: React.FC<DioramaSceneProps> = ({
     // identity. `total` covers a lyric load that changes the LINE COUNT; this covers one that does not
     // (a reprocess, a provider swap, a translation landing) - same key, same span, different words.
     const linesEpoch = activeSeg?.linesEpoch ?? 0;
-    const compactPerformance = performanceTier === 'compact';
+    const compactPerformance = performanceTier !== 'full';
     const liveLinesBehind = compactPerformance ? 1 : LINES_BEHIND;
     const liveLinesAhead = compactPerformance ? 2 : LINES_AHEAD;
     const outgoingLinesBehind = compactPerformance ? 1 : OUTGOING_LINES_BEHIND;

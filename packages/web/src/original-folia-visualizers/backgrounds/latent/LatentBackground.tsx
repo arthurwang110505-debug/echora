@@ -10,6 +10,8 @@ import {
     type Theme,
 } from '../../../types';
 import { extractRepresentativeColors } from '../../../utils/colorExtractor';
+import type { StagePerformanceTier } from '../../../utils/stagePerformance';
+import { resolveStageFrameInterval } from '../../../utils/stagePerformance';
 
 // src/components/visualizer/backgrounds/latent/LatentBackground.tsx
 // Layers two cover-colored Paper shaders and drives their uniforms without React frame updates.
@@ -21,10 +23,15 @@ interface LatentBackgroundProps {
     audioBands: AudioBands;
     staticMode: boolean;
     paused: boolean;
+    performanceTier?: StagePerformanceTier;
     tuning?: LatentBackgroundTuning;
 }
 
-const MAX_SHADER_PIXELS = 1280 * 720;
+const MAX_SHADER_PIXELS_BY_TIER: Record<StagePerformanceTier, number> = {
+    full: 1280 * 720,
+    balanced: 960 * 540,
+    compact: 720 * 405,
+};
 const PAUSED_SPEED_SCALE = 0.12;
 const normalizeAudio = (value: number) => Math.min(1, Math.max(0, value / 255));
 const clampShaderSpeed = (value: number) => Math.min(2, Math.max(0, value));
@@ -113,6 +120,7 @@ const LatentBackground: React.FC<LatentBackgroundProps> = ({
     audioBands,
     staticMode,
     paused,
+    performanceTier = 'full',
     tuning: tuningOverride,
 }) => {
     const ditheringRef = useRef<PaperShaderElement | null>(null);
@@ -162,6 +170,12 @@ const LatentBackground: React.FC<LatentBackgroundProps> = ({
             return;
         }
 
+        if (paused) {
+            ditheringMount?.setSpeed(0);
+            meshMount?.setSpeed(0);
+            return;
+        }
+
         let animationFrame = 0;
         let smoothedPower = 0;
         let smoothedBass = 0;
@@ -169,9 +183,17 @@ const LatentBackground: React.FC<LatentBackgroundProps> = ({
         let smoothedBeatSpeed = 0;
         let previousBeatEnergy = 0;
         let latentOnsetPulse = 0;
+        let lastUpdatedAt = 0;
+        const frameInterval = resolveStageFrameInterval(performanceTier);
 
         // Keep audio-rate changes inside the shader/DOM layer so React only rerenders on palette changes.
         const updateAudioResponse = () => {
+            const now = performance.now();
+            if (lastUpdatedAt !== 0 && now - lastUpdatedAt < frameInterval) {
+                animationFrame = requestAnimationFrame(updateAudioResponse);
+                return;
+            }
+            lastUpdatedAt = now;
             const isPaused = pausedRef.current;
             const targetPower = isPaused ? 0 : normalizeAudio(audioPower.get());
             const targetBass = isPaused ? 0 : normalizeAudio(audioBands.bass.get());
@@ -252,7 +274,9 @@ const LatentBackground: React.FC<LatentBackgroundProps> = ({
 
         animationFrame = requestAnimationFrame(updateAudioResponse);
         return () => cancelAnimationFrame(animationFrame);
-    }, [audioBands, audioPower, showMesh, staticMode, tuning]);
+    }, [audioBands, audioPower, paused, performanceTier, showMesh, staticMode, tuning]);
+
+    const maxShaderPixels = MAX_SHADER_PIXELS_BY_TIER[performanceTier];
 
     return (
         <div
@@ -278,7 +302,7 @@ const LatentBackground: React.FC<LatentBackgroundProps> = ({
                             ? 0
                             : resolveLatentShaderSpeed(tuning.meshSpeed, tuning.meshAudioSpeed, 0, paused)}
                         minPixelRatio={1}
-                        maxPixelCount={MAX_SHADER_PIXELS}
+                        maxPixelCount={maxShaderPixels}
                         style={{ width: '100%', height: '100%' }}
                     />
                 </div>
@@ -307,7 +331,7 @@ const LatentBackground: React.FC<LatentBackgroundProps> = ({
                             ? 0
                             : resolveLatentShaderSpeed(tuning.ditheringSpeed, tuning.ditheringAudioSpeed, 0, paused)}
                         minPixelRatio={1}
-                        maxPixelCount={MAX_SHADER_PIXELS}
+                        maxPixelCount={maxShaderPixels}
                         style={{ width: '100%', height: '100%' }}
                     />
                 </div>

@@ -18,7 +18,8 @@ import {
     updateActiveSegmentLines,
 } from './dioramaSequencer';
 import { pickTransitionOffset, TRANSITION_DURATION } from './dioramaTransition';
-import { resolveCompactDioramaTuning, useCompactStageProfile } from '../../utils/stagePerformance';
+import { resolveCompactDioramaTuning, resolveStageFrameInterval, useStagePerformanceProfile } from '../../utils/stagePerformance';
+import type { StagePerformanceTier } from '../../utils/stagePerformance';
 
 // src/components/visualizer/diorama/VisualizerDiorama.tsx
 // A 3D "flythrough" style: lyric lines are actual staged text objects along a winding path in world
@@ -40,15 +41,15 @@ import { resolveCompactDioramaTuning, useCompactStageProfile } from '../../utils
 // picture never hidden. During the ~2s flight BOTH scenes are mounted (see transitionOutgoingIndex).
 type VisualizerDioramaProps = VisualizerSharedProps;
 
-const DioramaFrameLimiter: React.FC<{ enabled: boolean }> = ({ enabled }) => {
+const DioramaFrameLimiter: React.FC<{ enabled: boolean; performanceTier: StagePerformanceTier }> = ({ enabled, performanceTier }) => {
     const invalidate = useThree(state => state.invalidate);
 
     useEffect(() => {
         if (!enabled) return undefined;
         invalidate();
-        const intervalId = window.setInterval(invalidate, 1000 / 30);
+        const intervalId = window.setInterval(invalidate, resolveStageFrameInterval(performanceTier));
         return () => window.clearInterval(intervalId);
-    }, [enabled, invalidate]);
+    }, [enabled, invalidate, performanceTier]);
 
     return null;
 };
@@ -130,10 +131,12 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
         dioramaTuning,
     } = props;
     const { t } = useTranslation();
-    const isCompactStage = useCompactStageProfile();
+    const performanceProfile = useStagePerformanceProfile();
+    const performanceTier = performanceProfile.tier;
+    const isCompactStage = performanceTier === 'compact';
     const effectiveDioramaTuning = useMemo(
-        () => resolveCompactDioramaTuning(dioramaTuning ?? DEFAULT_DIORAMA_TUNING, isCompactStage),
-        [dioramaTuning, isCompactStage],
+        () => resolveCompactDioramaTuning(dioramaTuning ?? DEFAULT_DIORAMA_TUNING, performanceTier),
+        [dioramaTuning, performanceTier],
     );
 
     const { activeLine, recentCompletedLine, nextLines } = useVisualizerRuntime({
@@ -400,16 +403,17 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
             audioPower={audioPower}
             audioBands={audioBands}
             sharedProps={props}
+            performanceTier={performanceTier}
         >
             <div className="absolute inset-0 z-0">
                 <Canvas
                     camera={{ position: [0, 0.6, 9], fov: 55 }}
-                    frameloop={isCompactStage ? 'demand' : 'always'}
-                    dpr={isCompactStage ? 1 : [1, 2]}
+                    frameloop={performanceTier === 'full' ? 'always' : 'demand'}
+                    dpr={performanceTier === 'compact' ? 1 : performanceTier === 'balanced' ? 1.5 : [1, 2]}
                     gl={{ alpha: true, antialias: !isCompactStage, powerPreference: 'high-performance' }}
                     style={{ background: 'transparent' }}
                 >
-                    <DioramaFrameLimiter enabled={isCompactStage} />
+                    <DioramaFrameLimiter enabled={performanceTier !== 'full'} performanceTier={performanceTier} />
                     <CameraRig
                         currentTime={currentTime}
                         sequencer={seq}
@@ -431,7 +435,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
                         audioBands={audioBands}
                         motion={motionParams}
                         showLyrics={showText}
-                        performanceTier={isCompactStage ? 'compact' : 'full'}
+                        performanceTier={performanceTier}
                         geometryVisibility={effectiveDioramaTuning.geometryVisibility}
                         particleDensity={effectiveDioramaTuning.particleDensity}
                         particleScale={effectiveDioramaTuning.particleScale}

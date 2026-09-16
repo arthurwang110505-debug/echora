@@ -134,8 +134,9 @@ describe('stage performance profile', () => {
 
     it('caps Fume canvas DPR more aggressively on compact viewports', () => {
         // Compact Fume redraws the full viewport and uses a separate glow pass.
-        expect(resolveFumeCanvasDpr(3, true)).toBe(1.25);
-        expect(resolveFumeCanvasDpr(1.1, true)).toBe(1.1);
+        expect(resolveFumeCanvasDpr(3, true)).toBe(1);
+        expect(resolveFumeCanvasDpr(1.1, true)).toBe(1);
+        expect(resolveFumeCanvasDpr(3, 'balanced')).toBe(1.5);
         expect(resolveFumeCanvasDpr(3, false)).toBe(2);
         expect(resolveFumeCanvasDpr(2, false)).toBe(2);
         expect(resolveFumeCanvasDpr(1.5, false)).toBe(1.5);

@@ -11,7 +11,7 @@ import VisualizerShell from '../VisualizerShell';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import type { SonnetPixiRuntime, SonnetSongMetadata } from './createSonnetPixiRuntime';
 import { compileSonnetProgram } from './sonnetProgram';
-import { resolveCompactSonnetTuning, useCompactStageProfile } from '../../utils/stagePerformance';
+import { resolveCompactSonnetTuning, useStagePerformanceProfile } from '../../utils/stagePerformance';
 
 // src/components/visualizer/sonnet/VisualizerSonnet.tsx
 // Mounts the lazily loaded Pixi director while React retains shell and subtitle responsibilities.
@@ -44,10 +44,11 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
         sonnetTuning = DEFAULT_SONNET_TUNING,
     } = props;
     const { t } = useTranslation();
-    const isCompactStage = useCompactStageProfile();
+    const performanceProfile = useStagePerformanceProfile();
+    const performanceTier = performanceProfile.tier;
     const effectiveSonnetTuning = useMemo(
-        () => resolveCompactSonnetTuning(sonnetTuning, isCompactStage),
-        [isCompactStage, sonnetTuning],
+        () => resolveCompactSonnetTuning(sonnetTuning, performanceTier),
+        [performanceTier, sonnetTuning],
     );
     const hostRef = useRef<HTMLDivElement>(null);
     const runtimeRef = useRef<SonnetPixiRuntime | null>(null);
@@ -147,7 +148,7 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
                     paused: pausedRef.current,
                     // Keep the complete Sonnet composition on touch viewports;
                     // compact mode only reduces renderer work and effect quality.
-                    performanceTier: isCompactStage ? 'compact' : 'full',
+                    performanceTier,
                     songTitle: metadata.title,
                     songArtist: metadata.artist,
                     songAlbum: metadata.album,
@@ -187,6 +188,7 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
         lyricsFontScale,
         program,
         effectiveSonnetTuning,
+        performanceTier,
         staticMode,
         theme,
     ]);
@@ -216,6 +218,7 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
             audioPower={audioPower}
             audioBands={audioBands}
             sharedProps={props}
+            performanceTier={performanceTier}
         >
             <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
                 <div ref={hostRef} className="absolute inset-0 z-10" aria-hidden="true" />

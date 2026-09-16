@@ -13,7 +13,7 @@ import { getRecentCompletedLine, getUpcomingLines } from '../runtime';
 import VisualizerShell from '../VisualizerShell';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import { resolveWordColor } from '../wordColoring';
-import { resolveFumeCameraScaleForViewport, resolveFumeCameraSafetyCorrection, resolveFumeCameraXForViewport, resolveFumeCameraYForViewport, resolveFumeCanvasDpr, resolveFumeContentFrameBounds, useCompactStageProfile } from '../../utils/stagePerformance';
+import { resolveFumeCameraScaleForViewport, resolveFumeCameraSafetyCorrection, resolveFumeCameraXForViewport, resolveFumeCameraYForViewport, resolveFumeCanvasDpr, resolveFumeContentFrameBounds, resolveStageFrameInterval, useStagePerformanceProfile } from '../../utils/stagePerformance';
 
 // This mode is basically "turn the whole lyric into an article, then move a camera through it".
 // So the pipeline is much bigger than the others: prebuild the article layout, split it into blocks/render lines/graphemes,
@@ -1964,7 +1964,10 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
         subtitleContentMode,
         paused = false,
     } = props;
-    const isCompactStage = useCompactStageProfile();
+    const performanceProfile = useStagePerformanceProfile();
+    const performanceTier = performanceProfile.tier;
+    const isCompactStage = performanceTier === 'compact';
+    const reducedEffects = performanceTier !== 'full';
     const viewportRef = useRef<HTMLDivElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const currentLineIndexRef = useRef(currentLineIndex);
@@ -2197,7 +2200,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
 
         const width = Math.max(Math.floor(viewport.width), 1);
         const height = Math.max(Math.floor(viewport.height), 1);
-        const dpr = resolveFumeCanvasDpr(window.devicePixelRatio || 1, isCompactStage);
+        const dpr = resolveFumeCanvasDpr(window.devicePixelRatio || 1, performanceTier);
 
         if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
             canvas.width = Math.floor(width * dpr);
@@ -2239,9 +2242,9 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
         const draw = () => {
             const now = performance.now();
             // requestAnimationFrame still fires at the display refresh rate on
-            // many phones. Keep the full-canvas redraw at a predictable 30 FPS
-            // in compact mode while preserving the same camera/time animation.
-            if (isCompactStage && lastRenderedAt !== null && now - lastRenderedAt < 1000 / 30) {
+            // many devices. Keep the full-canvas redraw within the adaptive
+            // frame budget while preserving the same camera/time animation.
+            if (lastRenderedAt !== null && now - lastRenderedAt < resolveStageFrameInterval(performanceTier)) {
                 frameId = window.requestAnimationFrame(draw);
                 return;
             }
@@ -2253,7 +2256,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
 
             const currentWidth = Math.max(Math.floor(viewport.width), 1);
             const currentHeight = Math.max(Math.floor(viewport.height), 1);
-            const currentDpr = resolveFumeCanvasDpr(window.devicePixelRatio || 1, isCompactStage);
+            const currentDpr = resolveFumeCanvasDpr(window.devicePixelRatio || 1, performanceTier);
 
             if (canvas.width !== Math.floor(currentWidth * currentDpr) || canvas.height !== Math.floor(currentHeight * currentDpr)) {
                 canvas.width = Math.floor(currentWidth * currentDpr);
@@ -2890,18 +2893,18 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                         linePassCutoffTime,
                     );
                     const lineGlowEnvelope = resolveDelayedGlowEnvelope(lineProgress, 0.8);
-                    const lineGlowAlpha = (
+                    const lineGlowAlpha = reducedEffects ? 0 : (
                         (block.variant === 'hero' ? 0.16 : 0.12)
                         + lineGlowEnvelope * (block.variant === 'hero' ? 0.26 : 0.2)
                     ) * glowIntensity;
-                    const lineGlowBlur = (
+                    const lineGlowBlur = reducedEffects ? 0 : (
                         (block.variant === 'hero' ? 12 : 8)
                         + lineGlowEnvelope * (block.fontPx * (block.variant === 'hero' ? 0.7 : 0.52))
                     ) * glowIntensity;
                     const lineGlowColor = colorWithAlpha(theme.accentColor, lineGlowAlpha);
                     const lineGlowShadowColor = colorWithAlpha(theme.accentColor, lineGlowAlpha * 1.35);
 
-                    const glowLayerDrawn = drawFumeLineGlowLayer(
+                    const glowLayerDrawn = !reducedEffects && drawFumeLineGlowLayer(
                         context,
                         canvas,
                         block,
@@ -2912,7 +2915,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                         lineGlowShadowColor,
                     );
 
-                    if (!glowLayerDrawn) {
+                    if (!reducedEffects && !glowLayerDrawn) {
                         context.save();
                         context.fillStyle = lineGlowColor;
                         context.shadowBlur = lineGlowBlur;
@@ -3029,7 +3032,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                                 if (hasPassCutoffReached) {
                                     alpha = mix(activeOpacity, transitionPassedStyle.opacity, colorTrailProgress);
                                     fillStyle = mixColors(activeColor, theme.primaryColor, 0.18 + colorTrailProgress * 0.82, alpha);
-                                    shadowBlur = (2 + block.fontPx * 0.1) * (1 - colorTrailProgress * 0.35) * passedGlowBase * transitionPassedStyle.glowMultiplier;
+                                    shadowBlur = reducedEffects ? 0 : (2 + block.fontPx * 0.1) * (1 - colorTrailProgress * 0.35) * passedGlowBase * transitionPassedStyle.glowMultiplier;
                                     shadowColor = colorWithAlpha(
                                         mixColors(activeColor, theme.primaryColor, 0.55 + colorTrailProgress * 0.45),
                                         transitionPassedStyle.shadowAlphaBase + (1 - colorTrailProgress) * transitionPassedStyle.shadowAlphaTrail,
@@ -3040,12 +3043,12 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                                 } else if (time <= glyphTrailStart) {
                                     alpha = mix(waitingOpacity, activeOpacity, easedGlyphProgress);
                                     fillStyle = mixColors(theme.primaryColor, activeColor, 0.22 + easedGlyphProgress * 0.78, alpha);
-                                    shadowBlur = (4 + block.fontPx * 0.22) * easedGlyphProgress * activeGlowBoost;
+                                    shadowBlur = reducedEffects ? 0 : (4 + block.fontPx * 0.22) * easedGlyphProgress * activeGlowBoost;
                                     shadowColor = colorWithAlpha(activeColor, 0.4 + easedGlyphProgress * 0.44);
                                 } else {
                                     alpha = mix(activeOpacity, transitionPassedStyle.opacity, colorTrailProgress);
                                     fillStyle = mixColors(activeColor, theme.primaryColor, 0.18 + colorTrailProgress * 0.82, alpha);
-                                    shadowBlur = (2 + block.fontPx * 0.1) * (1 - colorTrailProgress * 0.35) * passedGlowBase * transitionPassedStyle.glowMultiplier;
+                                    shadowBlur = reducedEffects ? 0 : (2 + block.fontPx * 0.1) * (1 - colorTrailProgress * 0.35) * passedGlowBase * transitionPassedStyle.glowMultiplier;
                                     shadowColor = colorWithAlpha(
                                         mixColors(activeColor, theme.primaryColor, 0.55 + colorTrailProgress * 0.45),
                                         transitionPassedStyle.shadowAlphaBase + (1 - colorTrailProgress) * transitionPassedStyle.shadowAlphaTrail,
@@ -3191,6 +3194,8 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
         viewport.width,
         defaultCameraScale,
         isCompactStage,
+        performanceTier,
+        reducedEffects,
     ]);
 
     return (
@@ -3198,6 +3203,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
             theme={theme}
             audioPower={audioPower}
             audioBands={audioBands}
+            performanceTier={performanceTier}
             sharedProps={{
                 ...props,
                 background: {

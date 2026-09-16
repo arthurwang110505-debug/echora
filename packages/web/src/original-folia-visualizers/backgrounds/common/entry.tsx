@@ -22,6 +22,7 @@ export default defineVisualizerBackground({
         seed,
         staticMode,
         paused,
+        performanceTier = 'full',
     }) => {
         const common = config?.common;
         const useCoverColorBg = common?.useCoverColorBg ?? false;
@@ -55,6 +56,7 @@ export default defineVisualizerBackground({
                             audioBands={audioBands}
                             seed={seed}
                             hideShapes={common?.disableGeometricBackground ?? false}
+                            performanceTier={performanceTier}
                             disableVignette={common?.disableVignette ?? false}
                             paused={paused}
                         />
