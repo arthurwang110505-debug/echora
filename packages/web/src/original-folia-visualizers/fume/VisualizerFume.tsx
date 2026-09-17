@@ -14,6 +14,7 @@ import VisualizerShell from '../VisualizerShell';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import { resolveWordColor } from '../wordColoring';
 import { resolveFumeCameraScaleForViewport, resolveFumeCameraSafetyCorrection, resolveFumeCameraXForViewport, resolveFumeCameraYForViewport, resolveFumeCanvasDpr, resolveFumeContentFrameBounds, resolveStageFrameInterval, useStagePerformanceProfile } from '../../utils/stagePerformance';
+import type { StagePerformanceTier } from '../../utils/stagePerformance';
 
 // This mode is basically "turn the whole lyric into an article, then move a camera through it".
 // So the pipeline is much bigger than the others: prebuild the article layout, split it into blocks/render lines/graphemes,
@@ -137,6 +138,7 @@ interface FumeLayoutAttemptOptions {
     columns: number;
     gap: number;
     densityScale: number;
+    fontSearchIterations: number;
     seedKey: string;
     mode?: 'measure' | 'render';
     timing?: FumeLayoutAttemptTiming;
@@ -826,6 +828,7 @@ const buildPreparedSingleLine = (
     densityScale: number,
     heroScale: number,
     theme: Pick<Theme, 'fontWeight'>,
+    fontSearchIterations = 8,
 ) => {
     let low = variant === 'hero' ? 18 : 10;
     let high = variant === 'hero' ? 58 : 30;
@@ -837,7 +840,7 @@ const buildPreparedSingleLine = (
 
     // Fume really wants most blocks to stay single-line when possible.
     // So do a tiny binary search for a font size that still fits before falling back.
-    for (let iteration = 0; iteration < 8; iteration += 1) {
+    for (let iteration = 0; iteration < fontSearchIterations; iteration += 1) {
         const candidateFontPx = ((low + high) / 2)
             * lyricsFontScale
             * densityScale
@@ -881,6 +884,7 @@ const buildLayoutCacheKey = (
     layoutTheme: Pick<Theme, 'name' | 'fontStyle' | 'fontFamily' | 'fontFamilyStack' | 'fontWeight'>,
     lyricsFontScale: number,
     fumeTuning: FumeTuning,
+    performanceTier: StagePerformanceTier,
 ) => {
     // Layout cache key intentionally ignores short-lived playback state.
     // Only geometry-affecting inputs should invalidate the whole article layout.
@@ -901,6 +905,7 @@ const buildLayoutCacheKey = (
         layoutTheme.name,
         lyricsFontScale.toFixed(4),
         fumeTuning.heroScale.toFixed(4),
+        performanceTier,
         lines.length,
         linesHash >>> 0,
     ].join('|');
@@ -1021,6 +1026,7 @@ function buildArticleLayoutAttempt(
         columns,
         gap,
         densityScale,
+        fontSearchIterations,
         seedKey,
         mode = 'render',
         timing,
@@ -1078,6 +1084,7 @@ function buildArticleLayoutAttempt(
             densityScale,
             fumeTuning.heroScale,
             layoutTheme,
+            fontSearchIterations,
         );
         if (timing) {
             timing.prepareLayoutMs += nowMs() - prepareLayoutStart;
@@ -1267,13 +1274,18 @@ function buildArticleLayoutAttempt(
     };
 }
 
-const buildArticleLayout = (
+const yieldToBrowser = () => new Promise<void>(resolve => {
+    window.setTimeout(resolve, 0);
+});
+
+const buildArticleLayout = async (
     lines: Line[],
     viewport: ViewportSize,
     layoutTheme: Pick<Theme, 'name' | 'fontStyle' | 'fontFamily' | 'fontFamilyStack' | 'fontWeight'>,
     lyricsFontScale: number,
     fumeTuning: FumeTuning,
-): FumeArticleLayout | null => {
+    performanceTier: StagePerformanceTier,
+): Promise<FumeArticleLayout | null> => {
     if (viewport.width <= 0 || viewport.height <= 0 || lines.length === 0) {
         return null;
     }
@@ -1294,6 +1306,10 @@ const buildArticleLayout = (
     let measureAttemptCount = 0;
 
     // Try a few column counts and density scales, then keep the article that lands closest to the target height.
+    // Compact/balanced use the same final layout renderer, but search fewer
+    // candidate densities so mobile avoids dozens of synchronous text-measurement passes.
+    const densitySearchIterations = performanceTier === 'full' ? 8 : 1;
+    const fontSearchIterations = performanceTier === 'full' ? 8 : 3;
     // This is why the mode feels "composed" instead of hardcoding one layout recipe for every song.
     for (let columns = maxColumns; columns >= 1; columns -= 1) {
         let low = 0.82;
@@ -1302,7 +1318,14 @@ const buildArticleLayout = (
         const columnTiming = createFumeLayoutTiming();
         measureColumnTimings.set(columns, columnTiming);
 
-        for (let iteration = 0; iteration < 8; iteration += 1) {
+        for (let iteration = 0; iteration < densitySearchIterations; iteration += 1) {
+            if (measureAttemptCount > 0) {
+                // A lyric article can require several expensive canvas text
+                // measurement passes. Yield between candidates so no one
+                // synchronous layout task can freeze the player for hundreds
+                // of milliseconds on a phone.
+                await yieldToBrowser();
+            }
             const densityScale = (low + high) / 2;
             measureAttemptCount += 1;
             const attemptOptions: FumeLayoutAttemptOptions & { mode: 'measure' } = {
@@ -1311,6 +1334,7 @@ const buildArticleLayout = (
                 columns,
                 gap,
                 densityScale,
+                fontSearchIterations,
                 seedKey: `${layoutSeedKey}:${columns}:${paperWidth}`,
                 mode: 'measure',
                 timing: columnTiming,
@@ -1334,6 +1358,7 @@ const buildArticleLayout = (
                     columns,
                     gap,
                     densityScale,
+                    fontSearchIterations,
                     seedKey: `${layoutSeedKey}:${columns}:${paperWidth}`,
                     mode: 'render',
                     timing: renderTiming,
@@ -2099,21 +2124,23 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                     return;
                 }
 
-                const layoutCacheKey = buildLayoutCacheKey(lines, viewport, layoutTheme, lyricsFontScale, layoutFumeTuning);
-                const nextArticle = lastFumeLayoutCache?.key === layoutCacheKey
-                    ? lastFumeLayoutCache.article
-                    : buildArticleLayout(lines, viewport, layoutTheme, lyricsFontScale, layoutFumeTuning);
-                if (layoutBuildVersionRef.current !== requestVersion) {
-                    return;
-                }
+                const layoutCacheKey = buildLayoutCacheKey(lines, viewport, layoutTheme, lyricsFontScale, layoutFumeTuning, performanceTier);
+                void (async () => {
+                    const nextArticle = lastFumeLayoutCache?.key === layoutCacheKey
+                        ? lastFumeLayoutCache.article
+                        : await buildArticleLayout(lines, viewport, layoutTheme, lyricsFontScale, layoutFumeTuning, performanceTier);
+                    if (layoutBuildVersionRef.current !== requestVersion) {
+                        return;
+                    }
 
-                lastFumeLayoutCache = {
-                    key: layoutCacheKey,
-                    article: nextArticle,
-                };
-                hasResolvedArticleRef.current = nextArticle !== null;
-                setArticle(nextArticle);
-                setIsLayoutPending(false);
+                    lastFumeLayoutCache = {
+                        key: layoutCacheKey,
+                        article: nextArticle,
+                    };
+                    hasResolvedArticleRef.current = nextArticle !== null;
+                    setArticle(nextArticle);
+                    setIsLayoutPending(false);
+                })();
             }, delay);
         });
 
@@ -2121,7 +2148,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
             window.cancelAnimationFrame(rafId);
             window.clearTimeout(timeoutId);
         };
-    }, [layoutFumeTuning, layoutTheme, lines, lyricsFontScale, viewport]);
+    }, [layoutFumeTuning, layoutTheme, lines, lyricsFontScale, performanceTier, viewport]);
     const lastRenderableLine = useMemo(() => {
         for (let index = lines.length - 1; index >= 0; index -= 1) {
             const line = lines[index];

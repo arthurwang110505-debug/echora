@@ -120,6 +120,16 @@ const scheduleStagePrefetch = () => {
   }
 };
 
+const shouldSkipStagePrefetch = () => {
+  if (typeof window === 'undefined') return true;
+  const lowCoreCount = typeof navigator.hardwareConcurrency === 'number' && navigator.hardwareConcurrency <= 4;
+  const lowMemory = typeof (navigator as Navigator & { deviceMemory?: number }).deviceMemory === 'number'
+    && ((navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8) <= 4;
+  const touchDevice = navigator.maxTouchPoints > 0
+    || window.matchMedia?.('(pointer: coarse)').matches === true;
+  return lowCoreCount || lowMemory || touchDevice;
+};
+
 class SceneErrorBoundary extends Component<
   {
     children: ReactNode;
@@ -211,7 +221,10 @@ export default function OriginalFoliaVisualizerStage({
   settingsOpen = false,
 }: Props) {
   useEffect(() => {
-    scheduleStagePrefetch();
+    // Do not make the active player compete with downloads, module parsing, and
+    // Pixi/Three initialization on phones or low-end laptops. Those chunks can
+    // load on demand when the user actually switches visualizers.
+    if (!shouldSkipStagePrefetch()) scheduleStagePrefetch();
   }, []);
   const safeDisplayedTime =
     Number.isFinite(displayedTime) && displayedTime >= 0 ? displayedTime : 0;
