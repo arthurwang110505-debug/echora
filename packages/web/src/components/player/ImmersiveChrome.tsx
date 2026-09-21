@@ -3,11 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Pause, Play, Settings2, SkipBack, SkipForward, Sparkles, X } from 'lucide-react';
 import type { LyricOrigin } from '@echora/core';
 import LyricsOffsetPanel from './LyricsOffsetPanel';
+import { BACKGROUND_OPTIONS, VISUALIZER_OPTIONS } from './panel/stageOptions';
 
-const VISUALIZER_OPTIONS = [
-  ['classic', 'Classic'], ['cadenza', 'Cadenza'], ['partita', 'Partita'], ['fume', 'Fume'], ['monet', 'Monet'],
-  ['cappella', 'Cappella'], ['pendolo', 'Pendolo'], ['sonnet', 'Sonnet'], ['claddagh', 'Claddagh'], ['diorama', 'Diorama'], ['tilt', 'Tilt'],
-] as const;
+
 
 type ImmersiveChromeProps = {
   isPlaying: boolean;
@@ -131,7 +129,7 @@ export default function ImmersiveChrome({
                 aria-label={t('player.chooseStageAnimation')}
                 className="mt-3 min-h-11 w-full rounded-xl border border-white/15 bg-[#0b1218] px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#62f5c4] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {VISUALIZER_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                {VISUALIZER_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
               </select>
               <label className="mt-3 flex items-center justify-between gap-3 text-[11px] font-semibold text-slate-300">
                 <span>{t('player.autoSwitchStage')}</span>
@@ -139,7 +137,7 @@ export default function ImmersiveChrome({
               </label>
               <label className="mt-3 block text-[11px] font-semibold text-slate-300">{t('player.backgroundEffect')}
                 <select value={backgroundMode} onChange={(event) => onBackgroundModeChange(event.target.value)} aria-label={t('player.chooseBackground')} className="mt-1.5 min-h-11 w-full rounded-xl border border-white/15 bg-[#0b1218] px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#62f5c4]">
-                  {['latent', 'common', 'fluid', 'monet', 'nomand', 'sora', 'url'].map((value) => <option key={value} value={value}>{value === 'common' ? 'Geometric' : value === 'url' ? 'Image URL' : value[0].toUpperCase() + value.slice(1)}</option>)}
+                  {BACKGROUND_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
                 </select>
               </label>
               <button type="button" onClick={onOpenTuning} className="mt-3 min-h-11 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-left text-xs font-bold text-slate-200 hover:bg-white/10">{t('player.openAdvancedTuning')}</button>

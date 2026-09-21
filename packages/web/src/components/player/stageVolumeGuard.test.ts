@@ -61,4 +61,17 @@ describe('stage volume guard', () => {
     expect(readSource('components/player/TransportBar.tsx')).toContain('VolumeControl');
     expect(readSource('pages/Settings.tsx')).toContain('VolumeControl');
   });
+
+  it('renders the side panel - whose 播放控制 tab owns a volume row - only outside the stage', () => {
+    const player = readSource('pages/Player.tsx');
+    const panelGate = player.indexOf("displayMode !== 'stage' && !isChromeHidden && (");
+    const panel = player.indexOf('<UnifiedPanel');
+    const toggle = player.indexOf('<PanelToggle');
+    expect(panelGate).toBeGreaterThan(-1);
+    expect(panel).toBeGreaterThan(panelGate);
+    expect(toggle).toBeGreaterThan(panelGate);
+    // The panel and its toggle must not be mounted a second time outside that gate.
+    expect(player.indexOf('<UnifiedPanel', panel + 1)).toBe(-1);
+    expect(player.indexOf('<PanelToggle', toggle + 1)).toBe(-1);
+  });
 });

@@ -89,7 +89,7 @@ export default function TransportBar({
             <div className="flex flex-wrap items-center justify-end gap-2">
               {/* Volume lives in the normal chrome only - never inside the immersive stage. */}
               <VolumeControl />
-              <button type="button" onClick={onEnterStage} className="min-h-11 shrink-0 rounded-xl bg-[#62f5c4] px-3 py-2 text-xs font-extrabold text-black transition hover:brightness-110" aria-label={t('player.enterStageAria')}>Stage</button>
+              <button type="button" onClick={onEnterStage} className="min-h-11 shrink-0 rounded-xl bg-[#62f5c4] px-3 py-2 text-xs font-extrabold text-black transition hover:brightness-110" aria-label={t('player.enterFullscreenAria')}>{t('player.enterFullscreen')}</button>
               <button type="button" onClick={onToggleCalibration} className={`min-h-11 shrink-0 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${showCalibration ? 'border-[#62f5c4]/50 bg-[#62f5c4]/20 text-[#62f5c4]' : 'border-white/10 bg-white/[0.05] text-slate-300 hover:text-white'}`} aria-expanded={showCalibration} aria-controls="desktop-calibration" aria-label={showCalibration ? t('player.moreClose') : t('player.moreOpen')}>{t('player.more')}</button>
             </div>
           </div>

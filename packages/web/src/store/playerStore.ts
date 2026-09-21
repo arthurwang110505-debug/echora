@@ -217,6 +217,8 @@ interface PlayerState {
   toggleMute: () => void;
   setLocalSpectrum: (spectrum: { mode: 'analyser' | 'direct'; reason: string } | null) => void;
   setPlaylist: (playlist: Song[]) => void;
+  /** Queue edits from the panel's 播放佇列 tab: replace rows *and* keep the playing index. */
+  setQueue: (playlist: Song[], currentIndex: number) => void;
   setLoopMode: (mode: 'off' | 'list' | 'single') => void;
   setDisplayMode: (mode: DisplayMode) => void;
   setActiveSource: (source: 'spotify' | 'ytmusic' | 'local') => void;
@@ -442,6 +444,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setLocalSpectrum: (localSpectrum) => set({ localSpectrum }),
 
   setPlaylist: (playlist) => set({ playlist, currentIndex: 0 }),
+
+  setQueue: (playlist, currentIndex) => set({
+    playlist,
+    currentIndex: playlist.length === 0 ? 0 : Math.min(Math.max(currentIndex, 0), playlist.length - 1),
+  }),
 
   setLoopMode: (loopMode) => set({ loopMode }),
 
