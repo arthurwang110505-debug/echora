@@ -214,4 +214,69 @@ describe('Player page — 播放頁面 chrome', () => {
     await click(byLabel(t('panel.transparentBackground')) as Element);
     expect(useStageStore.getState().transparentBackground).toBe(true);
   });
+
+  it('shows the volume row in the normal player panel', async () => {
+    await mount();
+    await press({ key: 'p' });
+    await click(Array.from(document.querySelectorAll('[role="tab"]'))[2] as Element);
+    expect(document.querySelector('[data-testid="volume-control"]')).toBeTruthy();
+  });
+});
+
+describe('Player page — 全螢幕 chrome', () => {
+  const enterStage = async () => {
+    usePlayerStore.setState({ displayMode: 'stage' });
+    await mount();
+  };
+
+  it('keeps 退出全螢幕 as the only pinned control besides transport', async () => {
+    await enterStage();
+    expect(byLabel(t('panel.exitFullscreen'))).toBeTruthy();
+    // The old stage bar's 歌單 and 設定 buttons are gone.
+    expect(byLabel(t('player.backToPlaylistAria'))).toBeUndefined();
+    expect(byLabel(t('player.openStageSettings'))).toBeUndefined();
+  });
+
+  it('opens the same floating panel inside the stage', async () => {
+    await enterStage();
+    expect(panelSurface()).toBeNull();
+    await press({ key: 'p' });
+    expect(panelSurface()).toBeTruthy();
+    expect(Array.from(document.querySelectorAll('[role="tab"]')).map(tab => tab.getAttribute('aria-label'))).toEqual([
+      t('panel.tabCover'),
+      t('panel.tabLyrics'),
+      t('panel.tabControls'),
+      t('panel.tabQueue'),
+      t('panel.tabAccount'),
+    ]);
+  });
+
+  it('gives the stage panel no volume widget — the stage keeps volume keyboard-only', async () => {
+    await enterStage();
+    await press({ key: 'p' });
+    await click(Array.from(document.querySelectorAll('[role="tab"]'))[2] as Element);
+    expect(document.querySelector('[data-testid="volume-control"]')).toBeNull();
+    // The rest of the 播放控制 tab is still there.
+    expect(byLabel(t('panel.loopList'))).toBeTruthy();
+    expect(byLabel(t('panel.generateAiTheme'))).toBeTruthy();
+  });
+
+  it('still carries the stage settings that used to live in the 設定 popover', async () => {
+    await enterStage();
+    await press({ key: 'p' });
+    await click(Array.from(document.querySelectorAll('[role="tab"]'))[2] as Element);
+    // 歌詞動畫 / 背景效果 steppers replaced the two <select> pickers.
+    expect(byLabel(t('panel.lyricsAnimation'))).toBeTruthy();
+    expect(byLabel(t('panel.backgroundEffect'))).toBeTruthy();
+    // 歌詞時間軸 moved to the 歌詞資訊 tab.
+    await click(Array.from(document.querySelectorAll('[role="tab"]'))[1] as Element);
+    expect(host?.textContent).toContain(t('panel.matchOnline'));
+  });
+
+  it('hides the panel and the exit bar with H', async () => {
+    await enterStage();
+    await press({ key: 'h' });
+    expect(byLabel(t('panel.toggleAria'))).toBeUndefined();
+    expect(byLabel(t('panel.exitFullscreen'))).toBeUndefined();
+  });
 });

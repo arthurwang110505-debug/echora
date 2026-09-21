@@ -515,6 +515,7 @@
     "recentCount": "Recently played",
     "openSettingsForAi": "Open Settings for AI themes and volume",
     "backHotspot": "Back",
+    "exitFullscreen": "Exit fullscreen",
     "chromeHiddenHint": "Progress bar and bottom-right button hidden — press H to restore",
     "commands": {
       "playPause": "Play / pause",

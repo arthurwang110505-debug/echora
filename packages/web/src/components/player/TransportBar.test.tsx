@@ -24,9 +24,6 @@ const render = async () => {
         isSeeking={false}
         seekPreviewTime={null}
         activeVisualizer="classic"
-        showCalibration={false}
-        lyricsOffsetSeconds={0}
-        lyricsOffsetLabel="synced"
         onSeekPreview={vi.fn()}
         onSeekStart={vi.fn()}
         onSeekCommit={vi.fn()}
@@ -34,11 +31,6 @@ const render = async () => {
         onNext={vi.fn()}
         onPlayPause={vi.fn()}
         onEnterStage={vi.fn()}
-        onToggleCalibration={vi.fn()}
-        onAdjustOffset={vi.fn()}
-        onResetOffset={vi.fn()}
-        onImportLyrics={vi.fn(() => true)}
-        onToggleTuning={vi.fn()}
       />,
     );
   });
@@ -65,6 +57,13 @@ describe('TransportBar stage entry point', () => {
     expect(button?.textContent).toBe(t('player.enterFullscreen'));
     expect(button?.textContent).not.toContain('Stage');
     expect(host?.textContent).not.toMatch(/>Stage</);
+  });
+
+  it('no longer renders the 更多 button', async () => {
+    await render();
+    const more = Array.from(document.querySelectorAll('button'))
+      .find(candidate => candidate.textContent?.trim() === i18n.t('player.more'));
+    expect(more).toBeUndefined();
   });
 
   it('resolves the label in both bundled locales', async () => {

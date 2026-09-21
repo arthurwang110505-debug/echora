@@ -22,6 +22,7 @@ import PlayerHeader from '../components/player/PlayerHeader';
 import QueueDrawer from '../components/player/QueueDrawer';
 import TransportBar from '../components/player/TransportBar';
 import ImmersiveChrome from '../components/player/ImmersiveChrome';
+import StageExitBar from '../components/player/StageExitBar';
 import ConnectModal from '../components/player/ConnectModal';
 import UnifiedPanel, { type PanelTab } from '../components/player/panel/UnifiedPanel';
 import PanelToggle from '../components/player/panel/PanelToggle';
@@ -115,8 +116,6 @@ export default function Player() {
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekPreviewTime, setSeekPreviewTime] = useState<number | null>(null);
   const [showTuning, setShowTuning] = useState(false);
-  const [showCalibration, setShowCalibration] = useState(false);
-  const [showStageSettings, setShowStageSettings] = useState(false);
   // 播放頁面 chrome: the floating control panel, which tab is open, the H-key hide switch,
   // the command palette, and the quick theme editor.
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -124,7 +123,6 @@ export default function Player() {
   const [isChromeHidden, setIsChromeHidden] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isThemeQuickEditorOpen, setIsThemeQuickEditorOpen] = useState(false);
-  const stageSettingsRef = useRef<HTMLDivElement>(null);
   const stageRootRef = useRef<HTMLDivElement>(null);
   const spotifyAvailable = Boolean(spotifyClientId);
   const demoMode = location.state?.demo === true || new URLSearchParams(location.search).get('demo') === '1';
@@ -168,8 +166,6 @@ export default function Player() {
 
   const enterImmersiveStage = async () => {
     setDisplayMode('stage');
-    setShowCalibration(false);
-    setShowStageSettings(false);
     const element = stageRootRef.current;
     if (element && document.fullscreenElement !== element) {
       try { await element.requestFullscreen(); } catch { /* iOS Safari may reject programmatic fullscreen. */ }
@@ -182,8 +178,6 @@ export default function Player() {
 
   const leaveImmersiveStage = async () => {
     setDisplayMode('full');
-    setShowStageSettings(false);
-    setShowCalibration(false);
     setShowTuning(false);
     if (document.fullscreenElement) {
       try { await document.exitFullscreen(); } catch { /* browser already exited fullscreen */ }
@@ -213,21 +207,6 @@ export default function Player() {
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
   }, [displayMode, setDisplayMode]);
 
-  useEffect(() => {
-    if (!showStageSettings) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (!stageSettingsRef.current?.contains(event.target as Node)) setShowStageSettings(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setShowStageSettings(false);
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [showStageSettings]);
 
   // ---- Panel / palette / shortcut actions -------------------------------------------
   // Everything the 播放頁面 chrome can do lives here, so the keyboard contract and the
@@ -336,12 +315,6 @@ export default function Player() {
     return () => window.removeEventListener('popstate', onPopState);
   }, [displayMode, showPlaylistDrawer]);
 
-  const returnToPlaylist = async () => {
-    // Keep the user in the player and reveal the playlist surface they asked for.
-    // The previous implementation navigated home, which made the "← 歌單" control feel broken.
-    setShowPlaylistDrawer(true);
-    await leaveImmersiveStage();
-  };
 
   // Use the same offset-aware clock for the player chrome and every visualizer mode.
   const activeLineIndex = useMemo(() => {
@@ -555,7 +528,7 @@ export default function Player() {
                   backgroundMode={backgroundMode}
                   visualizerTunings={visualizerTunings}
                   isPlayerChromeHidden={false}
-                  settingsOpen={displayMode === 'stage' && (showStageSettings || showTuning)}
+                  settingsOpen={displayMode === 'stage' && showTuning}
                 />
               </Suspense>
             )}
@@ -580,31 +553,14 @@ export default function Player() {
             <ImmersiveChrome
               isPlaying={isPlaying}
               showTransport={currentSong.source === 'ytmusic' || currentSong.source === 'local'}
-              showStageSettings={showStageSettings}
-              settingsRef={stageSettingsRef}
-              activeVisualizer={activeVisualizer}
-              autoVisualizer={autoVisualizer}
-              backgroundMode={backgroundMode}
-              lyricsStatusTitle={lyricsStageStatus.title}
-              lyricsStatusCopy={lyricsStageStatus.copy}
-              lyricsOffsetSeconds={lyricsOffsetSeconds}
-              lyricsOffsetLabel={lyricsOffsetLabel}
-              origin={currentLyrics?.origin}
-              onReturnToPlaylist={() => void returnToPlaylist()}
               onPrev={prev}
               onNext={next}
               onPlayPause={handlePlayPause}
-              onToggleSettings={() => setShowStageSettings(value => !value)}
-              onCloseSettings={() => setShowStageSettings(false)}
-              onVisualizerChange={(mode) => { setAutoVisualizer(false); setActiveVisualizer(mode); }}
-              onAutoVisualizerChange={setAutoVisualizer}
-              onBackgroundModeChange={setBackgroundMode}
-              onOpenTuning={() => { setShowStageSettings(false); setShowTuning(true); }}
-              onAdjustOffset={adjustStageLyricsOffset}
-              onResetOffset={resetStageLyricsOffset}
-              onImportLyrics={importLyricsText}
-              onLeaveStage={() => void leaveImmersiveStage()}
             />
+          )}
+          {/* 全螢幕只剩這一颗常駐按鈕；其餘控制都在浮動面板裡。 */}
+          {displayMode === 'stage' && !showTuning && !isChromeHidden && (
+            <StageExitBar onLeaveStage={() => void leaveImmersiveStage()} />
           )}
 
           {/* Bottom controls are intentionally not rendered in immersive mode, and H hides
@@ -618,10 +574,6 @@ export default function Player() {
               isSeeking={isSeeking}
               seekPreviewTime={seekPreviewTime}
               activeVisualizer={activeVisualizer}
-              showCalibration={showCalibration}
-              lyricsOffsetSeconds={lyricsOffsetSeconds}
-              lyricsOffsetLabel={lyricsOffsetLabel}
-              origin={currentLyrics?.origin}
               onSeekPreview={setSeekPreviewTime}
               onSeekStart={() => setIsSeeking(true)}
               onSeekCommit={() => {
@@ -633,33 +585,31 @@ export default function Player() {
               onNext={next}
               onPlayPause={handlePlayPause}
               onEnterStage={() => void enterImmersiveStage()}
-              onToggleCalibration={() => setShowCalibration(value => !value)}
-              onAdjustOffset={adjustStageLyricsOffset}
-              onResetOffset={resetStageLyricsOffset}
-              onImportLyrics={importLyricsText}
-              onToggleTuning={() => setShowTuning(value => !value)}
             />
           )}
         </main>
       </div>
 
-      {/* 播放頁面 chrome: the top-left hover-to-return hotspot, the bottom-right button and the
-          floating control panel it expands. None of it exists inside the immersive stage —
-          that surface keeps its own chrome — and H hides all of it. */}
+      {/* 左上角 hover 返回只屬於一般播放頁；全螢幕裡改由 StageExitBar 負責離開。 */}
       {displayMode !== 'stage' && !isChromeHidden && (
-        <>
-          <div className="group pointer-events-none fixed left-0 top-0 z-[55] flex h-20 w-32 items-start p-3">
-            <button
-              type="button"
-              onClick={() => navigate('/app')}
-              aria-label={t('panel.backHotspot')}
-              className="pointer-events-auto flex items-center gap-1.5 rounded-xl border border-white/15 bg-black/35 px-3 py-2 text-xs font-bold text-white opacity-0 backdrop-blur-md transition-all duration-200 hover:bg-black/50 focus-visible:opacity-100 group-hover:opacity-100"
-            >
-              <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-              {t('panel.backHotspot')}
-            </button>
-          </div>
+        <div className="group pointer-events-none fixed left-0 top-0 z-[55] flex h-20 w-32 items-start p-3">
+          <button
+            type="button"
+            onClick={() => navigate('/app')}
+            aria-label={t('panel.backHotspot')}
+            className="pointer-events-auto flex items-center gap-1.5 rounded-xl border border-white/15 bg-black/35 px-3 py-2 text-xs font-bold text-white opacity-0 backdrop-blur-md transition-all duration-200 hover:bg-black/50 focus-visible:opacity-100 group-hover:opacity-100"
+          >
+            <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+            {t('panel.backHotspot')}
+          </button>
+        </div>
+      )}
 
+      {/* 播放頁面 chrome: the bottom-right button and the floating control panel it expands.
+          Both modes share this one panel — inside the stage it is the only control surface
+          left besides 退出全螢幕 — and H hides it. */}
+      {!isChromeHidden && (
+        <>
           <PanelToggle
             isOpen={isPanelOpen}
             onToggle={() => setIsPanelOpen(value => !value)}
@@ -691,6 +641,8 @@ export default function Player() {
               onResetOffset: resetStageLyricsOffset,
             }}
             controls={{
+              // Volume is chrome-only furniture; the stage keeps it keyboard-only (↑ / ↓ / M).
+              showVolume: displayMode !== 'stage',
               loopMode,
               onToggleLoop: cycleLoopMode,
               isLiked: isCurrentSongLiked,
@@ -746,7 +698,7 @@ export default function Player() {
         </>
       )}
 
-      {displayMode !== 'stage' && isChromeHidden && (
+      {isChromeHidden && (
         <p className="pointer-events-none fixed bottom-4 left-1/2 z-[55] -translate-x-1/2 rounded-full border border-white/10 bg-black/45 px-3 py-1.5 text-[10px] font-semibold text-slate-300 backdrop-blur-md">
           {t('panel.chromeHiddenHint')}
         </p>

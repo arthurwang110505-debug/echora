@@ -18,6 +18,12 @@ import { BACKGROUND_OPTIONS, VISUALIZER_OPTIONS } from './stageOptions';
 export type AiThemeState = 'idle' | 'generating' | 'error';
 
 export type ControlsTabProps = {
+  /**
+   * The volume row is chrome-only furniture. Inside the immersive stage the panel is mounted
+   * with this off, because the stage keeps volume keyboard-only (↑ / ↓ / M) — the rule locked
+   * by components/player/stageVolumeGuard.test.ts.
+   */
+  showVolume?: boolean;
   loopMode: 'off' | 'list' | 'single';
   onToggleLoop: () => void;
   isLiked: boolean;
@@ -48,6 +54,7 @@ const LoopIcon = ({ mode }: { mode: 'off' | 'list' | 'single' }) => {
 };
 
 export default function ControlsTab({
+  showVolume = true,
   loopMode,
   onToggleLoop,
   isLiked,
@@ -133,7 +140,7 @@ export default function ControlsTab({
       )}
 
       <div className="space-y-3 border-t border-white/5 pt-3">
-        <VolumeControl />
+        {showVolume && <VolumeControl />}
 
         {/* Row 2: lyrics animation + background steppers */}
         <div className="space-y-1">

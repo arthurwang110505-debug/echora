@@ -515,6 +515,7 @@
     "recentCount": "最近播放",
     "openSettingsForAi": "前往設定調整 AI 主題與音量",
     "backHotspot": "返回",
+    "exitFullscreen": "退出全螢幕",
     "chromeHiddenHint": "已隱藏進度條與右下角按鈕，再按 H 恢復",
     "commands": {
       "playPause": "播放 / 暫停",

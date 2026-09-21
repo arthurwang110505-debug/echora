@@ -62,16 +62,28 @@ describe('stage volume guard', () => {
     expect(readSource('pages/Settings.tsx')).toContain('VolumeControl');
   });
 
-  it('renders the side panel - whose 播放控制 tab owns a volume row - only outside the stage', () => {
+  it('mounts the side panel in both modes but strips its volume row inside the stage', () => {
     const player = readSource('pages/Player.tsx');
-    const panelGate = player.indexOf("displayMode !== 'stage' && !isChromeHidden && (");
+    // One shared panel for both modes, gated only by the H-key hide switch.
+    const panelGate = player.indexOf('{!isChromeHidden && (');
     const panel = player.indexOf('<UnifiedPanel');
-    const toggle = player.indexOf('<PanelToggle');
     expect(panelGate).toBeGreaterThan(-1);
     expect(panel).toBeGreaterThan(panelGate);
-    expect(toggle).toBeGreaterThan(panelGate);
-    // The panel and its toggle must not be mounted a second time outside that gate.
     expect(player.indexOf('<UnifiedPanel', panel + 1)).toBe(-1);
-    expect(player.indexOf('<PanelToggle', toggle + 1)).toBe(-1);
+    // The stage instance must opt out of the volume row, so the rule above still holds.
+    expect(player).toContain('showVolume: displayMode !== \'stage\'');
+  });
+
+  it('gates the 播放控制 volume row behind showVolume, so the stage can drop it', () => {
+    const controls = readSource('components/player/panel/ControlsTab.tsx');
+    expect(controls).toContain('showVolume?: boolean');
+    expect(controls).toMatch(/\{showVolume && <VolumeControl/);
+  });
+
+  it('keeps the 退出全螢幕 bar free of transport furniture', () => {
+    const exitBar = readSource('components/player/StageExitBar.tsx');
+    for (const marker of VOLUME_MARKERS) {
+      expect(exitBar, `StageExitBar must not reference ${marker}`).not.toContain(marker);
+    }
   });
 });

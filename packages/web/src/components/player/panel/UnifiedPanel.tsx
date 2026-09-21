@@ -89,7 +89,7 @@ export default function UnifiedPanel({
         data-testid="unified-panel-surface"
         role="region"
         aria-label={t('panel.panelAria')}
-        className="pointer-events-auto absolute bottom-16 right-4 z-[60] flex max-h-[calc(100dvh-6rem)] w-80 max-w-[calc(100vw-2rem)] flex-col overflow-y-auto rounded-3xl border border-white/10 bg-[#0d111a]/70 shadow-2xl backdrop-blur-3xl echora-hide-scrollbar md:right-8"
+        className="pointer-events-auto absolute bottom-20 right-4 z-[60] flex max-h-[calc(100dvh-6rem)] w-80 max-w-[calc(100vw-2rem)] flex-col overflow-y-auto rounded-3xl border border-white/10 bg-[#0d111a]/70 shadow-2xl backdrop-blur-3xl echora-hide-scrollbar md:right-8"
       >
         <div className="flex flex-col p-5">
           {/* Cover art with the four hover corner actions */}
