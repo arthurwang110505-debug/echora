@@ -237,6 +237,31 @@ describe('Player page — 全螢幕 chrome', () => {
     expect(byLabel(t('player.openStageSettings'))).toBeUndefined();
   });
 
+  it('puts transport, panel toggle and 退出全螢幕 in one single row', async () => {
+    await enterStage();
+    // One shared container for the whole stage control strip — nothing floats on top.
+    const rows = Array.from(document.querySelectorAll('[role="group"]'));
+    expect(rows).toHaveLength(1);
+    const row = rows[0] as Element;
+    expect(row.getAttribute('aria-label')).toBe(t('player.immersiveControls'));
+    for (const label of [t('player.prev'), t('player.playAudio'), t('player.next'), t('panel.paletteHint'), t('panel.toggleAria'), t('panel.exitFullscreen')]) {
+      expect(row.contains(byLabel(label) as Element), `${label} must sit inside the single row`).toBe(true);
+    }
+    // Order: transport, then the panel buttons, then 退出全螢幕 last.
+    const labels = Array.from(row.querySelectorAll('button[aria-label]'))
+      .map(button => button.getAttribute('aria-label'));
+    expect(labels).toEqual([
+      t('player.prev'),
+      t('player.playAudio'),
+      t('player.next'),
+      t('panel.paletteHint'),
+      t('panel.toggleAria'),
+      t('panel.exitFullscreen'),
+    ]);
+    // No separate floating bar may exist alongside it.
+    expect(document.querySelectorAll('[role="group"]').length).toBe(1);
+  });
+
   it('opens the same floating panel inside the stage', async () => {
     await enterStage();
     expect(panelSurface()).toBeNull();

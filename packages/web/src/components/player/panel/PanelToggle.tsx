@@ -11,11 +11,50 @@ type PanelToggleProps = {
   isOpen: boolean;
   onToggle: () => void;
   onOpenCommandPalette: () => void;
+  /**
+   * Inside the immersive stage the toggle lives in the same row as the transport buttons and
+   * 退出全螢幕, so it must not float. `inline` drops the fixed positioning and the
+   * hover-expanding track, and keeps the palette glyph permanently visible next to it.
+   */
+  inline?: boolean;
 };
 
-export default function PanelToggle({ isOpen, onToggle, onOpenCommandPalette }: PanelToggleProps) {
+export default function PanelToggle({ isOpen, onToggle, onOpenCommandPalette, inline = false }: PanelToggleProps) {
   const { t } = useTranslation();
   const trackVisible = 'opacity-100 group-focus-within:opacity-100 group-hover:opacity-100';
+
+  if (inline) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={onOpenCommandPalette}
+          aria-label={t('panel.paletteHint')}
+          title={t('panel.paletteHint')}
+          className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-black/35 text-white/70 backdrop-blur-xl transition hover:bg-white/10 hover:text-white"
+        >
+          <Command aria-hidden="true" size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={isOpen}
+          aria-label={isOpen ? t('panel.toggleCloseAria') : t('panel.toggleAria')}
+          className={`flex h-11 w-11 items-center justify-center rounded-xl border backdrop-blur-xl transition-all duration-300 ${
+            isOpen
+              ? 'border-[#62f5c4]/45 bg-[#62f5c4]/20 text-[#b8ffe2]'
+              : 'border-white/15 bg-black/35 text-white/85 hover:bg-white/10 hover:text-white'
+          }`}
+        >
+          <SlidersHorizontal
+            aria-hidden="true"
+            size={17}
+            className={`transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`}
+          />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="group pointer-events-auto fixed bottom-6 right-4 z-[60] flex w-24 justify-end md:right-8">

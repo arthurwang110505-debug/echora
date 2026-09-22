@@ -2,7 +2,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import type { Song } from '@echora/core';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Minimize2, Sparkles } from 'lucide-react';
 import { usePlayer } from '../contexts/PlayerContext';
 import { useTheme } from '../contexts/ThemeProvider';
 import YouTubePlayer from '../components/YouTubePlayer';
@@ -22,7 +22,6 @@ import PlayerHeader from '../components/player/PlayerHeader';
 import QueueDrawer from '../components/player/QueueDrawer';
 import TransportBar from '../components/player/TransportBar';
 import ImmersiveChrome from '../components/player/ImmersiveChrome';
-import StageExitBar from '../components/player/StageExitBar';
 import ConnectModal from '../components/player/ConnectModal';
 import UnifiedPanel, { type PanelTab } from '../components/player/panel/UnifiedPanel';
 import PanelToggle from '../components/player/panel/PanelToggle';
@@ -549,18 +548,34 @@ export default function Player() {
               />
             </Suspense>
           )}
-          {displayMode === 'stage' && !showTuning && (
+          {/* 全螢幕只有這一列：播放控制 │ 面板按鈕 │ 退出全螢幕。全部併在一起，
+              不會再有浮動按鈕疊在上面。 */}
+          {displayMode === 'stage' && !showTuning && !isChromeHidden && (
             <ImmersiveChrome
               isPlaying={isPlaying}
               showTransport={currentSong.source === 'ytmusic' || currentSong.source === 'local'}
               onPrev={prev}
               onNext={next}
               onPlayPause={handlePlayPause}
-            />
-          )}
-          {/* 全螢幕只剩這一颗常駐按鈕；其餘控制都在浮動面板裡。 */}
-          {displayMode === 'stage' && !showTuning && !isChromeHidden && (
-            <StageExitBar onLeaveStage={() => void leaveImmersiveStage()} />
+            >
+              <span aria-hidden="true" className="mx-1 hidden h-7 w-px bg-white/15 sm:block" />
+              <PanelToggle
+                inline
+                isOpen={isPanelOpen}
+                onToggle={() => setIsPanelOpen(value => !value)}
+                onOpenCommandPalette={() => setIsPaletteOpen(true)}
+              />
+              <span aria-hidden="true" className="mx-1 hidden h-7 w-px bg-white/15 sm:block" />
+              <button
+                type="button"
+                onClick={() => void leaveImmersiveStage()}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-white/15 bg-black/35 px-3 py-2 text-xs font-bold text-white/85 backdrop-blur-xl transition hover:bg-white/10 hover:text-white"
+                aria-label={t('panel.exitFullscreen')}
+              >
+                <Minimize2 aria-hidden="true" className="h-4 w-4" />
+                <span className="hidden sm:inline">{t('panel.exitFullscreen')}</span>
+              </button>
+            </ImmersiveChrome>
           )}
 
           {/* Bottom controls are intentionally not rendered in immersive mode, and H hides
@@ -590,7 +605,7 @@ export default function Player() {
         </main>
       </div>
 
-      {/* 左上角 hover 返回只屬於一般播放頁；全螢幕裡改由 StageExitBar 負責離開。 */}
+      {/* 左上角 hover 返回只屬於一般播放頁；全螢幕裡由底部那一列的「退出全螢幕」負責離開。 */}
       {displayMode !== 'stage' && !isChromeHidden && (
         <div className="group pointer-events-none fixed left-0 top-0 z-[55] flex h-20 w-32 items-start p-3">
           <button
@@ -610,11 +625,14 @@ export default function Player() {
           left besides 退出全螢幕 — and H hides it. */}
       {!isChromeHidden && (
         <>
-          <PanelToggle
-            isOpen={isPanelOpen}
-            onToggle={() => setIsPanelOpen(value => !value)}
-            onOpenCommandPalette={() => setIsPaletteOpen(true)}
-          />
+          {/* 全螢幕裡的面板按鈕已經併進底部那一列，這裡只負責一般播放頁的浮動按鈕。 */}
+          {displayMode !== 'stage' && (
+            <PanelToggle
+              isOpen={isPanelOpen}
+              onToggle={() => setIsPanelOpen(value => !value)}
+              onOpenCommandPalette={() => setIsPaletteOpen(true)}
+            />
+          )}
 
           <UnifiedPanel
             isOpen={isPanelOpen}

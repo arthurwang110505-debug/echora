@@ -80,10 +80,12 @@ describe('stage volume guard', () => {
     expect(controls).toMatch(/\{showVolume && <VolumeControl/);
   });
 
-  it('keeps the 退出全螢幕 bar free of transport furniture', () => {
-    const exitBar = readSource('components/player/StageExitBar.tsx');
+  it('keeps the single stage row free of transport furniture', () => {
+    // 退出全螢幕 and the panel toggle now share ImmersiveChrome's row, so that file has to
+    // stay clean on its own rather than relying on a separate exit bar.
+    const chrome = readSource('components/player/ImmersiveChrome.tsx');
     for (const marker of VOLUME_MARKERS) {
-      expect(exitBar, `StageExitBar must not reference ${marker}`).not.toContain(marker);
+      expect(chrome, `ImmersiveChrome must not reference ${marker}`).not.toContain(marker);
     }
   });
 });
