@@ -71,6 +71,17 @@
   background: rgba(98, 245, 196, 0.35);
 }
 
+/* Panels scroll without a visible scrollbar (upstream's hide-scrollbar). */
+.echora-hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.echora-hide-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 /* Glassmorphism Classes */
 .glass-panel {
   background: rgba(13, 17, 26, 0.72);

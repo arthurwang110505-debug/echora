@@ -1,7 +1,5 @@
 import { useTranslation } from 'react-i18next';
 import { Pause, Play, SkipBack, SkipForward } from 'lucide-react';
-import type { LyricOrigin } from '@echora/core';
-import LyricsOffsetPanel from './LyricsOffsetPanel';
 import VolumeControl from '../VolumeControl';
 import { formatTime } from './formatTime';
 
@@ -13,10 +11,6 @@ type TransportBarProps = {
   isSeeking: boolean;
   seekPreviewTime: number | null;
   activeVisualizer: string;
-  showCalibration: boolean;
-  lyricsOffsetSeconds: number;
-  lyricsOffsetLabel: string;
-  origin?: LyricOrigin;
   onSeekPreview: (time: number) => void;
   onSeekStart: () => void;
   onSeekCommit: () => void;
@@ -24,11 +18,6 @@ type TransportBarProps = {
   onNext: () => void;
   onPlayPause: () => void;
   onEnterStage: () => void;
-  onToggleCalibration: () => void;
-  onAdjustOffset: (deltaSeconds: number) => void;
-  onResetOffset: () => void;
-  onImportLyrics: (raw: string) => boolean;
-  onToggleTuning: () => void;
 };
 
 export default function TransportBar({
@@ -38,10 +27,6 @@ export default function TransportBar({
   duration,
   isSeeking,
   activeVisualizer,
-  showCalibration,
-  lyricsOffsetSeconds,
-  lyricsOffsetLabel,
-  origin,
   onSeekPreview,
   onSeekStart,
   onSeekCommit,
@@ -49,11 +34,6 @@ export default function TransportBar({
   onNext,
   onPlayPause,
   onEnterStage,
-  onToggleCalibration,
-  onAdjustOffset,
-  onResetOffset,
-  onImportLyrics,
-  onToggleTuning,
 }: TransportBarProps) {
   const { t } = useTranslation();
   return (
@@ -89,8 +69,7 @@ export default function TransportBar({
             <div className="flex flex-wrap items-center justify-end gap-2">
               {/* Volume lives in the normal chrome only - never inside the immersive stage. */}
               <VolumeControl />
-              <button type="button" onClick={onEnterStage} className="min-h-11 shrink-0 rounded-xl bg-[#62f5c4] px-3 py-2 text-xs font-extrabold text-black transition hover:brightness-110" aria-label={t('player.enterStageAria')}>Stage</button>
-              <button type="button" onClick={onToggleCalibration} className={`min-h-11 shrink-0 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${showCalibration ? 'border-[#62f5c4]/50 bg-[#62f5c4]/20 text-[#62f5c4]' : 'border-white/10 bg-white/[0.05] text-slate-300 hover:text-white'}`} aria-expanded={showCalibration} aria-controls="desktop-calibration" aria-label={showCalibration ? t('player.moreClose') : t('player.moreOpen')}>{t('player.more')}</button>
+              <button type="button" onClick={onEnterStage} data-testid="enter-stage" className="min-h-11 shrink-0 rounded-xl bg-[#62f5c4] px-3 py-2 text-xs font-extrabold text-black transition hover:brightness-110" aria-label={t('player.enterFullscreenAria')}>{t('player.enterFullscreen')}</button>
             </div>
           </div>
         )}
@@ -114,19 +93,6 @@ export default function TransportBar({
         </div>
       </div>
 
-      {!isYouTubeVideoMode && showCalibration && (
-        <div id="desktop-calibration" className="rounded-2xl border border-white/10 bg-black/20 px-3 py-3">
-          <LyricsOffsetPanel
-            offsetSeconds={lyricsOffsetSeconds}
-            offsetLabel={lyricsOffsetLabel}
-            origin={origin}
-            onAdjust={onAdjustOffset}
-            onReset={onResetOffset}
-            onImportText={onImportLyrics}
-          />
-          <button type="button" onClick={onToggleTuning} className="mt-3 rounded-xl border border-white/[0.12] bg-white/[0.05] px-3 py-2 text-xs font-bold text-slate-300 hover:text-white">{t('player.visualStageSettings')}</button>
-        </div>
-      )}
     </div>
   );
 }

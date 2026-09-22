@@ -61,4 +61,31 @@ describe('stage volume guard', () => {
     expect(readSource('components/player/TransportBar.tsx')).toContain('VolumeControl');
     expect(readSource('pages/Settings.tsx')).toContain('VolumeControl');
   });
+
+  it('mounts the side panel in both modes but strips its volume row inside the stage', () => {
+    const player = readSource('pages/Player.tsx');
+    // One shared panel for both modes, gated only by the H-key hide switch.
+    const panelGate = player.indexOf('{!isChromeHidden && (');
+    const panel = player.indexOf('<UnifiedPanel');
+    expect(panelGate).toBeGreaterThan(-1);
+    expect(panel).toBeGreaterThan(panelGate);
+    expect(player.indexOf('<UnifiedPanel', panel + 1)).toBe(-1);
+    // The stage instance must opt out of the volume row, so the rule above still holds.
+    expect(player).toContain('showVolume: displayMode !== \'stage\'');
+  });
+
+  it('gates the 播放控制 volume row behind showVolume, so the stage can drop it', () => {
+    const controls = readSource('components/player/panel/ControlsTab.tsx');
+    expect(controls).toContain('showVolume?: boolean');
+    expect(controls).toMatch(/\{showVolume && <VolumeControl/);
+  });
+
+  it('keeps the single stage row free of transport furniture', () => {
+    // 退出全螢幕 and the panel toggle now share ImmersiveChrome's row, so that file has to
+    // stay clean on its own rather than relying on a separate exit bar.
+    const chrome = readSource('components/player/ImmersiveChrome.tsx');
+    for (const marker of VOLUME_MARKERS) {
+      expect(chrome, `ImmersiveChrome must not reference ${marker}`).not.toContain(marker);
+    }
+  });
 });

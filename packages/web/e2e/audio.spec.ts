@@ -73,7 +73,12 @@ test.describe('local audio wiring', () => {
   test('never shows volume controls inside the immersive stage, and shows them outside it', async ({ page }) => {
     await startFirstDemoSong(page);
     await expect(page.getByTestId('volume-control')).toBeVisible();
-    await page.getByRole('button', { name: '進入沉浸舞台' }).click();
+    // Located by testid on purpose: this button's label has moved once already
+    // (進入沉浸舞台 -> 全螢幕), which broke this spec. The accessible name still resolves
+    // through player.enterFullscreenAria for screen readers.
+    await page.getByTestId('enter-stage').click();
+    // The stage keeps volume keyboard-only (ArrowUp/ArrowDown/M), so nothing on screen —
+    // including the panel's 播放控制 tab, which mounts with showVolume disabled.
     await expect(page.getByTestId('volume-control')).toHaveCount(0);
   });
 

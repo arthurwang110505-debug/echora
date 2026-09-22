@@ -1,7 +1,8 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Song } from '@echora/core';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Minimize2, Sparkles } from 'lucide-react';
 import { usePlayer } from '../contexts/PlayerContext';
 import { useTheme } from '../contexts/ThemeProvider';
 import YouTubePlayer from '../components/YouTubePlayer';
@@ -9,7 +10,7 @@ import { spotifyClientId } from '../integrations/spotifyAuth';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import LyriclessSoundscapeStage from '../components/LyriclessSoundscapeStage';
 import { CoverImage, PanelSkeleton, PlayerSkeleton, StageSkeleton } from '../components/LoadingSkeletons';
-import { adjustLyricsOffset, getActiveLyricIndex } from '../utils/lyrics/activeLine';
+import { adjustLyricsOffset, getActiveLyricIndex, LYRICS_OFFSET_STEP_SECONDS } from '../utils/lyrics/activeLine';
 import { lazyWithRetry } from '../utils/recovery';
 import { pickAutoVisualizerMode, resolveStageAudioBands, visualizerEnergy } from '../playback/audioBands';
 import { sampleLocalAudioBands } from '../playback/localAudioAnalyser';
@@ -22,6 +23,14 @@ import QueueDrawer from '../components/player/QueueDrawer';
 import TransportBar from '../components/player/TransportBar';
 import ImmersiveChrome from '../components/player/ImmersiveChrome';
 import ConnectModal from '../components/player/ConnectModal';
+import UnifiedPanel, { type PanelTab } from '../components/player/panel/UnifiedPanel';
+import PanelToggle from '../components/player/panel/PanelToggle';
+import CommandPalette from '../components/player/CommandPalette';
+import { buildPlayerCommands } from '../components/player/playerCommands';
+import { moveSongToEnd, moveSongToNext, removeSongAt, shuffleQueue } from '../components/player/panel/queueMutations';
+import { BACKGROUND_OPTIONS, VISUALIZER_OPTIONS, stepOption } from '../components/player/panel/stageOptions';
+import { useAiThemeGeneration } from '../hooks/useAiThemeGeneration';
+import { usePlayerShortcuts } from '../hooks/usePlayerShortcuts';
 
 const OriginalFoliaVisualizerStage = lazyWithRetry(
   () => import('../components/OriginalFoliaVisualizerStage'),
@@ -74,8 +83,17 @@ export default function Player() {
     importLyricsText,
     nudgeVolume,
     toggleMute,
+    loopMode,
+    setLoopMode,
+    setQueue,
+    currentIndex,
+    favoriteSongs,
+    toggleFavoriteSong,
+    recentSongs,
+    youtubeProfile,
   } = usePlayer();
-  const { currentTheme } = useTheme();
+  const { currentTheme, activeTheme, toggleTheme, setTheme } = useTheme();
+  const aiTheme = useAiThemeGeneration();
 
   const activeVisualizer = useStageStore(state => state.activeVisualizer);
   const setActiveVisualizer = useStageStore(state => state.setActiveVisualizer);
@@ -87,6 +105,8 @@ export default function Player() {
   const setVisualizerTunings = useStageStore(state => state.setVisualizerTunings);
   const lyricsOffsets = useStageStore(state => state.lyricsOffsets);
   const setStoredLyricsOffset = useStageStore(state => state.setLyricsOffset);
+  const transparentBackground = useStageStore(state => state.transparentBackground);
+  const setTransparentBackground = useStageStore(state => state.setTransparentBackground);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showPlaylistDrawer, setShowPlaylistDrawer] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
   const connectModalRef = useRef<HTMLDivElement>(null);
@@ -95,9 +115,13 @@ export default function Player() {
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekPreviewTime, setSeekPreviewTime] = useState<number | null>(null);
   const [showTuning, setShowTuning] = useState(false);
-  const [showCalibration, setShowCalibration] = useState(false);
-  const [showStageSettings, setShowStageSettings] = useState(false);
-  const stageSettingsRef = useRef<HTMLDivElement>(null);
+  // 播放頁面 chrome: the floating control panel, which tab is open, the H-key hide switch,
+  // the command palette, and the quick theme editor.
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [panelTab, setPanelTab] = useState<PanelTab>('cover');
+  const [isChromeHidden, setIsChromeHidden] = useState(false);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isThemeQuickEditorOpen, setIsThemeQuickEditorOpen] = useState(false);
   const stageRootRef = useRef<HTMLDivElement>(null);
   const spotifyAvailable = Boolean(spotifyClientId);
   const demoMode = location.state?.demo === true || new URLSearchParams(location.search).get('demo') === '1';
@@ -141,8 +165,6 @@ export default function Player() {
 
   const enterImmersiveStage = async () => {
     setDisplayMode('stage');
-    setShowCalibration(false);
-    setShowStageSettings(false);
     const element = stageRootRef.current;
     if (element && document.fullscreenElement !== element) {
       try { await element.requestFullscreen(); } catch { /* iOS Safari may reject programmatic fullscreen. */ }
@@ -155,8 +177,6 @@ export default function Player() {
 
   const leaveImmersiveStage = async () => {
     setDisplayMode('full');
-    setShowStageSettings(false);
-    setShowCalibration(false);
     setShowTuning(false);
     if (document.fullscreenElement) {
       try { await document.exitFullscreen(); } catch { /* browser already exited fullscreen */ }
@@ -186,48 +206,100 @@ export default function Player() {
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
   }, [displayMode, setDisplayMode]);
 
-  useEffect(() => {
-    if (!showStageSettings) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (!stageSettingsRef.current?.contains(event.target as Node)) setShowStageSettings(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setShowStageSettings(false);
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [showStageSettings]);
 
-  useEffect(() => {
-    const isEditableTarget = (target: EventTarget | null) => (
-      target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement
-    );
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat || isEditableTarget(event.target)) return;
-      if (event.code === 'Space') {
-        event.preventDefault();
-        handlePlayPause();
-        return;
-      }
-      // Volume stays keyboard-only inside the player so the immersive stage never grows
-      // a transport widget: ↑ / ↓ trim the level, M toggles mute.
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        nudgeVolume(VOLUME_STEP);
-      } else if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        nudgeVolume(-VOLUME_STEP);
-      } else if (event.key.toLowerCase() === 'm') {
-        toggleMute();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handlePlayPause, nudgeVolume, toggleMute]);
+  // ---- Panel / palette / shortcut actions -------------------------------------------
+  // Everything the 播放頁面 chrome can do lives here, so the keyboard contract and the
+  // command palette drive exactly the same handlers the buttons do.
+
+  const shortcutClockTime = (isSeeking && seekPreviewTime !== null) ? seekPreviewTime : currentTime;
+
+  const seekBy = (deltaSeconds: number) => {
+    const target = Math.min(Math.max(shortcutClockTime + deltaSeconds, 0), duration || 0);
+    seek(target);
+  };
+
+  const cycleLoopMode = () => {
+    setLoopMode(loopMode === 'off' ? 'list' : loopMode === 'list' ? 'single' : 'off');
+  };
+
+  const toggleFullscreenStage = () => {
+    if (displayMode === 'stage') void leaveImmersiveStage();
+    else void enterImmersiveStage();
+  };
+
+  const cycleVisualizer = () => {
+    setAutoVisualizer(false);
+    setActiveVisualizer(stepOption(VISUALIZER_OPTIONS, activeVisualizer, 1));
+  };
+
+  const cycleBackground = () => setBackgroundMode(stepOption(BACKGROUND_OPTIONS, backgroundMode, 1));
+
+  const isCurrentSongLiked = Boolean(
+    currentSong && favoriteSongs.some(item => item.source === currentSong.source && item.id === currentSong.id),
+  );
+
+  const toggleCurrentSongLike = () => {
+    if (currentSong) toggleFavoriteSong(currentSong);
+  };
+
+  const applyQueueEdit = (edit: { playlist: Song[]; currentIndex: number; changed: boolean }) => {
+    if (!edit.changed) return;
+    setQueue(edit.playlist, edit.currentIndex);
+  };
+
+  const nudgeLyricsOffset = (deltaSeconds: number) => {
+    if (!currentSong) return;
+    const key = songOffsetKey(currentSong);
+    setStoredLyricsOffset(key, adjustLyricsOffset(lyricsOffsets[key] || 0, deltaSeconds));
+  };
+
+  const shortcutHandlers = useMemo(() => ({
+    playPause: handlePlayPause,
+    next,
+    prev,
+    seekBackward: () => seekBy(-5),
+    seekForward: () => seekBy(5),
+    volumeUp: () => nudgeVolume(VOLUME_STEP),
+    volumeDown: () => nudgeVolume(-VOLUME_STEP),
+    toggleMute,
+    togglePanel: () => setIsPanelOpen(value => !value),
+    toggleChrome: () => setIsChromeHidden(value => !value),
+    toggleFullscreen: toggleFullscreenStage,
+    openCommandPalette: () => setIsPaletteOpen(true),
+  }), [
+    handlePlayPause, next, prev, shortcutClockTime, duration, nudgeVolume, toggleMute, displayMode,
+  ]);
+
+  // Space / Ctrl+← → / Ctrl+→ ← / ← → / P / H / F11 / Ctrl+K, per the guide's shortcut table.
+  usePlayerShortcuts(shortcutHandlers);
+
+  const paletteCommands = useMemo(() => buildPlayerCommands({
+    t,
+    isPlaying,
+    isInStage: displayMode === 'stage',
+    isPanelOpen,
+    isDaylight: activeTheme === 'light',
+    onPlayPause: handlePlayPause,
+    onNext: next,
+    onPrev: prev,
+    onSeekBy: seekBy,
+    onVolumeUp: () => nudgeVolume(VOLUME_STEP),
+    onVolumeDown: () => nudgeVolume(-VOLUME_STEP),
+    onToggleMute: toggleMute,
+    onToggleLoop: cycleLoopMode,
+    onTogglePanel: () => setIsPanelOpen(value => !value),
+    onToggleFullscreen: toggleFullscreenStage,
+    onToggleTheme: toggleTheme,
+    onGenerateAiTheme: aiTheme.generate,
+    onShuffleQueue: () => applyQueueEdit(shuffleQueue(playlist, currentIndex)),
+    onCycleVisualizer: cycleVisualizer,
+    onCycleBackground: cycleBackground,
+    onNudgeLyricsEarlier: () => nudgeLyricsOffset(-LYRICS_OFFSET_STEP_SECONDS),
+    onNudgeLyricsLater: () => nudgeLyricsOffset(LYRICS_OFFSET_STEP_SECONDS),
+    onOpenSettings: () => navigate('/settings'),
+    onOpenLibrary: () => navigate('/library'),
+    onOpenHome: () => navigate('/app'),
+  }), [t, isPlaying, displayMode, isPanelOpen, activeTheme, playlist, currentIndex, aiTheme]);
 
   const lyricsOffsetSeconds = lyricsOffsets[songOffsetKey(currentSong)] || 0;
 
@@ -242,12 +314,6 @@ export default function Player() {
     return () => window.removeEventListener('popstate', onPopState);
   }, [displayMode, showPlaylistDrawer]);
 
-  const returnToPlaylist = async () => {
-    // Keep the user in the player and reveal the playlist surface they asked for.
-    // The previous implementation navigated home, which made the "← 歌單" control feel broken.
-    setShowPlaylistDrawer(true);
-    await leaveImmersiveStage();
-  };
 
   // Use the same offset-aware clock for the player chrome and every visualizer mode.
   const activeLineIndex = useMemo(() => {
@@ -332,7 +398,7 @@ export default function Player() {
       style={{ backgroundColor: isYouTubeVideoMode ? '#07090e' : (currentTheme.backgroundColor || '#07090e') }}
     >
       {/* Dynamic Music-Reactive Blurred Backdrop with 800ms Crossfade */}
-      {!isYouTubeVideoMode && <div
+      {!isYouTubeVideoMode && !transparentBackground && <div
         className={`absolute inset-0 z-0 overflow-hidden pointer-events-none transition-all duration-700 ${
           isChangingTrack ? 'opacity-30 scale-105 blur-2xl' : 'opacity-100 scale-100'
         }`}
@@ -461,7 +527,7 @@ export default function Player() {
                   backgroundMode={backgroundMode}
                   visualizerTunings={visualizerTunings}
                   isPlayerChromeHidden={false}
-                  settingsOpen={displayMode === 'stage' && (showStageSettings || showTuning)}
+                  settingsOpen={displayMode === 'stage' && showTuning}
                 />
               </Suspense>
             )}
@@ -482,39 +548,39 @@ export default function Player() {
               />
             </Suspense>
           )}
-          {displayMode === 'stage' && !showTuning && (
+          {/* 全螢幕只有這一列：播放控制 │ 面板按鈕 │ 退出全螢幕。全部併在一起，
+              不會再有浮動按鈕疊在上面。 */}
+          {displayMode === 'stage' && !showTuning && !isChromeHidden && (
             <ImmersiveChrome
               isPlaying={isPlaying}
               showTransport={currentSong.source === 'ytmusic' || currentSong.source === 'local'}
-              showStageSettings={showStageSettings}
-              settingsRef={stageSettingsRef}
-              activeVisualizer={activeVisualizer}
-              autoVisualizer={autoVisualizer}
-              backgroundMode={backgroundMode}
-              lyricsStatusTitle={lyricsStageStatus.title}
-              lyricsStatusCopy={lyricsStageStatus.copy}
-              lyricsOffsetSeconds={lyricsOffsetSeconds}
-              lyricsOffsetLabel={lyricsOffsetLabel}
-              origin={currentLyrics?.origin}
-              onReturnToPlaylist={() => void returnToPlaylist()}
               onPrev={prev}
               onNext={next}
               onPlayPause={handlePlayPause}
-              onToggleSettings={() => setShowStageSettings(value => !value)}
-              onCloseSettings={() => setShowStageSettings(false)}
-              onVisualizerChange={(mode) => { setAutoVisualizer(false); setActiveVisualizer(mode); }}
-              onAutoVisualizerChange={setAutoVisualizer}
-              onBackgroundModeChange={setBackgroundMode}
-              onOpenTuning={() => { setShowStageSettings(false); setShowTuning(true); }}
-              onAdjustOffset={adjustStageLyricsOffset}
-              onResetOffset={resetStageLyricsOffset}
-              onImportLyrics={importLyricsText}
-              onLeaveStage={() => void leaveImmersiveStage()}
-            />
+            >
+              <span aria-hidden="true" className="mx-1 hidden h-7 w-px bg-white/15 sm:block" />
+              <PanelToggle
+                inline
+                isOpen={isPanelOpen}
+                onToggle={() => setIsPanelOpen(value => !value)}
+                onOpenCommandPalette={() => setIsPaletteOpen(true)}
+              />
+              <span aria-hidden="true" className="mx-1 hidden h-7 w-px bg-white/15 sm:block" />
+              <button
+                type="button"
+                onClick={() => void leaveImmersiveStage()}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-white/15 bg-black/35 px-3 py-2 text-xs font-bold text-white/85 backdrop-blur-xl transition hover:bg-white/10 hover:text-white"
+                aria-label={t('panel.exitFullscreen')}
+              >
+                <Minimize2 aria-hidden="true" className="h-4 w-4" />
+                <span className="hidden sm:inline">{t('panel.exitFullscreen')}</span>
+              </button>
+            </ImmersiveChrome>
           )}
 
-          {/* Bottom controls are intentionally not rendered in immersive mode. */}
-          {displayMode !== 'stage' && (
+          {/* Bottom controls are intentionally not rendered in immersive mode, and H hides
+              the progress bar together with the bottom-right button. */}
+          {displayMode !== 'stage' && !isChromeHidden && (
             <TransportBar
               isYouTubeVideoMode={isYouTubeVideoMode}
               isPlaying={isPlaying}
@@ -523,10 +589,6 @@ export default function Player() {
               isSeeking={isSeeking}
               seekPreviewTime={seekPreviewTime}
               activeVisualizer={activeVisualizer}
-              showCalibration={showCalibration}
-              lyricsOffsetSeconds={lyricsOffsetSeconds}
-              lyricsOffsetLabel={lyricsOffsetLabel}
-              origin={currentLyrics?.origin}
               onSeekPreview={setSeekPreviewTime}
               onSeekStart={() => setIsSeeking(true)}
               onSeekCommit={() => {
@@ -538,15 +600,133 @@ export default function Player() {
               onNext={next}
               onPlayPause={handlePlayPause}
               onEnterStage={() => void enterImmersiveStage()}
-              onToggleCalibration={() => setShowCalibration(value => !value)}
-              onAdjustOffset={adjustStageLyricsOffset}
-              onResetOffset={resetStageLyricsOffset}
-              onImportLyrics={importLyricsText}
-              onToggleTuning={() => setShowTuning(value => !value)}
             />
           )}
         </main>
       </div>
+
+      {/* 左上角 hover 返回只屬於一般播放頁；全螢幕裡由底部那一列的「退出全螢幕」負責離開。 */}
+      {displayMode !== 'stage' && !isChromeHidden && (
+        <div className="group pointer-events-none fixed left-0 top-0 z-[55] flex h-20 w-32 items-start p-3">
+          <button
+            type="button"
+            onClick={() => navigate('/app')}
+            aria-label={t('panel.backHotspot')}
+            className="pointer-events-auto flex items-center gap-1.5 rounded-xl border border-white/15 bg-black/35 px-3 py-2 text-xs font-bold text-white opacity-0 backdrop-blur-md transition-all duration-200 hover:bg-black/50 focus-visible:opacity-100 group-hover:opacity-100"
+          >
+            <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+            {t('panel.backHotspot')}
+          </button>
+        </div>
+      )}
+
+      {/* 播放頁面 chrome: the bottom-right button and the floating control panel it expands.
+          Both modes share this one panel — inside the stage it is the only control surface
+          left besides 退出全螢幕 — and H hides it. */}
+      {!isChromeHidden && (
+        <>
+          {/* 全螢幕裡的面板按鈕已經併進底部那一列，這裡只負責一般播放頁的浮動按鈕。 */}
+          {displayMode !== 'stage' && (
+            <PanelToggle
+              isOpen={isPanelOpen}
+              onToggle={() => setIsPanelOpen(value => !value)}
+              onOpenCommandPalette={() => setIsPaletteOpen(true)}
+            />
+          )}
+
+          <UnifiedPanel
+            isOpen={isPanelOpen}
+            activeTab={panelTab}
+            onTabChange={setPanelTab}
+            onClose={() => setIsPanelOpen(false)}
+            song={currentSong}
+            isLiked={isCurrentSongLiked}
+            onToggleLike={toggleCurrentSongLike}
+            transparentBackground={transparentBackground}
+            onToggleTransparentBackground={() => setTransparentBackground(!transparentBackground)}
+            onOpenSettings={() => navigate('/settings')}
+            onBackHome={() => navigate('/app')}
+            lyrics={{
+              isMatching: isLoadingLyrics,
+              statusTitle: lyricsStageStatus.title,
+              statusCopy: lyricsStageStatus.copy,
+              lyricsOffsetSeconds,
+              lyricsOffsetLabel,
+              origin: currentLyrics?.origin,
+              onMatchOnline: () => { if (currentSong) void fetchLyrics(currentSong); },
+              onImportLyrics: importLyricsText,
+              onAdjustOffset: adjustStageLyricsOffset,
+              onResetOffset: resetStageLyricsOffset,
+            }}
+            controls={{
+              // Volume is chrome-only furniture; the stage keeps it keyboard-only (↑ / ↓ / M).
+              showVolume: displayMode !== 'stage',
+              loopMode,
+              onToggleLoop: cycleLoopMode,
+              isLiked: isCurrentSongLiked,
+              onToggleLike: toggleCurrentSongLike,
+              aiThemeState: aiTheme.state,
+              hasSongAiTheme: aiTheme.hasSongTheme,
+              canGenerateAiTheme: aiTheme.canGenerate,
+              aiThemeError: aiTheme.error,
+              onGenerateAiTheme: aiTheme.generate,
+              themeName: currentTheme.name,
+              onOpenThemeQuickEditor: () => setIsThemeQuickEditorOpen(true),
+              isDaylight: activeTheme === 'light',
+              onToggleDaylight: toggleTheme,
+              activeVisualizer,
+              onVisualizerChange: (mode) => { setAutoVisualizer(false); setActiveVisualizer(mode); },
+              autoVisualizer,
+              onAutoVisualizerChange: setAutoVisualizer,
+              backgroundMode,
+              onBackgroundModeChange: setBackgroundMode,
+              onOpenFullTuning: () => { setIsPanelOpen(false); setShowTuning(true); },
+            }}
+            queue={{
+              playlist,
+              currentIndex,
+              isPlaying,
+              shouldScrollToCurrent: isPanelOpen && panelTab === 'queue',
+              onPlaySong: (song) => play(song, playlist),
+              onShuffle: () => applyQueueEdit(shuffleQueue(playlist, currentIndex)),
+              onMoveToNext: (index) => applyQueueEdit(moveSongToNext(playlist, currentIndex, index)),
+              onMoveToEnd: (index) => applyQueueEdit(moveSongToEnd(playlist, currentIndex, index)),
+              onRemove: (index) => applyQueueEdit(removeSongAt(playlist, currentIndex, index)),
+            }}
+            account={{
+              activeSource,
+              youtubeConnected,
+              youtubeProfile,
+              spotifyConnected,
+              spotifyAvailable,
+              favoriteCount: favoriteSongs.length,
+              recentCount: recentSongs.length,
+              onSetActiveSource: setActiveSource,
+              onConnectYouTube: () => { void connectYouTube(); },
+              onSwitchYouTube: () => { void switchYouTubeAccount(); },
+              onDisconnectYouTube: disconnectYouTube,
+              onConnectSpotify: () => { void connectSpotify(); },
+              onDisconnectSpotify: disconnectSpotify,
+              onOpenSettings: () => navigate('/settings'),
+            }}
+            themeQuickEditorTheme={isThemeQuickEditorOpen ? currentTheme : null}
+            onCloseThemeQuickEditor={() => setIsThemeQuickEditorOpen(false)}
+            onSaveTheme={(theme) => { setTheme(theme); setIsThemeQuickEditorOpen(false); }}
+          />
+        </>
+      )}
+
+      {isChromeHidden && (
+        <p className="pointer-events-none fixed bottom-4 left-1/2 z-[55] -translate-x-1/2 rounded-full border border-white/10 bg-black/45 px-3 py-1.5 text-[10px] font-semibold text-slate-300 backdrop-blur-md">
+          {t('panel.chromeHiddenHint')}
+        </p>
+      )}
+
+      <CommandPalette
+        open={isPaletteOpen}
+        commands={paletteCommands}
+        onClose={() => setIsPaletteOpen(false)}
+      />
 
       {showConnectModal && (
         <ConnectModal
