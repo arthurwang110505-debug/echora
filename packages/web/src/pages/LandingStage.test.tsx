@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import Welcome, { WELCOME_APP_TARGET, WELCOME_DEMO_TARGET } from './Welcome';
 import KaraokeLine from '../components/landing/KaraokeLine';
+import zhTW from '../i18n/locales/zh-TW.json';
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
@@ -119,5 +120,55 @@ describe('Landing stage (Welcome) mounted smoke', () => {
     const scenes = container.querySelectorAll('.stage-scene-bg');
     expect(scenes.length).toBe(3);
     expect(scenes[0].getAttribute('style')).toContain('opacity: 1');
+  });
+
+  it('runs the stage preview with real transport controls (prev / next / pause)', () => {
+    const container = mount(<Welcome />);
+    const buttonByLabel = (label: string) =>
+      Array.from(container.querySelectorAll('button')).find(button => button.getAttribute('aria-label') === label);
+    const activeMode = () => container.querySelector('.stage-chip-enter')?.textContent?.trim();
+
+    const play = container.querySelector('button[aria-pressed]') as HTMLButtonElement | null;
+    expect(play).toBeTruthy();
+    expect(play!.getAttribute('aria-pressed')).toBe('true');
+    // Pause freezes the preview (and the ambient blobs) instead of faking playback.
+    act(() => { play!.click(); });
+    expect(play!.getAttribute('aria-pressed')).toBe('false');
+
+    expect(activeMode()).toBe('Luminous');
+    act(() => { buttonByLabel('下一句歌詞')!.click(); });
+    expect(activeMode()).toBe('Fume');
+    act(() => { buttonByLabel('上一句歌詞')!.click(); });
+    expect(activeMode()).toBe('Luminous');
+    // Stepping backwards from the first scene wraps to the last one.
+    act(() => { buttonByLabel('上一句歌詞')!.click(); });
+    expect(activeMode()).toBe('Monet');
+  });
+
+  it('reveals the manifesto one token at a time, driven by scroll position', () => {
+    const container = mount(<Welcome />);
+    const manifesto = Array.from(container.querySelectorAll('p'))
+      .find(paragraph => paragraph.textContent === zhTW.welcome.manifesto);
+    expect(manifesto).toBeTruthy();
+
+    // One span per character (CJK advances per character) so the fill can
+    // stagger across the scroll range.
+    const tokens = Array.from(manifesto!.querySelectorAll('span.inline-block')) as HTMLElement[];
+    expect(tokens.length).toBe(Array.from(zhTW.welcome.manifesto).length);
+    // Unlit words are dimmed, never hidden — the copy is always readable and
+    // the reveal re-dims when the reader scrolls back up.
+    expect(tokens.every(token => token.style.opacity === '0.16')).toBe(true);
+
+    // The final CTA heading rides the same scroll-driven reveal.
+    const readyHeading = Array.from(container.querySelectorAll('h2'))
+      .find(heading => heading.textContent === zhTW.welcome.readyTitle);
+    expect(readyHeading?.querySelectorAll('span.inline-block').length).toBeGreaterThan(0);
+  });
+
+  it('offers the demo CTA inside the stage preview transport', () => {
+    const container = mount(<Welcome />);
+    // The transport's right-hand button is the same 開始體驗 entrance as the hero.
+    expect(container.querySelectorAll('.glass-panel button').length).toBeGreaterThanOrEqual(4);
+    expect(container.textContent).toContain('開始體驗');
   });
 });
