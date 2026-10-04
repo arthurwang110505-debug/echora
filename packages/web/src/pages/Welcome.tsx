@@ -11,6 +11,7 @@ import KaraokeLine from '../components/landing/KaraokeLine';
 import TiltCard from '../components/landing/TiltCard';
 import MagneticButton from '../components/landing/MagneticButton';
 import Reveal from '../components/landing/Reveal';
+import ScrollTextReveal from '../components/landing/ScrollTextReveal';
 import StagePreviewTransport from '../components/landing/StagePreviewTransport';
 import BrandMark from '../components/BrandMark';
 import '../styles/landing.css';
@@ -408,6 +409,16 @@ export default function Welcome() {
             </section>
           </Reveal>
 
+          {/* ---------------- Manifesto: scroll-driven word reveal ----------------
+              No entrance animation of its own — the words light up with the
+              scrollbar, so scrolling back up dims them again. */}
+          <section className="mt-14 sm:mt-20">
+            <span aria-hidden="true" className="mx-auto block h-px w-24 bg-gradient-to-r from-transparent via-[#62f5c4]/60 to-transparent" />
+            <p className="mx-auto mt-8 max-w-4xl text-center font-heading text-[1.35rem] font-black leading-[1.5] tracking-tight text-white sm:text-3xl sm:leading-[1.45] lg:text-[2.6rem]">
+              <ScrollTextReveal text={t('welcome.manifesto')} />
+            </p>
+          </section>
+
           {/* ---------------- Features: tilt + spotlight glass cards ---------------- */}
           <section className="mt-10 grid gap-4 sm:grid-cols-3" aria-label={t('welcome.featuresAria')}>
             {FEATURES.map((feature, index) => (
@@ -432,7 +443,9 @@ export default function Welcome() {
                 <div className="stage-aurora stage-aurora-1 absolute left-1/2 top-full h-64 w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#62f5c4]/15" />
               </div>
               <span className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 text-[#62f5c4]"><Sparkles aria-hidden="true" className="h-5 w-5" /></span>
-              <h2 className="relative mt-4 font-heading text-2xl font-extrabold tracking-tight text-white sm:text-3xl">{t('welcome.readyTitle')}</h2>
+              <h2 className="relative mt-4 font-heading text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+                <ScrollTextReveal text={t('welcome.readyTitle')} />
+              </h2>
               <p className="relative mx-auto mt-2 max-w-md text-[13px] leading-6 text-slate-400">{t('welcome.readyParagraph')}</p>
               <div className="relative mt-6 flex flex-wrap items-center justify-center gap-3">
                 <MagneticButton
@@ -456,49 +469,37 @@ export default function Welcome() {
         </main>
 
         {/*
-          Footer, in three quiet bands instead of one dense stack:
-            1. who built it (attribution + the English one-liner for reviewers)
-            2. policy links, split into "ours" and "Google's" so the two
-               third-party links have a reason to be here
-            3. the YouTube API Services / Limited Use disclosure
-
-          Every link stays a plain anchor (never an onClick button): Google's
-          OAuth brand verification reviews the homepage itself, and a crawlable
-          href is what both the reviewer and the crawler can follow. Keep these
-          hrefs identical to the URLs configured on the consent screen.
+          Footer: one loud element (the wordmark) and everything else as fine
+          print. The policy links stay plain anchors (never onClick buttons) —
+          Google's OAuth brand verification reviews the homepage itself, and a
+          crawlable href is what both the reviewer and the crawler can follow.
+          Keep these hrefs identical to the URLs on the consent screen.
         */}
-        <footer className="relative z-10 border-t border-white/[0.07] px-5 py-7 sm:px-8">
-          <div className="mx-auto flex max-w-[1200px] flex-col gap-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-10">
-              <div className="max-w-md">
-                <p className="text-[11px] leading-5 text-slate-500">
-                  {t('welcome.footerAttribution')}{' '}
-                  <a href="https://github.com/chthollyphile/folia-major" target="_blank" rel="noreferrer" className="footer-link underline decoration-white/20 underline-offset-2">folia-major</a>
-                </p>
-                {/* The UI ships in zh-TW + en, and the homepage must describe the
-                    app for English-reading reviewers too. */}
-                <p className="mt-1 text-[11px] leading-5 text-slate-500">
-                  Echora is a browser-based immersive lyrics stage — synced lyrics, visualizer stages and AI themes.
-                </p>
-              </div>
+        <footer className="relative z-10 overflow-hidden border-t border-white/[0.07] px-5 pb-8 pt-10 text-center sm:px-8">
+          <p
+            aria-hidden="true"
+            className="select-none bg-gradient-to-b from-white/80 via-white/25 to-transparent bg-clip-text font-heading text-[19vw] font-black leading-[0.82] tracking-[-0.06em] text-transparent sm:text-[13vw] lg:text-[11rem]"
+          >
+            ECHORA
+          </p>
 
-              <nav aria-label={t('welcome.footerNavAria')} className="flex flex-col gap-1.5 text-[11px] sm:items-end">
-                <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:justify-end">
-                  <Link to="/privacy" className="footer-link">{t('welcome.footerPrivacy')}</Link>
-                  <span aria-hidden="true" className="text-white/15">·</span>
-                  <Link to="/terms" className="footer-link">{t('welcome.footerTerms')}</Link>
-                </span>
-                <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:justify-end">
-                  <span className="text-slate-600">{t('welcome.footerGooglePolicies')}</span>
-                  <a href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer" className="footer-link">{t('welcome.footerYoutubeTerms')}</a>
-                  <span aria-hidden="true" className="text-white/15">·</span>
-                  <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer" className="footer-link">{t('welcome.footerGooglePrivacy')}</a>
-                </span>
-                <Link to={WELCOME_APP_TARGET} className="footer-link sm:self-end">{t('welcome.footerOpenPlayer')}</Link>
-              </nav>
-            </div>
+          <div className="mx-auto mt-5 flex max-w-2xl flex-col items-center gap-2 text-[11px] leading-5 text-slate-500">
+            <p>
+              {t('welcome.footerAttribution')}{' '}
+              <a href="https://github.com/chthollyphile/folia-major" target="_blank" rel="noreferrer" className="footer-link underline decoration-white/20 underline-offset-2">folia-major</a>
+            </p>
 
-            <p className="flex max-w-3xl items-start gap-2 text-[11px] leading-5 text-slate-500">
+            <nav aria-label={t('welcome.footerNavAria')} className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1">
+              <Link to="/privacy" className="footer-link">{t('welcome.footerPrivacy')}</Link>
+              <span aria-hidden="true" className="text-white/15">·</span>
+              <Link to="/terms" className="footer-link">{t('welcome.footerTerms')}</Link>
+              <span aria-hidden="true" className="text-white/15">·</span>
+              <a href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer" className="footer-link">{t('welcome.footerYoutubeTerms')}</a>
+              <span aria-hidden="true" className="text-white/15">·</span>
+              <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer" className="footer-link">{t('welcome.footerGooglePrivacy')}</a>
+            </nav>
+
+            <p className="flex items-start justify-center gap-2 text-left">
               <ShieldCheck aria-hidden="true" className="mt-[3px] h-3.5 w-3.5 shrink-0 text-[#62f5c4]/70" />
               <span>{t('welcome.footerDataNote')}</span>
             </p>

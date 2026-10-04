@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import Welcome, { WELCOME_APP_TARGET, WELCOME_DEMO_TARGET } from './Welcome';
 import KaraokeLine from '../components/landing/KaraokeLine';
+import zhTW from '../i18n/locales/zh-TW.json';
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
@@ -142,6 +143,26 @@ describe('Landing stage (Welcome) mounted smoke', () => {
     // Stepping backwards from the first scene wraps to the last one.
     act(() => { buttonByLabel('上一句歌詞')!.click(); });
     expect(activeMode()).toBe('Monet');
+  });
+
+  it('reveals the manifesto one token at a time, driven by scroll position', () => {
+    const container = mount(<Welcome />);
+    const manifesto = Array.from(container.querySelectorAll('p'))
+      .find(paragraph => paragraph.textContent === zhTW.welcome.manifesto);
+    expect(manifesto).toBeTruthy();
+
+    // One span per character (CJK advances per character) so the fill can
+    // stagger across the scroll range.
+    const tokens = Array.from(manifesto!.querySelectorAll('span.inline-block')) as HTMLElement[];
+    expect(tokens.length).toBe(Array.from(zhTW.welcome.manifesto).length);
+    // Unlit words are dimmed, never hidden — the copy is always readable and
+    // the reveal re-dims when the reader scrolls back up.
+    expect(tokens.every(token => token.style.opacity === '0.16')).toBe(true);
+
+    // The final CTA heading rides the same scroll-driven reveal.
+    const readyHeading = Array.from(container.querySelectorAll('h2'))
+      .find(heading => heading.textContent === zhTW.welcome.readyTitle);
+    expect(readyHeading?.querySelectorAll('span.inline-block').length).toBeGreaterThan(0);
   });
 
   it('offers the demo CTA inside the stage preview transport', () => {
