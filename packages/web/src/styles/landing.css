@@ -205,6 +205,16 @@
   width: 4px;
 }
 
+/* --- Footer links: quiet text links, not a wall of pills --- */
+.footer-link {
+  color: rgba(148, 163, 184, 0.92);
+  transition: color var(--tempo-fast) var(--ease-out-smooth);
+}
+
+.footer-link:hover {
+  color: var(--mint-primary);
+}
+
 /* --- Reduced motion: freeze the decorative layers --- */
 @media (prefers-reduced-motion: reduce) {
   .stage-headline-accent { animation: none; }

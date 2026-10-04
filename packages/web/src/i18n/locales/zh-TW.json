@@ -39,7 +39,9 @@
     "footerOpenPlayer": "直接開啟播放器 →",
     "footerPrivacy": "隱私權政策",
     "footerTerms": "服務條款",
-    "footerDataNote": "Echora 使用 YouTube API Services：連接 Google 帳號時只以唯讀方式讀取你的播放清單，這些資料僅用於在 App 內顯示與播放，並依 Google API Services User Data Policy（含 Limited Use 要求）處理。",
+    "footerDataNote": "Echora 使用 YouTube API Services：連接 Google 帳號時僅以唯讀方式讀取播放清單，資料只用於 App 內顯示與播放，並遵守 Google API Services User Data Policy（含 Limited Use 要求）。",
+    "footerNavAria": "頁尾政策連結",
+    "footerGooglePolicies": "Google 政策：",
     "footerYoutubeTerms": "YouTube 服務條款",
     "footerGooglePrivacy": "Google 隱私權政策"
   },

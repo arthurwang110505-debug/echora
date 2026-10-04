@@ -39,7 +39,9 @@
     "footerOpenPlayer": "Open the player directly →",
     "footerPrivacy": "Privacy Policy",
     "footerTerms": "Terms of Service",
-    "footerDataNote": "Echora uses YouTube API Services. When you connect a Google Account it only reads your playlists (read-only), uses that data solely to display and play them inside the app, and handles it according to the Google API Services User Data Policy, including the Limited Use requirements.",
+    "footerDataNote": "Echora uses YouTube API Services: connecting a Google Account reads your playlists read-only, used solely to display and play them in the app, under the Google API Services User Data Policy, including Limited Use.",
+    "footerNavAria": "Footer policy links",
+    "footerGooglePolicies": "Google policies:",
     "footerYoutubeTerms": "YouTube Terms of Service",
     "footerGooglePrivacy": "Google Privacy Policy"
   },

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { MotionConfig, motion, useReducedMotion, useScroll } from 'framer-motion';
-import { ArrowRight, Download, ListMusic, Mic2, MonitorSmartphone, Radio, Sparkles } from 'lucide-react';
+import { ArrowRight, Download, ListMusic, Mic2, MonitorSmartphone, Radio, ShieldCheck, Sparkles } from 'lucide-react';
 import { LOCAL_DEMO_SONGS } from '../store/localDemoSongs';
 import type { LocalDemoSong } from '../store/localDemoSongs';
 import { CoverImage } from '../components/LoadingSkeletons';
@@ -455,39 +455,53 @@ export default function Welcome() {
           </Reveal>
         </main>
 
-        <footer className="relative z-10 border-t border-white/[0.07] px-5 py-8 text-center sm:px-8">
-          <p className="mx-auto max-w-2xl text-[11px] leading-5 text-slate-500">{t('welcome.footerDataNote')}</p>
-          {/* Bilingual brand statement: the UI ships in zh-TW + en, and the
-              homepage must describe the app for English-reading reviewers. */}
-          <p className="mx-auto mt-2 max-w-2xl text-[11px] leading-5 text-slate-500">
-            Echora is a browser-based immersive lyrics stage: play the built-in demo tracks, or connect your own YouTube
-            Music playlists for word-by-word lyrics, visualizer stages and AI-generated themes.
-          </p>
-          <p className="mt-3 text-[11px] leading-5 text-slate-500">
-            {t('welcome.footerAttribution')} <a href="https://github.com/chthollyphile/folia-major" target="_blank" rel="noreferrer" className="font-bold text-slate-400 underline decoration-white/20 underline-offset-2 transition hover:text-[#62f5c4]">folia-major</a>。
-          </p>
-          {/*
-            Real anchors (not onClick buttons): Google's OAuth brand verification
-            requires the homepage to host a plain link to the privacy policy and
-            terms, and a linked policy is what crawlers can follow. Keep these
-            hrefs identical to the URLs configured on the consent screen.
-          */}
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-[11px]">
-            <Link to="/privacy" className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 font-bold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
-              {t('welcome.footerPrivacy')}
-            </Link>
-            <Link to="/terms" className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 font-bold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
-              {t('welcome.footerTerms')}
-            </Link>
-            <a href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer" className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 font-bold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
-              {t('welcome.footerYoutubeTerms')}
-            </a>
-            <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer" className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-2 font-bold text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
-              {t('welcome.footerGooglePrivacy')}
-            </a>
-            <Link to={WELCOME_APP_TARGET} className="min-h-11 rounded-xl px-3 text-xs font-bold text-slate-400 transition hover:text-[#62f5c4]">
-              {t('welcome.footerOpenPlayer')}
-            </Link>
+        {/*
+          Footer, in three quiet bands instead of one dense stack:
+            1. who built it (attribution + the English one-liner for reviewers)
+            2. policy links, split into "ours" and "Google's" so the two
+               third-party links have a reason to be here
+            3. the YouTube API Services / Limited Use disclosure
+
+          Every link stays a plain anchor (never an onClick button): Google's
+          OAuth brand verification reviews the homepage itself, and a crawlable
+          href is what both the reviewer and the crawler can follow. Keep these
+          hrefs identical to the URLs configured on the consent screen.
+        */}
+        <footer className="relative z-10 border-t border-white/[0.07] px-5 py-7 sm:px-8">
+          <div className="mx-auto flex max-w-[1200px] flex-col gap-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-10">
+              <div className="max-w-md">
+                <p className="text-[11px] leading-5 text-slate-500">
+                  {t('welcome.footerAttribution')}{' '}
+                  <a href="https://github.com/chthollyphile/folia-major" target="_blank" rel="noreferrer" className="footer-link underline decoration-white/20 underline-offset-2">folia-major</a>
+                </p>
+                {/* The UI ships in zh-TW + en, and the homepage must describe the
+                    app for English-reading reviewers too. */}
+                <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                  Echora is a browser-based immersive lyrics stage — synced lyrics, visualizer stages and AI themes.
+                </p>
+              </div>
+
+              <nav aria-label={t('welcome.footerNavAria')} className="flex flex-col gap-1.5 text-[11px] sm:items-end">
+                <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:justify-end">
+                  <Link to="/privacy" className="footer-link">{t('welcome.footerPrivacy')}</Link>
+                  <span aria-hidden="true" className="text-white/15">·</span>
+                  <Link to="/terms" className="footer-link">{t('welcome.footerTerms')}</Link>
+                </span>
+                <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:justify-end">
+                  <span className="text-slate-600">{t('welcome.footerGooglePolicies')}</span>
+                  <a href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer" className="footer-link">{t('welcome.footerYoutubeTerms')}</a>
+                  <span aria-hidden="true" className="text-white/15">·</span>
+                  <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer" className="footer-link">{t('welcome.footerGooglePrivacy')}</a>
+                </span>
+                <Link to={WELCOME_APP_TARGET} className="footer-link sm:self-end">{t('welcome.footerOpenPlayer')}</Link>
+              </nav>
+            </div>
+
+            <p className="flex max-w-3xl items-start gap-2 text-[11px] leading-5 text-slate-500">
+              <ShieldCheck aria-hidden="true" className="mt-[3px] h-3.5 w-3.5 shrink-0 text-[#62f5c4]/70" />
+              <span>{t('welcome.footerDataNote')}</span>
+            </p>
           </div>
         </footer>
       </div>
