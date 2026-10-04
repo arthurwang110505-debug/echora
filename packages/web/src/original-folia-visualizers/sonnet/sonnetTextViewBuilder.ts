@@ -33,6 +33,7 @@ export interface GlyphGhostView {
 export interface GlyphView {
     display: import('pixi.js').Container;
     halo: import('pixi.js').Text | null;
+    caWrapper?: import('pixi.js').Container;
     caCyan?: import('pixi.js').Text;
     caRed?: import('pixi.js').Text;
     caOffset?: number;
@@ -87,6 +88,7 @@ interface SonnetTextViewOptions {
     guideLayer: import('pixi.js').Container;
     haloLayer: import('pixi.js').Container;
     textLayer: import('pixi.js').Container;
+    caLayer: import('pixi.js').Container;
 }
 
 export const measureText = (text: string, fontSpec: string, fontSize: number) => {
@@ -248,7 +250,8 @@ export const buildSonnetTextView = (
         wrapper.position.set(glyph.baseX, glyph.baseY);
         wrapper.alpha = 0;
 
-        // Chromatic Aberration (Dispersion) Effect
+        // Chromatic Aberration (Dispersion) Effect. Copies live in one shared screen-blended layer.
+        let caWrapperNode: import('pixi.js').Container | undefined;
         let caCyanNode: import('pixi.js').Text | undefined;
         let caRedNode: import('pixi.js').Text | undefined;
         let caOffsetValue: number | undefined;
@@ -270,7 +273,13 @@ export const buildSonnetTextView = (
             caRed.anchor.set(0.5);
             caRed.alpha = isHero ? 0.8 : 0.5;
 
-            wrapper.addChild(caCyan, caRed);
+            const caWrapper = new pixi.Container();
+            caWrapper.rotation = wrapper.rotation;
+            caWrapper.position.copyFrom(wrapper.position);
+            caWrapper.alpha = 0;
+            caWrapper.addChild(caCyan, caRed);
+            options.caLayer.addChild(caWrapper);
+            caWrapperNode = caWrapper;
             caCyanNode = caCyan;
             caRedNode = caRed;
         }
@@ -305,6 +314,7 @@ export const buildSonnetTextView = (
         return {
             display: wrapper,
             halo: null,
+            caWrapper: caWrapperNode,
             caCyan: caCyanNode,
             caRed: caRedNode,
             caOffset: caOffsetValue,

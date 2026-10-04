@@ -211,6 +211,10 @@ export const buildSonnetScene = (
         );
         const guideLayer = new Container();
         const textLayer = new Container();
+        // Keep all screen-blended aberration copies together so Pixi can batch them instead of
+        // alternating blend modes for every glyph (a known Intel iGPU hang path).
+        const caLayer = new Container();
+        textLayer.addChild(caLayer);
         guideLayer.visible = showGuide;
         haloLayer.visible = !showOnlyText;
         shotContainer.addChild(guideLayer, haloLayer, textLayer);
@@ -242,6 +246,7 @@ export const buildSonnetScene = (
                     guideLayer,
                     haloLayer,
                     textLayer,
+                    caLayer,
                 },
             ));
         });
