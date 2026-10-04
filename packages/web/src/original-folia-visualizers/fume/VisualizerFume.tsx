@@ -15,6 +15,8 @@ import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import { resolveWordColor } from '../wordColoring';
 import { resolveFumeCameraScaleForViewport, resolveFumeCameraSafetyCorrection, resolveFumeCameraXForViewport, resolveFumeCameraYForViewport, resolveFumeCanvasDpr, resolveFumeContentFrameBounds, resolveStageFrameInterval, useStagePerformanceProfile } from '../../utils/stagePerformance';
 import type { StagePerformanceTier } from '../../utils/stagePerformance';
+import { FumeLiveRaster } from './fumeLiveRaster';
+import { clearFumeCanvasTextGlow, fillFumeGlowText, getFumeGlowClipPadding, isLinuxFumeRenderer, quantizeFumeCanvasBlur, setFumeCanvasTextGlow } from './fumeCanvasGlow';
 
 // This mode is basically "turn the whole lyric into an article, then move a camera through it".
 // So the pipeline is much bigger than the others: prebuild the article layout, split it into blocks/render lines/graphemes,
@@ -131,6 +133,25 @@ interface StaticBlockSnapshot {
     canvas: HTMLCanvasElement;
     padding: number;
 }
+
+interface CachedStaticBlockSnapshot {
+    snapshot: StaticBlockSnapshot;
+    lastUsed: number;
+}
+
+const FUME_STATIC_SNAPSHOT_IDLE_MS = 15_000;
+
+const releaseFumeStaticBlockSnapshots = (
+    cache: Map<string, CachedStaticBlockSnapshot>,
+    now: number,
+) => {
+    for (const [key, entry] of cache) {
+        if (now - entry.lastUsed <= FUME_STATIC_SNAPSHOT_IDLE_MS) continue;
+        entry.snapshot.canvas.width = 0;
+        entry.snapshot.canvas.height = 0;
+        cache.delete(key);
+    }
+};
 
 interface FumeLayoutAttemptOptions {
     paperWidth: number;
@@ -1562,89 +1583,6 @@ const buildTextStyleKey = (
     shadowColor: string,
 ) => `${fillStyle}|${shadowColor}|${shadowBlur.toFixed(3)}`;
 
-// The line-glow pass re-draws every segment with a large canvas shadowBlur purely to
-// produce the soft halo behind the text. That halo is - by definition - a low-frequency
-// image, so it is rasterized once per frame into a half-resolution offscreen layer and
-// composited back at full size. The composite is visually identical (a gaussian halo
-// loses nothing at half resolution) while costing roughly a quarter of the fill rate.
-const FUME_GLOW_LAYER_SCALE = 0.5;
-let fumeGlowLayer: HTMLCanvasElement | null = null;
-
-interface FumeGlowBlockRef {
-    x: number;
-    y: number;
-    renderLines: Array<{ left: number; top: number; segments: Array<{ text: string; x: number; y: number }> }>;
-}
-
-const drawFumeLineGlowLayer = (
-    context: CanvasRenderingContext2D,
-    canvas: HTMLCanvasElement,
-    block: FumeGlowBlockRef,
-    baselineOffset: number,
-    font: string,
-    glowColor: string,
-    glowBlur: number,
-    glowShadowColor: string,
-): boolean => {
-    if (typeof context.getTransform !== 'function' || typeof document === 'undefined') {
-        return false;
-    }
-
-    const targetWidth = Math.max(1, Math.round(canvas.width * FUME_GLOW_LAYER_SCALE));
-    const targetHeight = Math.max(1, Math.round(canvas.height * FUME_GLOW_LAYER_SCALE));
-    if (!fumeGlowLayer) {
-        fumeGlowLayer = document.createElement('canvas');
-    }
-    if (fumeGlowLayer.width !== targetWidth || fumeGlowLayer.height !== targetHeight) {
-        fumeGlowLayer.width = targetWidth;
-        fumeGlowLayer.height = targetHeight;
-    }
-    const glowContext = fumeGlowLayer.getContext('2d');
-    if (!glowContext) {
-        return false;
-    }
-
-    // Shadows ignore the canvas transform, so the glow blur is expressed in device
-    // pixels. Scaling the full camera transform by FUME_GLOW_LAYER_SCALE and the blur
-    // by the same factor reproduces the exact same device-space halo after upscale.
-    const cameraTransform = context.getTransform();
-    glowContext.setTransform(1, 0, 0, 1, 0, 0);
-    glowContext.clearRect(0, 0, targetWidth, targetHeight);
-    glowContext.setTransform(
-        cameraTransform.a * FUME_GLOW_LAYER_SCALE,
-        cameraTransform.b * FUME_GLOW_LAYER_SCALE,
-        cameraTransform.c * FUME_GLOW_LAYER_SCALE,
-        cameraTransform.d * FUME_GLOW_LAYER_SCALE,
-        cameraTransform.e * FUME_GLOW_LAYER_SCALE,
-        cameraTransform.f * FUME_GLOW_LAYER_SCALE,
-    );
-    glowContext.font = font;
-    glowContext.textAlign = 'left';
-    glowContext.textBaseline = 'middle';
-    glowContext.fillStyle = glowColor;
-    glowContext.shadowBlur = glowBlur * FUME_GLOW_LAYER_SCALE;
-    glowContext.shadowColor = glowShadowColor;
-
-    for (const renderLine of block.renderLines) {
-        const glowBaseX = block.x + renderLine.left;
-        const glowBaseY = block.y + renderLine.top + baselineOffset;
-
-        for (const segment of renderLine.segments) {
-            if (segment.text.trim().length === 0) {
-                continue;
-            }
-            glowContext.fillText(segment.text, glowBaseX + segment.x, glowBaseY);
-        }
-    }
-
-    context.save();
-    context.setTransform(1, 0, 0, 1, 0, 0);
-    context.drawImage(fumeGlowLayer, 0, 0);
-    context.restore();
-    return true;
-};
-
-
 const resolveRenderLineOffset = (
     renderLine: RenderLineSlice,
     localOffset: number,
@@ -1698,13 +1636,14 @@ const drawRenderTextRun = (
         return;
     }
 
+    const glowPadding = getFumeGlowClipPadding(context.filter);
     context.save();
     context.beginPath();
     context.rect(
-        baseX + segment.x + clipLeft,
-        baseY - Math.max(clipWidth, 1) - 64,
-        clipWidth,
-        Math.max(128 + clipWidth * 2, 256),
+        baseX + segment.x + clipLeft - glowPadding,
+        baseY - Math.max(clipWidth, 1) - 64 - glowPadding,
+        clipWidth + glowPadding * 2,
+        Math.max(128 + clipWidth * 2, 256) + glowPadding * 2,
     );
     context.clip();
     context.fillText(segment.text, baseX + segment.x, baseY);
@@ -2021,7 +1960,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
         velocityScale: 0,
         focusScale: 1,
     });
-    const staticBlockSnapshotCacheRef = useRef<Map<string, StaticBlockSnapshot>>(new Map());
+    const staticBlockSnapshotCacheRef = useRef<Map<string, CachedStaticBlockSnapshot>>(new Map());
     const layoutBuildVersionRef = useRef(0);
     const hasResolvedArticleRef = useRef(false);
     const [viewport, setViewport] = useState<ViewportSize>({ width: 0, height: 0 });
@@ -2197,7 +2136,8 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
     const upcomingFontSize = `clamp(${(0.875 * lyricsFontScale).toFixed(3)}rem, ${(1.8 * lyricsFontScale).toFixed(3)}vw, ${(1 * lyricsFontScale).toFixed(3)}rem)`;
 
     useEffect(() => {
-        staticBlockSnapshotCacheRef.current.clear();
+        releaseFumeStaticBlockSnapshots(staticBlockSnapshotCacheRef.current, Number.POSITIVE_INFINITY);
+        return () => releaseFumeStaticBlockSnapshots(staticBlockSnapshotCacheRef.current, Number.POSITIVE_INFINITY);
     }, [
         article,
         theme.name,
@@ -2220,10 +2160,16 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
             return;
         }
 
-        const context = canvas.getContext('2d');
-        if (!context) {
+        const stageContext = canvas.getContext('2d');
+        if (!stageContext) {
             return;
         }
+
+        // Folia enables this workaround on Linux, where continuously changing glyph
+        // size and canvas shadowBlur exhaust Chromium's renderer glyph-cache handles.
+        const useLinuxFumeWorkaround = isLinuxFumeRenderer();
+        const liveRaster = new FumeLiveRaster();
+        let context = stageContext;
 
         const width = Math.max(Math.floor(viewport.width), 1);
         const height = Math.max(Math.floor(viewport.height), 1);
@@ -2275,6 +2221,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                 frameId = window.requestAnimationFrame(draw);
                 return;
             }
+            context = stageContext;
             lastRenderedAt = now;
             const dt = lastFrameAt === null
                 ? 1 / 60
@@ -2702,6 +2649,16 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
             }
 
             const screenScale = cameraRef.current.scale;
+            const liveRasterFrame = useLinuxFumeWorkaround ? {
+                deviceScale: screenScale * currentDpr,
+                visible: {
+                    left: cameraRef.current.x - (viewportCenterX + 32) / screenScale,
+                    top: cameraRef.current.y - (viewportCenterY + 32) / screenScale,
+                    right: cameraRef.current.x + (viewportCenterX + 32) / screenScale,
+                    bottom: cameraRef.current.y + (viewportCenterY + 32) / screenScale,
+                },
+                glowIntensity,
+            } : null;
 
             if (!staticMode) {
                 const backgroundCenterX = backgroundScene.width * 0.5;
@@ -2806,7 +2763,9 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                     const snapshotScale = clamp(window.devicePixelRatio || 1, 1, 2);
                     const cacheStyleKey = staticState === 'passed' ? effectiveTextHoldStyle : 'base';
                     const cacheKey = `${block.id}:${staticState}:${cacheStyleKey}:${snapshotScale}`;
-                    let snapshot = staticBlockSnapshotCacheRef.current.get(cacheKey);
+                    let snapshotEntry = staticBlockSnapshotCacheRef.current.get(cacheKey);
+                    if (snapshotEntry) snapshotEntry.lastUsed = now;
+                    let snapshot = snapshotEntry?.snapshot;
 
                     if (!snapshot) {
                         snapshot = createStaticBlockSnapshot(
@@ -2824,7 +2783,8 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                         ) ?? undefined;
 
                         if (snapshot) {
-                            staticBlockSnapshotCacheRef.current.set(cacheKey, snapshot);
+                            snapshotEntry = { snapshot, lastUsed: now };
+                            staticBlockSnapshotCacheRef.current.set(cacheKey, snapshotEntry);
                         }
                     }
 
@@ -2835,7 +2795,9 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                             const dimAmount = baseDimAmount * (1 - overviewTextRestoreProgress);
                             const standardStyle = resolvePassedTextStyle(block.variant, 'standard');
                             const standardCacheKey = `${block.id}:passed:standard:${snapshotScale}`;
-                            let standardSnapshot = staticBlockSnapshotCacheRef.current.get(standardCacheKey);
+                            let standardSnapshotEntry = staticBlockSnapshotCacheRef.current.get(standardCacheKey);
+                            if (standardSnapshotEntry) standardSnapshotEntry.lastUsed = now;
+                            let standardSnapshot = standardSnapshotEntry?.snapshot;
 
                             if (!standardSnapshot) {
                                 standardSnapshot = createStaticBlockSnapshot(
@@ -2847,7 +2809,8 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                                 ) ?? undefined;
 
                                 if (standardSnapshot) {
-                                    staticBlockSnapshotCacheRef.current.set(standardCacheKey, standardSnapshot);
+                                    standardSnapshotEntry = { snapshot: standardSnapshot, lastUsed: now };
+                                    staticBlockSnapshotCacheRef.current.set(standardCacheKey, standardSnapshotEntry);
                                 }
                             }
 
@@ -2898,6 +2861,16 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                     }
                 }
 
+                const liveRasterTarget = useLinuxFumeWorkaround && liveRasterFrame
+                    ? liveRaster.begin(block, liveRasterFrame, now)
+                    : null;
+                if (useLinuxFumeWorkaround && !liveRasterTarget) {
+                    continue;
+                }
+                if (liveRasterTarget) {
+                    context = liveRasterTarget.context;
+                }
+
                 const printedCount = resolvePrintedGraphemeCount(
                     block.line,
                     block.wordRanges,
@@ -2930,23 +2903,15 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                     ) * glowIntensity;
                     const lineGlowColor = colorWithAlpha(theme.accentColor, lineGlowAlpha);
                     const lineGlowShadowColor = colorWithAlpha(theme.accentColor, lineGlowAlpha * 1.35);
-
-                    const glowLayerDrawn = !reducedEffects && drawFumeLineGlowLayer(
-                        context,
-                        canvas,
-                        block,
-                        baselineOffset,
-                        buildCanvasFont(block, theme),
-                        lineGlowColor,
-                        lineGlowBlur,
-                        lineGlowShadowColor,
-                    );
-
-                    if (!reducedEffects && !glowLayerDrawn) {
+                    if (!reducedEffects) {
                         context.save();
                         context.fillStyle = lineGlowColor;
-                        context.shadowBlur = lineGlowBlur;
-                        context.shadowColor = lineGlowShadowColor;
+                        const glowUsesFilter = setFumeCanvasTextGlow(
+                            context,
+                            lineGlowBlur,
+                            lineGlowShadowColor,
+                            useLinuxFumeWorkaround,
+                        );
 
                         for (const renderLine of block.renderLines) {
                             const glowBaseX = block.x + renderLine.left;
@@ -2957,10 +2922,15 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                                     continue;
                                 }
 
-                                context.fillText(segment.text, glowBaseX + segment.x, glowBaseY);
+                                if (glowUsesFilter) {
+                                    fillFumeGlowText(context, segment.text, glowBaseX + segment.x, glowBaseY);
+                                } else {
+                                    context.fillText(segment.text, glowBaseX + segment.x, glowBaseY);
+                                }
                             }
                         }
 
+                        clearFumeCanvasTextGlow(context, glowUsesFilter);
                         context.restore();
                     }
                 }
@@ -2991,8 +2961,12 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                             }
 
                             context.fillStyle = runFillStyle;
-                            context.shadowBlur = runShadowBlur;
-                            context.shadowColor = runShadowColor;
+                            const glowUsesFilter = setFumeCanvasTextGlow(
+                                context,
+                                runShadowBlur,
+                                runShadowColor,
+                                useLinuxFumeWorkaround,
+                            );
                             drawRenderTextRun(
                                 context,
                                 renderLine,
@@ -3002,8 +2976,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                                 baseX,
                                 baseY,
                             );
-                            context.shadowBlur = 0;
-                            context.shadowColor = 'transparent';
+                            clearFumeCanvasTextGlow(context, glowUsesFilter);
                             runStart = -1;
                             runStyleKey = '';
                         };
@@ -3136,7 +3109,10 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                                         const activationBlockY = baseY
                                             - block.fontPx * 0.38
                                             - mix(dropDistance, 0, dropProgress);
-                                        const activationBlockBlur = (8 + block.fontPx * 0.24) * blockPulse * activeGlowBoost;
+                                        const activationBlockBlur = quantizeFumeCanvasBlur(
+                                            (8 + block.fontPx * 0.24) * blockPulse * activeGlowBoost,
+                                            useLinuxFumeWorkaround,
+                                        );
 
                                         if (activationBlockWidth > 0) {
                                             const blockLeft = blockCenterX - activationBlockWidth * 0.5;
@@ -3161,11 +3137,12 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                                 continue;
                             }
 
-                            const styleKey = buildTextStyleKey(fillStyle, shadowBlur, shadowColor);
+                            const renderedShadowBlur = quantizeFumeCanvasBlur(shadowBlur, useLinuxFumeWorkaround);
+                            const styleKey = buildTextStyleKey(fillStyle, renderedShadowBlur, shadowColor);
                             if (runStart < 0) {
                                 runStart = globalOffset;
                                 runFillStyle = fillStyle;
-                                runShadowBlur = shadowBlur;
+                                runShadowBlur = renderedShadowBlur;
                                 runShadowColor = shadowColor;
                                 runStyleKey = styleKey;
                                 continue;
@@ -3175,7 +3152,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                                 flushRun(globalOffset);
                                 runStart = globalOffset;
                                 runFillStyle = fillStyle;
-                                runShadowBlur = shadowBlur;
+                                runShadowBlur = renderedShadowBlur;
                                 runShadowColor = shadowColor;
                                 runStyleKey = styleKey;
                             }
@@ -3186,9 +3163,25 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                 }
 
                 context.restore();
+                if (liveRasterTarget) {
+                    context = stageContext;
+                    context.drawImage(
+                        liveRasterTarget.canvas,
+                        0,
+                        0,
+                        liveRasterTarget.width,
+                        liveRasterTarget.height,
+                        liveRasterTarget.left,
+                        liveRasterTarget.top,
+                        liveRasterTarget.worldWidth,
+                        liveRasterTarget.worldHeight,
+                    );
+                }
             }
             }
             context.restore();
+            liveRaster.sweep(now);
+            releaseFumeStaticBlockSnapshots(staticBlockSnapshotCacheRef.current, now);
 
             if (!paused) {
                 frameId = window.requestAnimationFrame(draw);
@@ -3198,6 +3191,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
         draw();
         return () => {
             window.cancelAnimationFrame(frameId);
+            liveRaster.clear();
             lastFrameAt = null;
         };
     }, [

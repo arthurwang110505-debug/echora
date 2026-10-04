@@ -27,8 +27,10 @@ import { buildSonnetScene, type SceneView, type ShotView } from './sonnetSceneBu
 import { isSonnetEmphasisRole } from './sonnetTypographyLayout';
 import { getSonnetTexturePool } from './sonnetTexturePool';
 import type { StagePerformanceTier } from '../../utils/stagePerformance';
+import { snapResolutionToTexturePool } from '../pixiTextureBudget';
 import {
     destroySonnetContainerChildren,
+    destroySonnetDisplayTree,
     unloadSonnetDisplayTree,
 } from './sonnetPixiResources';
 import {
@@ -100,7 +102,7 @@ export class SonnetPixiRuntime {
             backgroundAlpha: 0,
             antialias: true,
             autoDensity: true,
-            resolution: options.tuning.textureResolution,
+            resolution: snapResolutionToTexturePool(width, height, options.tuning.textureResolution),
             autoStart: false,
             sharedTicker: false,
             preference: 'webgl',
@@ -151,7 +153,13 @@ export class SonnetPixiRuntime {
         if (width === this.lastWidth && height === this.lastHeight) return false;
         this.lastWidth = width;
         this.lastHeight = height;
-        this.app.renderer.resize(width, height);
+        // Full-viewport filter targets use Pixi's power-of-two texture pool. Keep the canvas
+        // just below a bucket edge where possible to avoid paying for mostly empty filter textures.
+        this.app.renderer.resize(
+            width,
+            height,
+            snapResolutionToTexturePool(width, height, this.options.tuning.textureResolution),
+        );
         this.clearScenes();
         this.drawCredits(width, height);
         this.drawOverlay(width, height);
@@ -313,7 +321,8 @@ export class SonnetPixiRuntime {
             shot.haloLayer.filters = null;
         });
         scene.postProcessFilters.forEach(filter => filter.destroy());
-        scene.container.destroy({ children: true });
+        // destroy({ children: true }) leaves Pixi 8 GraphicsContext buffers for delayed GC.
+        destroySonnetDisplayTree(scene.container);
     }
 
     private ensureScene(index: number) {
@@ -549,15 +558,17 @@ export class SonnetPixiRuntime {
                     }
                 }
 
-                // Animate Chromatic Aberration separation and merging only on the full profile.
-                if (glyph.caCyan && glyph.caRed && glyph.caOffset) {
-                    glyph.caCyan.visible = decorativeGlyphEffectsEnabled && glyphVisible && !this.options.tuning.showOnlyText;
-                    glyph.caRed.visible = decorativeGlyphEffectsEnabled && glyphVisible && !this.options.tuning.showOnlyText;
+                // Keep all screen-blended aberration copies in the shared layer to preserve Pixi batching.
+                if (glyph.caWrapper && glyph.caCyan && glyph.caRed && glyph.caOffset) {
+                    const ca = glyph.caWrapper;
+                    ca.visible = decorativeGlyphEffectsEnabled && glyphVisible && !this.options.tuning.showOnlyText;
+                    ca.alpha = coreAlpha;
+                    ca.scale.copyFrom(glyph.display.scale);
+                    ca.position.copyFrom(glyph.display.position);
+                    ca.rotation = rotation;
                     if (decorativeGlyphEffectsEnabled) {
-                        // Starts separated (impact), and gently merges to a very subtle base offset
                         const mergeEased = easeSonnetInOut(glyphProgress);
-                        const currentOffset = glyph.caOffset * (1 - mergeEased * 0.8); // 1.0 -> 0.2
-
+                        const currentOffset = glyph.caOffset * (1 - mergeEased * 0.8);
                         glyph.caCyan.position.set(-currentOffset, currentOffset * 0.5);
                         glyph.caRed.position.set(currentOffset, -currentOffset * 0.5);
                     }
@@ -595,10 +606,18 @@ export class SonnetPixiRuntime {
         const paragraphIndex = findSonnetParagraphIndexAtTime(this.options.program, time);
         if (paragraphIndex !== this.activeParagraphIndex) {
             this.activeParagraphIndex = paragraphIndex;
-            this.ensureScene(paragraphIndex - 1);
+            // Building a paragraph lays out every grapheme and creates one Pixi Text per glyph.
+            // Build the active scene now, then warm only one neighbor on each later frame.
             this.ensureScene(paragraphIndex);
-            this.ensureScene(paragraphIndex + 1);
             this.pruneScenes(paragraphIndex);
+        } else {
+            const next = paragraphIndex + 1;
+            const previous = paragraphIndex - 1;
+            if (next < this.options.program.paragraphs.length && !this.sceneCache.has(next)) {
+                this.ensureScene(next);
+            } else if (previous >= 0 && !this.sceneCache.has(previous)) {
+                this.ensureScene(previous);
+            }
         }
         const width = Math.max(this.options.host.clientWidth, 320);
         const height = Math.max(this.options.host.clientHeight, 240);
@@ -615,10 +634,8 @@ export class SonnetPixiRuntime {
             // Strict visibility: only the active scene is ever drawn. Zero overlap between scenes.
             scene.container.visible = isActive;
             if (!isActive) {
-                // Keep inactive shot display trees warm. Pixi Text owns a GPU-backed
-                // texture that can become blank after transient unload; scenes are
-                // bounded to the active paragraph and are still fully unloaded when
-                // pruned or destroyed.
+                const previousShot = scene.shots[scene.activeShotIndex];
+                if (previousShot) unloadSonnetDisplayTree(previousShot.container);
                 scene.activeShotIndex = -1;
                 return;
             }
@@ -677,9 +694,8 @@ export class SonnetPixiRuntime {
                 this.updateShot(shot, time, width, height, 0);
             });
             if (scene.activeShotIndex !== visibleShotIndex) {
-                // Do not unload a reusable inactive shot here. Keeping its Text and
-                // Graphics views warm prevents a later seek/transition from showing
-                // a background-only frame; prune/destroy owns actual resource release.
+                const previousShot = scene.shots[scene.activeShotIndex];
+                if (previousShot) unloadSonnetDisplayTree(previousShot.container);
                 scene.activeShotIndex = visibleShotIndex;
             }
             // Publish the active shot so the dev overlay's Sonnet tab can inspect it.
@@ -749,6 +765,7 @@ export class SonnetPixiRuntime {
         this.app.ticker.remove(this.renderFrame);
         this.clearScenes();
         destroySonnetContainerChildren(this.creditsContainer);
+        destroySonnetContainerChildren(this.overlayContainer);
         this.iconTextures.clear();
         const texturePool = getSonnetTexturePool(this.pixi);
         this.iconUrls.forEach(url => {
