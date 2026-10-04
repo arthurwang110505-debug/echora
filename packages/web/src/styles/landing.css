@@ -143,6 +143,42 @@
   transition: background 1.15s var(--ease-out-smooth), opacity 1.15s var(--ease-out-smooth);
 }
 
+/* --- Page-wide ambient wash: the landing is lit like the player stage --- */
+.stage-ambient-wash {
+  transition: opacity 1.15s var(--ease-out-smooth);
+}
+
+/* --- Cinematic vignette + grain, borrowed from the immersive stage --- */
+.stage-vignette {
+  background: radial-gradient(115% 85% at 50% 26%, rgba(7, 9, 14, 0) 42%, rgba(7, 9, 14, 0.72) 100%);
+}
+
+/* --- Blurred artwork field behind the stage preview (player backdrop) --- */
+/* Opacity is driven inline per scene so the layers can crossfade. */
+.stage-preview-art {
+  background-size: cover;
+  background-position: center;
+  filter: blur(90px) saturate(1.2);
+  transform: scale(1.25);
+  opacity: 0;
+  transition: opacity 1.15s var(--ease-out-smooth);
+}
+
+/* --- Stage preview transport: progress walks the previewed scene --- */
+.stage-progress {
+  width: 0%;
+  box-shadow: 0 0 12px rgba(98, 245, 196, 0.8);
+  animation-name: stageProgress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  will-change: width;
+}
+
+@keyframes stageProgress {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
 /* --- Mode chip crossfade --- */
 .stage-chip-enter {
   animation: stageChipIn 620ms var(--ease-spring) both;
@@ -178,4 +214,17 @@
   .stage-aurora-1,
   .stage-aurora-2 { animation: none; }
   .karaoke-word-fill { transition: none; }
+  /* Keep a static, readable progress position instead of an empty bar. */
+  .stage-progress { animation: none !important; width: 42%; }
 }
+
+/* The in-app motion switch (Settings) drives the same landing decorations. */
+:root[data-motion='reduced'] .stage-headline-accent,
+:root[data-motion='reduced'] .stage-marquee,
+:root[data-motion='reduced'] .stage-float,
+:root[data-motion='reduced'] .beat-dot,
+:root[data-motion='reduced'] .stage-aurora-1,
+:root[data-motion='reduced'] .stage-aurora-2 { animation: none; }
+
+:root[data-motion='reduced'] .karaoke-word-fill { transition: none; }
+:root[data-motion='reduced'] .stage-progress { animation: none !important; width: 42%; }

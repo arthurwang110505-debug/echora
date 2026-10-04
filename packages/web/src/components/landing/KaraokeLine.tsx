@@ -22,6 +22,12 @@ export interface KaraokeLineProps {
   className?: string;
   /** Called when the active line changes (to sync scene colors / mode chips). */
   onLineChange?: (index: number) => void;
+  /**
+   * Controlled line index. When provided the line still fills word-by-word, but
+   * the built-in auto-advance timer is disabled — the owner (the landing stage
+   * transport) decides when to move on, so prev / next / pause behave for real.
+   */
+  activeIndex?: number;
 }
 
 export default function KaraokeLine({
@@ -32,16 +38,21 @@ export default function KaraokeLine({
   accent = 'rgba(98, 245, 196, 0.6)',
   className = '',
   onLineChange,
+  activeIndex,
 }: KaraokeLineProps) {
-  const [lineIndex, setLineIndex] = useState(0);
+  const [internalIndex, setInternalIndex] = useState(0);
   const [filled, setFilled] = useState(false);
   const prefersReducedMotion = useReducedMotion();
+  const isControlled = typeof activeIndex === 'number';
+  const lineIndex = isControlled
+    ? ((activeIndex % lines.length) + lines.length) % lines.length
+    : internalIndex % lines.length;
 
-  const chars = useMemo(() => Array.from(lines[lineIndex % lines.length] ?? ''), [lines, lineIndex]);
+  const chars = useMemo(() => Array.from(lines[lineIndex] ?? ''), [lines, lineIndex]);
 
   useEffect(() => {
-    onLineChange?.(lineIndex % lines.length);
-  }, [lineIndex, lines.length, onLineChange]);
+    onLineChange?.(lineIndex);
+  }, [lineIndex, onLineChange]);
 
   useEffect(() => {
     if (prefersReducedMotion) {
@@ -54,16 +65,17 @@ export default function KaraokeLine({
     let fillTimer = 0;
     const startFill = window.setTimeout(() => {
       setFilled(true);
+      if (isControlled) return; // The owner drives the sequence (transport controls).
       const totalFill = chars.length * wordMs * stagger + wordMs;
       fillTimer = window.setTimeout(() => {
-        setLineIndex(index => (index + 1) % lines.length);
+        setInternalIndex(index => (index + 1) % lines.length);
       }, totalFill + holdMs);
     }, 120);
     return () => {
       window.clearTimeout(startFill);
       window.clearTimeout(fillTimer);
     };
-  }, [chars.length, holdMs, lines.length, prefersReducedMotion, stagger, wordMs]);
+  }, [chars.length, holdMs, isControlled, lineIndex, lines.length, prefersReducedMotion, stagger, wordMs]);
 
   return (
     <p

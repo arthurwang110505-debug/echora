@@ -120,4 +120,34 @@ describe('Landing stage (Welcome) mounted smoke', () => {
     expect(scenes.length).toBe(3);
     expect(scenes[0].getAttribute('style')).toContain('opacity: 1');
   });
+
+  it('runs the stage preview with real transport controls (prev / next / pause)', () => {
+    const container = mount(<Welcome />);
+    const buttonByLabel = (label: string) =>
+      Array.from(container.querySelectorAll('button')).find(button => button.getAttribute('aria-label') === label);
+    const activeMode = () => container.querySelector('.stage-chip-enter')?.textContent?.trim();
+
+    const play = container.querySelector('button[aria-pressed]') as HTMLButtonElement | null;
+    expect(play).toBeTruthy();
+    expect(play!.getAttribute('aria-pressed')).toBe('true');
+    // Pause freezes the preview (and the ambient blobs) instead of faking playback.
+    act(() => { play!.click(); });
+    expect(play!.getAttribute('aria-pressed')).toBe('false');
+
+    expect(activeMode()).toBe('Luminous');
+    act(() => { buttonByLabel('下一句歌詞')!.click(); });
+    expect(activeMode()).toBe('Fume');
+    act(() => { buttonByLabel('上一句歌詞')!.click(); });
+    expect(activeMode()).toBe('Luminous');
+    // Stepping backwards from the first scene wraps to the last one.
+    act(() => { buttonByLabel('上一句歌詞')!.click(); });
+    expect(activeMode()).toBe('Monet');
+  });
+
+  it('offers the demo CTA inside the stage preview transport', () => {
+    const container = mount(<Welcome />);
+    // The transport's right-hand button is the same 開始體驗 entrance as the hero.
+    expect(container.querySelectorAll('.glass-panel button').length).toBeGreaterThanOrEqual(4);
+    expect(container.textContent).toContain('開始體驗');
+  });
 });
