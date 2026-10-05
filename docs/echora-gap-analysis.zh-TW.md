@@ -1,0 +1,151 @@
+# Echora 相對上游 Folia 缺什麼（繁中分析）
+
+> 對照基準：`chthollyphile/folia-major` @ `master`（v0.7.13，2026-10-05）。
+> Echora 現況：430 個檔案 / 約 77,000 行 TS·TSX；Folia：1,313 檔 / 256,765 行 → **Echora 約是上游的 30%**。
+> 這份文件只談「缺口與優先順序」，上游本身的特色見 `docs/folia-upstream-specialities.md`。
+
+---
+
+## 0. 先講清楚 Echora 已經有的
+
+避免把「缺」講得太誇張，以下是已經完成、而且品質不錯的部分：
+
+- **11 / 14 個歌詞模式**：classic、cadenza、partita、fume、monet、cappella、pendolo、sonnet、claddagh、diorama、tilt。
+- **6 / 6 種背景**：common、latent、monet、nomand、sora、url —— 與上游一致。
+- **完整的共享層**：`VisualizerShell`、`runtime.ts`、`registry.tsx`、`settingsPanels`、`VisualizerHarmonyOverlay`、`VisualizerSubtitleOverlay`、`wordColoring`、`tuningRegistry`。
+- **量測紀律的一部分**：`pixiTextureBudget.ts`（含測試）已移植。
+- **AI 主題生成**：走 serverless proxy（`api/ai/theme.ts` + `services/agnesAi.ts`），金鑰留在伺服器端 —— 這點比上游要求桌面端設定金鑰更適合 PWA。
+- **命令面板**：`components/player/CommandPalette.tsx` + `playerCommands.ts`，關鍵字同時含**繁中／簡中／拼音**，中文使用者友善度高。
+- **歌詞來源**：lrclib、AMLL TTML 庫、QQ、酷狗（含 `qrcDecrypt` / `krcDecrypt` 逐字解密）。逐字格式這塊其實做得不錯。
+- **播放體質**：`playback/audioRouting.ts` 對 CORS／blob 的音訊繞送規則有明確決策，避免「看起來在播但無聲」。
+- **PWA**：安裝、離線 shell、Service Worker 快取策略（刻意不快取音檔以免破壞 Range/拖條）。
+
+**結論：Echora 缺的不是「一堆功能」，而是三層結構性能力 + 幾個大型子系統。**
+
+---
+
+## 1. 導演級模式：缺 3 個模式 + 1 個圖層（約 23,000 行）
+
+Folia 有 14 個模式，Echora 移植 11 個。缺的是：
+
+| 缺的模式 | 規模 | 它是什麼 |
+|---|---:|---|
+| `tempera` 凝彩 | 11,426 行 / 50 檔 | 網點（screentone）MG 風 PV。**121 種 shot kind / 13 個家族**；用 difference filter 逐像素決定 ink/paper 反色；真的在色塊上挖洞露出背景層；≥1.2s 的間奏編譯成「bridge shot」讓器樂段一直在動；shot 之間沿 `flowAngle` 接力，切點讀起來是一個長鏡頭 |
+| `lumiere` 繪光 | 11,536 行 / 60 檔 | 舞台燈光導演：體積光、煙霧、線稿「圖形組」、11 種燈架（astral／botany／caustic／optics／prism／stage／zenith…）；可把整首編譯成**單一無縫單元**（段落間走燈位交接，約 45–50 ms 建場景） |
+| `still` 静止 | 115 行 | 極省資源的靜態模式（低階裝置／省電） |
+| `videoLayer` | 1 個檔案 | 歌詞後方的影片圖層（搭配背景「完全空白」選項） |
+
+### 但真正的缺口是「引擎架構」，不是這兩個模式
+
+上游三個大模式（sonnet／tempera／lumiere）共用同一套體質：
+
+1. **compile-then-render**：先把整首編譯成 shot program（段落／鏡頭／時間軸），渲染只讀絕對播放時間；
+2. **scene cache ±1**：只保留當前與相鄰段落；
+3. **就地換歌**（`songHandover` + `pixiRuntimeHost`）：換歌不重建 WebGL；
+4. **一幀最多做一件貴的事**。
+
+Echora 缺的正是這一層 —— 而這正是本次卡頓的根因（見 `docs/sonnet-diorama-stall-diagnosis.md`）。
+**只搬模式、不搬架構，搬過來的模式一樣會卡。**
+
+---
+
+## 2. 舞台的「基礎設施化」：缺口最大，但 Echora 已有半套 scaffold
+
+這是上游最被低估的價值：讓舞台可以被 OBS、直播、外部程式、剪輯軟體使用。
+
+### 2.1 Stage API —— **完全沒有**
+
+上游（桌面端）在 `127.0.0.1:32107` 提供 Bearer token 的本機 HTTP API，共 7 個端點：
+
+```
+GET  /stage/health          GET  /stage/status
+POST /stage/lyrics          POST /stage/session
+POST /stage/player/search   POST /stage/player/play
+GET  /stage/player/status
+```
+
+外部程式可推歌詞、推媒體 session、搜尋並點播；官方附一支 **B 站直播彈幕點歌**示範（`test/manual/bili-livesong/main.py`），以及一個 Quickshell／Waybar 狀態列歌詞外掛。
+
+Echora 的狀況：`utils/stageClientDemo.ts` 只有型別與工具函式、**0 個使用者**；`store/stageStore.ts` 是 Echora 自己的「舞台偏好」store，跟 Stage API 無關。→ 純 scaffold，沒有服務端也沒有頁面。
+
+### 2.2 OBS 整合 —— **有整組 helper，但沒有頁面（dead scaffolding）**
+
+Echora 內已存在這些檔案：
+
+`utils/obsUrl.ts`、`utils/currentObsUrl.ts`、`utils/obsWebAppearance.ts`、`utils/obsCustomCss.ts`、`utils/webObsTarget.ts`、`utils/obsBrowserSource.ts`、`utils/playerCapMapping.ts`、`utils/playerCapSession.ts`、`types/obsBrowserSource.ts`
+
+但是：
+
+- 路由只有 `/`、`/welcome`、`/app`、`/player`、`/settings`、`/library`、`/privacy`、`/terms`、`/oauth/youtube/callback` —— **沒有 `/obs` 之類的頁面**；
+- 只有單一 `index.html`（上游是 Vite 多入口，`ObsBrowserSourceApp` / `ObsNowPlayingSourceApp` / `ObsPlayerCapSourceApp` 各自有自己的 app）；
+- `webObsTarget.ts`（「複製 OBS URL」按鈕的選源邏輯）**沒有任何 import 者**；
+- `useSettingsUiStore` 甚至沒有 `enableNowPlayingStage` / `enablePlayerCapStage` / `playerCapHost` 這些欄位。
+
+也就是說：**URL 產生器在、頁面不在、按鈕沒接線。** 上游還有一個關鍵細節值得抄：OBS 頁面是 `127.0.0.1:PORT`（與主視窗不同源），讀不到主視窗的 IndexedDB，所以圖片池／封面／表情包要**解析成 data URL 隨 SSE config 一起下發**。
+
+### 2.3 其他舞台輸出
+
+- **透明 MOV 匯出**（alpha 通道，給剪輯軟體用；上游用一個 sample mod + main process 服務實作）—— 沒有。
+- **Now Playing 服務整合**（`ws://localhost:9863/api/ws/lyric`）：Echora 的 `utils/nowPlayingSource.ts`、`utils/nowPlayingClock.ts` **0 個 import 者** —— 也是 dead scaffold。
+
+---
+
+## 3. 大型子系統（Echora 是 web-only，部分應該明確放棄）
+
+| 子系統 | 上游規模 | Echora 現況 | 建議 |
+|---|---|---|---|
+| **Automix**（智慧過渡） | 26 檔 + 兩個 ONNX 模型（Beat This! 83 MB、htdemucs 108.6 MB） | 無 | **延後／放棄**。PWA 要下載近 200 MB 模型、還要 utility process 跑推論，成本與體驗都不合理 |
+| **壁紙模式** | 三平台三套實作（Windows WorkerW + Rust helper、Linux wlr-layer-shell、macOS window level） | 無 | **放棄**。PWA 無法把視窗掛進桌面圖層，技術上不可行 |
+| **Folium 模組系統** | 註冊表／事件匯流排／服務／internals、內容雜湊信任、官方簽名、模組市場 | 無 | **放棄或大幅簡化**。完整版需要 Electron 主程序權限；瀏覽器做不到「模組跑可信程式碼」 |
+| **Sync server** | Cloudflare Workers／D1 + Docker + Node 三種部署 | `packages/core/src/sync/sync-client.ts` 存在，但檔案開頭就寫 **NOT YET WIRED INTO THE APP**、沒有後端 | **可做但優先度低**。scaffold 已留位置，補後端即可 |
+| **本地音樂庫實體管理** | `localLibraryCatalogService`、entity repository／mutations、auto scan、folder ignore、V8 migration、playlist 檔 | 只有 `localLibraryIndex`、`localSongMetadata`、`localSongCover` 等基本讀取 | **中期**。目前能播本機檔案，但沒有「樂庫」層（實體合併／拆分、重掃、歌單檔） |
+| **桌面端周邊** | 托盤、遙控窗、Discord presence、三個發布通道、AUR／Flatpak／Docker | 無 | **放棄**（非核心，且屬桌面殼層） |
+
+---
+
+## 4. 歌詞／資料 plumbing 的深度
+
+- **詞級切分（明顯缺口）**：上游有 `wordSegmentation.ts`（`Intl.Segmenter` + 使用者為該首歌存過的細分詞），以及 **AI 切分**（`lyricSegmentation.ts` / `lyricSegmentationAi.ts` + `api/segment-lyrics`，桌面走 IPC、web 走自家端點，而且「幫我跑」與「給我 prompt 自己貼」共用同一個 prompt 模組）。Echora grep `wordSegmentation` = **0**；sonnet 內部雖然用了 `Intl.Segmenter`，但沒有使用者可調的細分詞，也沒有 AI 切分。**這對 CJK 排版品質影響最直接。**
+- **線上來源覆蓋**：上游有 網易雲／QQ／酷狗／Navidrome／本地／波點(bodian)／Now Playing；Echora 有 Spotify／YouTube Music／lrclib／QQ／酷狗／AMLL。缺 **Navidrome** 與網易雲。
+- **歌詞匯出**：上游有 `services/lyricExport`（含測試）；Echora grep `lyricExport` = **0**（有格式偵測與解析，但沒有匯出流程）。
+- **逐字格式**：QQ(qrc)／酷狗(krc)／AMLL TTML 都有 —— 這塊 Echora 不缺。
+
+---
+
+## 5. 工程紀律（最容易被忽略，但決定「會不會再卡」）
+
+| 項目 | 上游 | Echora |
+|---|---|---|
+| 單元測試檔 | **479** 個 | **47** 個（254 個測試） |
+| 元件探針（/dev-probe.html） | **42** 個獨立 harness，一項難功能一個 | 0 |
+| 量測 runner | `playwright.probe.config.ts`，**刻意單 worker**：「只有在機器不忙的時候，render count 才可歸因」 | 無 |
+| 程式碼地圖 | `docs/CODEMAP.md` 由 TS 編譯器 + 模組圖**生成**、CI 比對；刻意只報**量級**（`512+`）避免每次檔案變動都產生無意義 commit；精確數字用 `ts-code-map` CLI／MCP 按需查 | 無 |
+| AI 協作規範 | `AGENTS.md` + `skills/*/SKILL.md`（含 file-modularization、glossary 對齊、runtime guardrails） | 無 |
+| 決策文件 | 每個模式一份「為什麼」的規格（`tempera/README.md` 幾乎是設計文件，含被否決的替代方案與接受的取捨） | `docs/` 3 份（本次新增 2 份） |
+
+---
+
+## 建議的優先順序
+
+1. **引擎化 + 量測紀律**（體質，與模式數量無關）
+   compile-then-render、scene cache ±1、就地換歌、一幀一件貴事；加上 probe 式的效能量測。
+   → 不做這層，搬任何新模式都會重演今天的卡頓。
+
+2. **Stage API + OBS 頁面**（投報率最高）
+   Echora 已經有 80% 的 scaffold（URL／cfg／appearance codec／playerCap 對映全都在），缺的只是**頁面入口 + 服務端 + 接線**。
+   → 這是「讓舞台被拿來用」的關鍵，對直播／剪輯使用者是殺手級功能。
+
+3. **詞切分（含 AI）+ 歌詞品質**（使用者最有感、工程量小）
+   對 CJK 排版直接有效，且上游有現成的 prompt 模組可抄。
+
+4. **`tempera` / `lumiere`**（視覺最炫，但要先有 1）
+   兩者加起來 23,000 行，是上游「歌詞 PV 引擎」的真正核心。
+
+5. **明確放棄**：壁紙模式、Folium、Discord／托盤（PWA 不可行或非核心）、Automix（模型體積與推論環境不合理）。
+
+---
+
+## 一句話總結
+
+Echora 缺的不是功能數量，而是三件事：**（a）把渲染器當引擎而不是當元件**、**（b）把舞台當基礎設施而不是當頁面**、**（c）把效能決策當量測而不是當直覺**。
+目前 Echora 已經有 11 個模式、6 種背景與一批相當完整的 helper —— 缺的是把它們串成上游那種「可以給別人用」的產品。
