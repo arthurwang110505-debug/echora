@@ -45,6 +45,15 @@ import { resolveSonnetSegmentCameraFocus } from './sonnetCameraTracking';
 // Owns Pixi lifecycle and mutates bounded scene views directly from absolute playback time.
 type PixiModule = typeof import('pixi.js');
 
+/**
+ * Sonnet's scene is animation-driven, so a bounded ticker avoids spending a full Pixi frame on work
+ * the display cannot present. This is the only thing the adaptive performance tier is allowed to
+ * change while a runtime is alive.
+ */
+const resolveSonnetTickerMaxFps = (tier: StagePerformanceTier | undefined): number => (
+    tier === 'compact' ? 30 : tier === 'balanced' ? 45 : 60
+);
+
 export interface SonnetSongMetadata {
     title?: string | null;
     artist?: string | null;
@@ -75,6 +84,8 @@ export class SonnetPixiRuntime {
     private readonly iconUrls = new Set<string>();
     private activeParagraphIndex = -1;
     private destroyed = false;
+    /** Guards the async icon swap: only the newest theme's textures are ever adopted. */
+    private iconGeneration = 0;
     private resizeObserver: ResizeObserver | null = null;
     private lastWidth = 0;
     private lastHeight = 0;
@@ -131,11 +142,7 @@ export class SonnetPixiRuntime {
 
     private install() {
         this.resizeToHost();
-        // Sonnet's scene is animation-driven, so a bounded mobile ticker avoids
-        // spending a full Pixi frame on work the display cannot present.
-        this.app.ticker.maxFPS = this.options.performanceTier === 'compact'
-            ? 30
-            : this.options.performanceTier === 'balanced' ? 45 : 60;
+        this.app.ticker.maxFPS = resolveSonnetTickerMaxFps(this.options.performanceTier);
         this.app.ticker.add(this.renderFrame);
         this.resizeObserver = new ResizeObserver(() => {
             if (this.destroyed || !this.resizeToHost()) return;
@@ -279,29 +286,76 @@ export class SonnetPixiRuntime {
         this.overlayContainer.addChild(g, starText);
     }
 
-    private async preloadIcons() {
-        if (this.options.tuning.showOnlyText || !this.options.tuning.showBackgroundDecor) return;
-        const names = resolveSonnetIconNames(this.options.theme.lyricsIcons);
+    /**
+     * Acquires the icon textures a theme asks for, without touching the live maps: a theme change
+     * warms the incoming theme while the outgoing one is still rendering, and only adopts them once
+     * they are ready (see `reloadIcons`).
+     */
+    private async acquireIcons(theme: Theme) {
+        const textures = new Map<string, import('pixi.js').Texture>();
+        const urls = new Set<string>();
+        if (this.options.tuning.showOnlyText || !this.options.tuning.showBackgroundDecor) {
+            return { textures, urls };
+        }
+        const names = resolveSonnetIconNames(theme.lyricsIcons);
         const resolution = this.options.tuning.textureResolution;
         const texturePool = getSonnetTexturePool(this.pixi);
         await Promise.all(names.map(async (name, index) => {
             const size = 192 + (index % 4) * 32;
             const colors = [
-                this.options.theme.accentColor,
-                this.options.theme.secondaryColor,
-                this.options.theme.primaryColor,
+                theme.accentColor,
+                theme.secondaryColor,
+                theme.primaryColor,
             ];
             const color = colors[index % colors.length];
             const key = buildSonnetIconTextureKey(name, color, 3.5, size, resolution);
             const url = buildSonnetIconDataUrl(name, color, 3.5, size);
             if (!url) return;
             try {
-                this.iconTextures.set(key, await texturePool.acquire(url));
-                this.iconUrls.add(url);
+                textures.set(key, await texturePool.acquire(url));
+                urls.add(url);
             } catch {
                 // Invalid theme icons are optional; geometric MG remains available.
             }
         }));
+        return { textures, urls };
+    }
+
+    /** Hands every icon url this runtime holds back to the pool. Refcounted, so order does not matter. */
+    private releaseIcons() {
+        const texturePool = getSonnetTexturePool(this.pixi);
+        this.iconTextures.clear();
+        this.iconUrls.forEach(url => {
+            texturePool.release(url);
+        });
+        this.iconUrls.clear();
+    }
+
+    private async preloadIcons() {
+        const loaded = await this.acquireIcons(this.options.theme);
+        loaded.textures.forEach((texture, key) => this.iconTextures.set(key, texture));
+        loaded.urls.forEach(url => this.iconUrls.add(url));
+    }
+
+    /**
+     * Swaps the decorative icon layer over to a new theme without tearing the context down, then
+     * drops the scene cache so scenes built with the old icons are re-laid-out with the new ones.
+     * A stale generation simply releases what it fetched - the same acquire-then-release discipline
+     * the upstream song handover uses.
+     */
+    private async reloadIcons() {
+        const generation = (this.iconGeneration += 1);
+        this.releaseIcons();
+        const loaded = await this.acquireIcons(this.options.theme);
+        if (this.destroyed || generation !== this.iconGeneration) {
+            const texturePool = getSonnetTexturePool(this.pixi);
+            loaded.urls.forEach(url => texturePool.release(url));
+            return;
+        }
+        loaded.textures.forEach((texture, key) => this.iconTextures.set(key, texture));
+        loaded.urls.forEach(url => this.iconUrls.add(url));
+        this.clearScenes();
+        if (this.options.paused) this.renderOnce();
     }
 
     private clearScenes() {
@@ -743,6 +797,70 @@ export class SonnetPixiRuntime {
         this.app.renderer.render(this.app.stage);
     }
 
+    /**
+     * Applies song, theme and tuning inputs to the live runtime instead of rebuilding it.
+     *
+     * Rebuilding is what upstream's `swapSong` exists to avoid: `create` destroys the WebGL context,
+     * detaches the canvas from the DOM and re-imports Pixi, so the frame goes empty for the whole
+     * async build. Here the renderer, the texture pool and the canvas all survive; only the scene
+     * cache is dropped, and the next ticker frame re-lays-out just the active paragraph (the neighbour
+     * pre-roll follows one per frame, as before).
+     */
+    setSceneInputs(next: {
+        program?: SonnetProgram;
+        theme?: Theme;
+        tuning?: SonnetTuning;
+        lyricsFontScale?: number;
+        staticMode?: boolean;
+    }) {
+        if (this.destroyed) return;
+        const previous = this.options;
+        const previousResolution = previous.tuning.textureResolution;
+        const themeChanged = next.theme !== undefined && next.theme !== previous.theme;
+        const tuningChanged = next.tuning !== undefined && next.tuning !== previous.tuning;
+        const programChanged = next.program !== undefined && next.program !== previous.program;
+        const fontScaleChanged = next.lyricsFontScale !== undefined && next.lyricsFontScale !== previous.lyricsFontScale;
+        const staticModeChanged = next.staticMode !== undefined && next.staticMode !== previous.staticMode;
+        const structural = themeChanged || tuningChanged || programChanged || fontScaleChanged || staticModeChanged;
+        if (!structural) return;
+
+        if (next.program !== undefined) previous.program = next.program;
+        if (next.theme !== undefined) previous.theme = next.theme;
+        if (next.tuning !== undefined) previous.tuning = next.tuning;
+        if (next.lyricsFontScale !== undefined) previous.lyricsFontScale = next.lyricsFontScale;
+        if (next.staticMode !== undefined) previous.staticMode = next.staticMode;
+
+        // textureResolution changes the renderer's own resolution, which only resizeToHost applies.
+        const resolutionChanged = tuningChanged && previous.tuning.textureResolution !== previousResolution;
+        if (resolutionChanged && this.lastWidth > 0 && this.lastHeight > 0) {
+            // Invalidate the cached size so the next resizeToHost() re-snaps the texture pool.
+            this.lastWidth = 0;
+            this.lastHeight = 0;
+            this.resizeToHost();
+        } else {
+            // Frames, decor and credits bake theme/tuning colours, so they are rebuilt too.
+            this.clearScenes();
+            if (this.lastWidth > 0 && this.lastHeight > 0) {
+                this.drawCredits(this.lastWidth, this.lastHeight);
+                this.drawOverlay(this.lastWidth, this.lastHeight);
+            }
+        }
+
+        if (themeChanged) void this.reloadIcons();
+        if (this.options.paused) this.renderOnce();
+    }
+
+    /**
+     * Live frame-budget knob. The ticker cap only decides how often Pixi presents a frame; it never
+     * touches the WebGL context, the texture pool or the scene cache, so the adaptive performance
+     * profile can move it as often as it likes.
+     */
+    setPerformanceTier(tier: StagePerformanceTier) {
+        if (this.destroyed) return;
+        this.options.performanceTier = tier;
+        this.app.ticker.maxFPS = resolveSonnetTickerMaxFps(tier);
+    }
+
     setPaused(paused: boolean) {
         if (this.destroyed) return;
         this.options.paused = paused;
@@ -766,12 +884,7 @@ export class SonnetPixiRuntime {
         this.clearScenes();
         destroySonnetContainerChildren(this.creditsContainer);
         destroySonnetContainerChildren(this.overlayContainer);
-        this.iconTextures.clear();
-        const texturePool = getSonnetTexturePool(this.pixi);
-        this.iconUrls.forEach(url => {
-            texturePool.release(url);
-        });
-        this.iconUrls.clear();
+        this.releaseIcons();
         this.app.destroy({ removeView: true }, { children: true, texture: true });
     }
 }

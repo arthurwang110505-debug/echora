@@ -11,7 +11,7 @@ import VisualizerShell from '../VisualizerShell';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import type { SonnetPixiRuntime, SonnetSongMetadata } from './createSonnetPixiRuntime';
 import { compileSonnetProgram } from './sonnetProgram';
-import { resolveCompactSonnetTuning, useStagePerformanceProfile } from '../../utils/stagePerformance';
+import { resolveCompactSonnetTuning, useLatchedStageTier, useStagePerformanceProfile } from '../../utils/stagePerformance';
 
 // src/components/visualizer/sonnet/VisualizerSonnet.tsx
 // Mounts the lazily loaded Pixi director while React retains shell and subtitle responsibilities.
@@ -46,9 +46,13 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
     const { t } = useTranslation();
     const performanceProfile = useStagePerformanceProfile(paused);
     const performanceTier = performanceProfile.tier;
+    // textureResolution decides the renderer's own resolution, so it follows the lowest tier this
+    // mount has settled on - a moving renderer height costs a resize plus a scene rebuild, and the
+    // adaptive observer must never be able to make the composition oscillate.
+    const structuralTier = useLatchedStageTier(performanceTier);
     const effectiveSonnetTuning = useMemo(
-        () => resolveCompactSonnetTuning(sonnetTuning, performanceTier),
-        [performanceTier, sonnetTuning],
+        () => resolveCompactSonnetTuning(sonnetTuning, structuralTier),
+        [structuralTier, sonnetTuning],
     );
     const hostRef = useRef<HTMLDivElement>(null);
     const runtimeRef = useRef<SonnetPixiRuntime | null>(null);
@@ -65,6 +69,24 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
         album: songAlbum,
     };
     const [runtimeFailed, setRuntimeFailed] = useState(false);
+    const latestSceneInputsRef = useRef({
+        program,
+        theme,
+        tuning: effectiveSonnetTuning,
+        lyricsFontScale,
+        staticMode,
+        performanceTier,
+    });
+    latestSceneInputsRef.current = {
+        program,
+        theme,
+        tuning: effectiveSonnetTuning,
+        lyricsFontScale,
+        staticMode,
+        performanceTier,
+    };
+    const performanceTierRef = useRef(performanceTier);
+    performanceTierRef.current = performanceTier;
     const [isInstrumental, setIsInstrumental] = useState(false);
     const lyricsSig = lines.length === 0 ? '' : `${lines.length}|${lines[0]?.fullText ?? ''}`;
     const seedRef = useRef(seed);
@@ -133,23 +155,27 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
         let createdRuntime: SonnetPixiRuntime | null = null;
         const abortController = new AbortController();
         setRuntimeFailed(false);
+        // Creation-time inputs are read from the ref, not captured: the song, the theme or a tuning
+        // slider can move while Pixi is importing, and the live runtime is told about it below
+        // instead of being rebuilt.
+        const initialInputs = latestSceneInputsRef.current;
         void import('./createSonnetPixiRuntime')
             .then(({ SonnetPixiRuntime }) => {
                 const metadata = latestSongMetadataRef.current;
                 return SonnetPixiRuntime.create({
                     host,
-                    program,
-                    theme,
-                    tuning: effectiveSonnetTuning,
+                    program: initialInputs.program,
+                    theme: initialInputs.theme,
+                    tuning: initialInputs.tuning,
                     currentTime,
                     audioPower,
                     audioBands,
-                    lyricsFontScale,
-                    staticMode,
+                    lyricsFontScale: initialInputs.lyricsFontScale,
+                    staticMode: initialInputs.staticMode,
                     paused: pausedRef.current,
                     // Keep the complete Sonnet composition on touch viewports;
                     // compact mode only reduces renderer work and effect quality.
-                    performanceTier,
+                    performanceTier: initialInputs.performanceTier,
                     songTitle: metadata.title,
                     songArtist: metadata.artist,
                     songAlbum: metadata.album,
@@ -166,6 +192,9 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
                 runtime.setSongMetadata(latestSongMetadataRef.current);
                 // The pause state may have changed while Pixi was importing or initializing.
                 runtime.setPaused(pausedRef.current);
+                // Anything that moved during the import is applied in place, never by rebuilding.
+                runtime.setSceneInputs(latestSceneInputsRef.current);
+                runtime.setPerformanceTier(performanceTierRef.current);
             })
             .catch(error => {
                 if (error instanceof DOMException && error.name === 'AbortError') return;
@@ -184,15 +213,27 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
             }
             host.replaceChildren();
         };
-    }, [
-        currentTime,
-        lyricsFontScale,
-        program,
-        effectiveSonnetTuning,
-        performanceTier,
-        staticMode,
-        theme,
-    ]);
+        // Deliberately NOT song/theme/tuning/tier: those are pushed into the live runtime by the
+        // effects below. Listing them here is what used to destroy and re-create the whole WebGL
+        // context (a blank frame for the length of the async build) on every track change, theme
+        // switch and tier flip.
+    }, [audioBands, audioPower, currentTime]);
+
+    // Hot updates: the runtime keeps rendering on the same canvas while the song, theme, tuning,
+    // font scale or static mode move underneath it.
+    useEffect(() => {
+        runtimeRef.current?.setSceneInputs({
+            program: latestSceneInputsRef.current.program,
+            theme: latestSceneInputsRef.current.theme,
+            tuning: latestSceneInputsRef.current.tuning,
+            lyricsFontScale: latestSceneInputsRef.current.lyricsFontScale,
+            staticMode: latestSceneInputsRef.current.staticMode,
+        });
+    }, [program, theme, effectiveSonnetTuning, lyricsFontScale, staticMode]);
+
+    useEffect(() => {
+        runtimeRef.current?.setPerformanceTier(performanceTier);
+    }, [performanceTier]);
 
     useEffect(() => {
         runtimeRef.current?.setSongMetadata(latestSongMetadataRef.current);
@@ -219,7 +260,7 @@ const VisualizerSonnet: React.FC<VisualizerSharedProps> = (props) => {
             audioPower={audioPower}
             audioBands={audioBands}
             sharedProps={props}
-            performanceTier={performanceTier}
+            performanceTier={structuralTier}
         >
             <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
                 <div ref={hostRef} className="absolute inset-0 z-10" aria-hidden="true" />

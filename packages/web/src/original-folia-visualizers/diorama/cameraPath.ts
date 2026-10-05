@@ -693,6 +693,34 @@ export const resolveShotOffset = (kind: DioramaShotKind, ctx: DioramaShotContext
     };
 };
 
+/** How long a finished line is held before its shot starts resolving, and how long the resolve takes.
+ *
+ * 3s is not a taste number: `attachInterludes` fills every gap longer than 3s with an interlude line,
+ * and the diorama holds the read-head through interludes instead of framing them. So a hold that
+ * outlasts 3s is exactly a hold the lyric file itself calls a gap, and a shorter one cannot happen -
+ * the next line is already on its way. Below the threshold this returns exactly 1, so ordinary
+ * line-to-line playback is untouched to the pixel.
+ *
+ * Ported from Folia upstream (c0401f9e, src/components/visualizer/diorama/cameraPath.ts). Without it a
+ * held line freezes at its most extreme shot pose (progress pinned at 1, word truck at the end of the
+ * line, rule-of-thirds look offset applied) and the lyric parks against the edge of frame with nothing
+ * moving - which reads as the stage being stuck rather than the camera holding.
+ */
+const HOLD_SETTLE_DELAY = 3;
+const HOLD_SETTLE_EASE = 5;
+
+/**
+ * How much of a line's READING COMPOSITION still applies, `secondsHeld` after its reading window
+ * closed. 1 through the line and through any normal gap, easing to 0 once the camera has been parked
+ * on a finished line longer than the shot language has anything to say.
+ */
+export const resolveHoldSettle = (secondsHeld: number): number => {
+    // A non-finite end time (damaged timing data) must not poison the camera transform with NaN.
+    if (!Number.isFinite(secondsHeld)) return 1;
+    const t = clamp01((secondsHeld - HOLD_SETTLE_DELAY) / HOLD_SETTLE_EASE);
+    return 1 - t * t * (3 - 2 * t);
+};
+
 export interface DioramaCameraDrift {
     swayX: number;
     swayY: number;

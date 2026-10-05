@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas } from '@react-three/fiber';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { DEFAULT_DIORAMA_TUNING, type Line } from '../../types';
+import { isInterludeLine } from '../../utils/lyrics/parserCore';
 import { useVisualizerRuntime } from '../runtime';
 import { type VisualizerSharedProps } from '../definition';
 import VisualizerShell from '../VisualizerShell';
@@ -18,8 +19,7 @@ import {
     updateActiveSegmentLines,
 } from './dioramaSequencer';
 import { pickTransitionOffset, TRANSITION_DURATION } from './dioramaTransition';
-import { resolveCompactDioramaTuning, resolveStageFrameInterval, useStagePerformanceProfile } from '../../utils/stagePerformance';
-import type { StagePerformanceTier } from '../../utils/stagePerformance';
+import { resolveCompactDioramaTuning, useLatchedStageTier, useStagePerformanceProfile } from '../../utils/stagePerformance';
 
 // src/components/visualizer/diorama/VisualizerDiorama.tsx
 // A 3D "flythrough" style: lyric lines are actual staged text objects along a winding path in world
@@ -40,19 +40,6 @@ import type { StagePerformanceTier } from '../../utils/stagePerformance';
 // from the fog while the outgoing scene it is leaving recedes back into the fog: one continuous take, the
 // picture never hidden. During the ~2s flight BOTH scenes are mounted (see transitionOutgoingIndex).
 type VisualizerDioramaProps = VisualizerSharedProps;
-
-const DioramaFrameLimiter: React.FC<{ enabled: boolean; performanceTier: StagePerformanceTier }> = ({ enabled, performanceTier }) => {
-    const invalidate = useThree(state => state.invalidate);
-
-    useEffect(() => {
-        if (!enabled) return undefined;
-        invalidate();
-        const intervalId = window.setInterval(invalidate, resolveStageFrameInterval(performanceTier));
-        return () => window.clearInterval(intervalId);
-    }, [enabled, invalidate, performanceTier]);
-
-    return null;
-};
 
 // The mounted window reaches this far behind the current line (mirrors DioramaScene's LINES_BEHIND with
 // margin): segments whose lines are all further behind than this are safe to prune - but never while a
@@ -133,11 +120,15 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
     } = props;
     const { t } = useTranslation();
     const performanceProfile = useStagePerformanceProfile(paused);
-    const performanceTier = performanceProfile.tier;
-    const isCompactStage = performanceTier === 'compact';
+    // Structural decisions (canvas dpr/antialias, resident point budgets, the background's shader
+    // budget) follow the LOWEST tier this mount has settled on, never back up. The live tier still
+    // drives cheap per-frame knobs, but a stage that re-creates its canvas, its shaders or its scene
+    // windows every time the frame-budget observer changes its mind is a stage that stutters.
+    const structuralTier = useLatchedStageTier(performanceProfile.tier);
+    const isCompactStage = structuralTier === 'compact';
     const effectiveDioramaTuning = useMemo(
-        () => resolveCompactDioramaTuning(dioramaTuning ?? DEFAULT_DIORAMA_TUNING, performanceTier),
-        [dioramaTuning, performanceTier],
+        () => resolveCompactDioramaTuning(dioramaTuning ?? DEFAULT_DIORAMA_TUNING, structuralTier),
+        [dioramaTuning, structuralTier],
     );
 
     const { activeLine, recentCompletedLine, nextLines } = useVisualizerRuntime({
@@ -267,7 +258,24 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
     // makes the prune below drop the outgoing scene (it looks "already flown past"). It also then snaps back
     // to 0 a frame later, which the loop-restart test misreads as a loop.
     const instrumentalReadHead = instrumentalSeedRef.current === gatedSeed ? instrumentalIndex : 0;
-    const effectiveLineIndex = isInstrumental ? instrumentalReadHead : currentLineIndex;
+    // An INTERLUDE line ('......', which attachInterludes inserts into EVERY gap longer than 3s) is a
+    // placeholder, not a lyric - every other visualizer special-cases it (classic centres it, cadenza
+    // gives it its own drift, cappella swaps in an image). In a corridor the read-head IS the
+    // composition, so the diorama not special-casing it meant the camera left the line the viewer is
+    // reading, flew a full cinematic shot forward, and framed six dots for the length of the gap.
+    // That is what "the camera stops locking onto the lyric after a while" is: it is not drift, it is
+    // the camera being handed a new line to go and frame.
+    //
+    // Treat it exactly as the -1 the parent already sends mid-gap: the sticky index below keeps the
+    // last real line, and resolveHoldSettle then eases the shot back onto it. The interlude stays in
+    // the corridor (same geometry, same indices) - it just never becomes the thing being framed.
+    //
+    // Ported from Folia upstream (c0401f9e, src/components/visualizer/diorama/VisualizerDiorama.tsx).
+    const onInterlude = !isInstrumental
+        && currentLineIndex >= 0
+        && !!gatedLines[currentLineIndex]
+        && isInterludeLine(gatedLines[currentLineIndex]);
+    const effectiveLineIndex = isInstrumental ? instrumentalReadHead : onInterlude ? -1 : currentLineIndex;
 
     // ── Transition state machine (spawn-offset + camera flight) ──────────────────────────────────
     // The diorama gets no explicit "song changed"/"looped" event, so both are inferred here from the
@@ -406,17 +414,20 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
             audioPower={audioPower}
             audioBands={audioBands}
             sharedProps={props}
-            performanceTier={performanceTier}
+            performanceTier={structuralTier}
         >
             <div className="absolute inset-0 z-0">
                 <Canvas
                     camera={{ position: [0, 0.6, 9], fov: 55 }}
-                    frameloop={performanceTier === 'full' ? 'always' : 'demand'}
-                    dpr={performanceTier === 'compact' ? 1 : performanceTier === 'balanced' ? 1.5 : [1, 2]}
+                    // The 3D flythrough is the composition: it always renders continuously, like the
+                    // upstream stage. Throttling it through frameloop='demand' plus an interval (the
+                    // old compact/balanced path) produced visibly choppier camera work - and froze the
+                    // scene outright whenever the tier changed mid-playback.
+                    frameloop="always"
+                    dpr={structuralTier === 'compact' ? 1 : structuralTier === 'balanced' ? 1.5 : [1, 2]}
                     gl={{ alpha: true, antialias: !isCompactStage, powerPreference: 'high-performance' }}
                     style={{ background: 'transparent' }}
                 >
-                    <DioramaFrameLimiter enabled={!paused && performanceTier !== 'full'} performanceTier={performanceTier} />
                     <CameraRig
                         currentTime={currentTime}
                         sequencer={seq}
@@ -438,7 +449,7 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
                         audioBands={audioBands}
                         motion={motionParams}
                         showLyrics={showText}
-                        performanceTier={performanceTier}
+                        performanceTier={structuralTier}
                         geometryVisibility={effectiveDioramaTuning.geometryVisibility}
                         particleDensity={effectiveDioramaTuning.particleDensity}
                         particleScale={effectiveDioramaTuning.particleScale}
