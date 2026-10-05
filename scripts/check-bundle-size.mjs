@@ -19,11 +19,18 @@ const BUDGETS = [
   // ships in this chunk because the legal routes resolve `t()` from the shared
   // resources. Moving that copy into route-level resource bundles would let this
   // budget come back down.
-  // Bumped 390 → 394 KiB for the stage-overlay settings card: the shell was already
-  // sitting exactly on 390.0, so the ~20 new user-facing strings (both locales,
-  // already trimmed to one short hint each) pushed it to 391.9. Same root cause as
-  // the bump above, and the same route-level split would reclaim it.
-  { prefix: 'index-', name: 'app shell (index)', maxKb: 394 },
+  // Bumped 390 → 394 KiB for the stage-overlay settings card, then 394 → 397 for the
+  // word-segmentation panel's copy. Both are the same root cause and neither is real
+  // weight: ~2 kB of user-facing strings per feature, two locales, all of it in this
+  // chunk. Cumulative cost so far: 390.0 → 394.5 KiB, i.e. this budget is now the
+  // window on an i18n architecture problem rather than on app growth.
+  //
+  // The fix is the one the comment above already names: move locale copy out of the
+  // shared resources into route-level bundles (the player's panel strings belong to
+  // the lazily loaded player chunk, which is where the panel itself already lives).
+  // ~7 KiB comes back, and this budget stops being raised for content it should
+  // never have carried. Tracked in docs/echora-gap-analysis.zh-TW.md ("i18n 分區載入").
+  { prefix: 'index-', name: 'app shell (index)', maxKb: 397 },
   { prefix: 'three-runtime-', name: 'three-runtime', maxKb: 950 },
   { prefix: 'sonnet-scene-', name: 'sonnet-scene', maxKb: 2500 },
   { prefix: 'stage-runtime-', name: 'stage-runtime', maxKb: 200 },

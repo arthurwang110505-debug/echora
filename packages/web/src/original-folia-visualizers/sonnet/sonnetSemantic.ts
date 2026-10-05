@@ -1,38 +1,16 @@
 import type { Line } from '../../types';
 import { buildLineGraphemeTimeline, splitLyricGraphemes } from '../../utils/lyrics/graphemeTiming';
+import { segmentLyricWords } from '../../lyrics/wordSegmentation';
 import type { SonnetSemanticSegment } from './types';
 
 // src/components/visualizer/sonnet/sonnetSemantic.ts
 // Produces lossless semantic segments while mapping display offsets to parser-derived grapheme timing.
+//
+// The word split itself is not decided here: `segmentLyricWords` owns it, so this mode reads the
+// user's saved segmentation (AI or hand-edited) exactly like classic and partita do. Before that, a
+// local Segmenter call meant an override would have been honoured in some modes and ignored in
+// others — which reads as a bug in the feature, not in the mode.
 const PUNCTUATION_ONLY = /^[\s\p{P}\p{S}]+$/u;
-
-interface SegmenterPart {
-    segment: string;
-    index: number;
-    isWordLike?: boolean;
-}
-
-const getSegmenterParts = (text: string): SegmenterPart[] => {
-    const Segmenter = typeof Intl !== 'undefined' ? Intl.Segmenter : undefined;
-    if (Segmenter) {
-        try {
-            return Array.from(new Segmenter(undefined, { granularity: 'word' }).segment(text), part => ({
-                segment: part.segment,
-                index: part.index,
-                isWordLike: part.isWordLike,
-            }));
-        } catch {
-            // The grapheme fallback below preserves every code unit and the line timing.
-        }
-    }
-
-    let cursor = 0;
-    return splitLyricGraphemes(text).map(segment => {
-        const part = { segment, index: cursor, isWordLike: !PUNCTUATION_ONLY.test(segment) };
-        cursor += segment.length;
-        return part;
-    });
-};
 
 const getGraphemeRanges = (text: string) => {
     let cursor = 0;
@@ -70,7 +48,7 @@ export const buildSonnetSemanticSegments = (line: Line): SonnetSemanticSegment[]
     if (!line.fullText) return [];
     const timeline = buildLineGraphemeTimeline(line);
     const ranges = getGraphemeRanges(line.fullText);
-    const parts = getSegmenterParts(line.fullText);
+    const parts = segmentLyricWords(line);
     const segments = parts.map((part, index) => {
         const startOffset = part.index;
         const endOffset = parts[index + 1]?.index ?? line.fullText.length;

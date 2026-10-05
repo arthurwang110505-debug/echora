@@ -14,6 +14,7 @@ import { adjustLyricsOffset, getActiveLyricIndex, LYRICS_OFFSET_STEP_SECONDS } f
 import { lazyWithRetry } from '../utils/recovery';
 import { pickAutoVisualizerMode, resolveStageAudioBands, visualizerEnergy } from '../playback/audioBands';
 import { useObsStagePublisher } from '../obs/useObsStagePublisher';
+import { useLineSplitPreview, useLyricSegmentation, useSegmentedLyrics } from '../hooks/useLyricSegmentation';
 import { sampleLocalAudioBands } from '../playback/localAudioAnalyser';
 import { VOLUME_STEP } from '../playback/volumeState';
 import { isYouTubeVideo } from '../utils/youtubePlayback';
@@ -316,16 +317,26 @@ export default function Player() {
   }, [displayMode, showPlaylistDrawer]);
 
 
+  // Word segmentation: the saved split (AI or hand-edited) baked onto the lines it still matches.
+  // One memo here feeds every visualizer and the overlay, which is why the override is applied at
+  // this level rather than inside each mode.
+  const segmentedLyrics = useSegmentedLyrics();
+  const stageLines = segmentedLyrics?.lines || [];
+  const segmentation = useLyricSegmentation();
+
   // Use the same offset-aware clock for the player chrome and every visualizer mode.
   const activeLineIndex = useMemo(() => {
     const playbackTime = (isSeeking && seekPreviewTime !== null) ? seekPreviewTime : currentTime;
     return getActiveLyricIndex({
-      lines: currentLyrics?.lines || [],
+      lines: stageLines,
       currentTimeSeconds: playbackTime,
       durationSeconds: duration,
       offsetSeconds: lyricsOffsetSeconds,
     });
-  }, [currentLyrics, currentTime, isSeeking, seekPreviewTime, duration, lyricsOffsetSeconds]);
+  }, [stageLines, currentTime, isSeeking, seekPreviewTime, duration, lyricsOffsetSeconds]);
+
+  const activeStageLine = activeLineIndex >= 0 ? stageLines[activeLineIndex] ?? null : null;
+  const activeLineSplit = useLineSplitPreview(activeStageLine);
 
   if (!currentSong && !hasHydrated) {
     return <PlayerSkeleton />;
@@ -384,7 +395,7 @@ export default function Player() {
     backgroundMode,
     visualizerTunings,
     theme: currentTheme,
-    lyrics: currentLyrics?.lines || [],
+    lyrics: stageLines,
     song: currentSong ? {
       title: currentSong.title,
       artist: activeArtist,
@@ -541,7 +552,7 @@ export default function Player() {
             ) : (
               <Suspense fallback={<StageSkeleton />}>
                 <OriginalFoliaVisualizerStage
-                  lines={currentLyrics?.lines || []}
+                  lines={stageLines}
                   activeLineIndex={activeLineIndex}
                   displayedTime={displayedLyricsTime}
                   isPlaying={isPlaying}
@@ -684,6 +695,9 @@ export default function Player() {
               onImportLyrics: importLyricsText,
               onAdjustOffset: adjustStageLyricsOffset,
               onResetOffset: resetStageLyricsOffset,
+              segmentation,
+              activeLineSplit,
+              activeLineText: activeStageLine?.fullText ?? null,
             }}
             controls={{
               // Volume is chrome-only furniture; the stage keeps it keyboard-only (↑ / ↓ / M).

@@ -8,6 +8,7 @@ import UnifiedPanel, { type PanelTab } from './UnifiedPanel';
 import type { AccountTabProps } from './AccountTab';
 import type { ControlsTabProps } from './ControlsTab';
 import type { LyricsTabProps } from './LyricsTab';
+import type { LyricSegmentationController } from '../../../hooks/useLyricSegmentation';
 import type { QueueTabProps } from './QueueTab';
 
 const t = (key: string) => i18n.t(key);
@@ -23,6 +24,26 @@ const song = (id: string, title: string): Song => ({
 
 const QUEUE = [song('1', '第一首'), song('2', '第二首'), song('3', '第三首')];
 
+// The 歌詞資訊 tab hosts the word-segmentation block; this is the controller it hands down.
+const makeSegmentation = (overrides: Partial<LyricSegmentationController> = {}): LyricSegmentationController => ({
+  hasRecord: false,
+  source: null,
+  appliedCount: 0,
+  lineCount: 2,
+  isSegmenting: false,
+  progress: null,
+  error: null,
+  notice: null,
+  promptText: 'prompt',
+  exportText: '把/回忆',
+  runAi: vi.fn(),
+  copyPrompt: vi.fn(async () => true),
+  applyImport: vi.fn(() => ({ ok: true })),
+  reset: vi.fn(),
+  dismissMessages: vi.fn(),
+  ...overrides,
+});
+
 const makeLyrics = (overrides: Partial<LyricsTabProps> = {}): LyricsTabProps => ({
   isMatching: false,
   statusTitle: '已找到歌詞',
@@ -33,6 +54,9 @@ const makeLyrics = (overrides: Partial<LyricsTabProps> = {}): LyricsTabProps => 
   onImportLyrics: vi.fn(() => true),
   onAdjustOffset: vi.fn(),
   onResetOffset: vi.fn(),
+  segmentation: makeSegmentation(),
+  activeLineSplit: [],
+  activeLineText: null,
   ...overrides,
 });
 

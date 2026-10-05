@@ -726,5 +726,38 @@
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
     "backToApp": "Back to app"
+  },
+  "lyricSegmentation": {
+    "title": "Word split",
+    "hint": "Group lyrics into words; CJK typography and per-word animation read this.",
+    "statusDefault": "Default split (Intl.Segmenter).",
+    "statusAi": "AI split applied to {{count}} lines.",
+    "statusManual": "Your split applied to {{count}} lines.",
+    "running": "Splitting… {{done}}/{{total}} lines",
+    "runAi": "Split with AI",
+    "copyPrompt": "Copy prompt",
+    "promptCopied": "Prompt copied. Paste the answer below.",
+    "promptLabel": "Segmentation prompt",
+    "reset": "Reset",
+    "resetDone": "Back to the default split.",
+    "preview": "Current line",
+    "pasteTitle": "Paste an answer",
+    "pasteHint": "One row per line, words split by /. JSON works too.",
+    "pastePlaceholder": "把/回忆/拼好/给/你",
+    "apply": "Apply",
+    "loadCurrent": "Load current split",
+    "importDone": "Applied to {{count}} lines.",
+    "importRowMismatch": "Row {{row}} does not rebuild its lyric line.",
+    "aiDone": "AI split applied to {{count}} lines.",
+    "aiPartial": "Applied to {{count}} lines; {{failed}} request(s) failed (those keep the default split).",
+    "aiFailed": "AI segmentation failed.",
+    "copyFailed": "Could not copy; select the prompt below.",
+    "importError": {
+      "empty": "Nothing to apply.",
+      "invalid-json": "That is not valid JSON.",
+      "line-count-mismatch": "The number of rows does not match the lyrics.",
+      "line-text-mismatch": "A row does not rebuild its lyric line."
+    },
+    "invalid-json": "That is not valid JSON."
   }
 }

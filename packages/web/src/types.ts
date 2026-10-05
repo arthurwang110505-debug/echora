@@ -56,6 +56,8 @@ export interface Line {
   endTime: number;
   fullText: string;
   translation?: string;
+  /** See the same field on the core Line: the user's saved word boundaries for this line. */
+  wordSegments?: string[];
   id?: string;
   agentId?: string;
   songPart?: string;

@@ -726,5 +726,38 @@
     "privacy": "隱私權政策",
     "terms": "服務條款",
     "backToApp": "回到播放器"
+  },
+  "lyricSegmentation": {
+    "title": "詞切分",
+    "hint": "把歌詞切成詞，CJK 排版與逐詞動畫都讀它。",
+    "statusDefault": "預設切分（Intl.Segmenter）。",
+    "statusAi": "AI 切分已套用於 {{count}} 行。",
+    "statusManual": "你的切分已套用於 {{count}} 行。",
+    "running": "切分中… {{done}}/{{total}} 行",
+    "runAi": "用 AI 切分",
+    "copyPrompt": "複製 prompt",
+    "promptCopied": "prompt 已複製，把模型的回答貼到下面。",
+    "promptLabel": "詞切分 prompt",
+    "reset": "重設",
+    "resetDone": "已回到預設切分。",
+    "preview": "目前這行",
+    "pasteTitle": "貼上結果",
+    "pasteHint": "一行歌詞一列，詞用 / 分隔；JSON 也可以。",
+    "pastePlaceholder": "把/回忆/拼好/给/你",
+    "apply": "套用",
+    "loadCurrent": "載入目前切分",
+    "importDone": "已套用於 {{count}} 行。",
+    "importRowMismatch": "第 {{row}} 列無法還原它對應的歌詞行。",
+    "aiDone": "AI 切分已套用於 {{count}} 行。",
+    "aiPartial": "已套用 {{count}} 行；{{failed}} 個請求失敗（那些行維持預設）。",
+    "aiFailed": "AI 詞切分失敗。",
+    "copyFailed": "無法複製，請選取下面的 prompt。",
+    "importError": {
+      "empty": "沒有可套用的內容。",
+      "invalid-json": "這不是有效的 JSON。",
+      "line-count-mismatch": "列數與歌詞行數不符。",
+      "line-text-mismatch": "有列無法還原它對應的歌詞行。"
+    },
+    "invalid-json": "不是有效的 JSON。"
   }
 }

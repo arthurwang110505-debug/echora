@@ -17,7 +17,8 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@echora/core": ["../core/src/index.ts"]
+      "@echora/core": ["../core/src/index.ts"],
+      "@shared/*": ["../../shared/*"]
     }
   },
   "include": ["src"],

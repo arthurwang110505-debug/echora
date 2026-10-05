@@ -115,7 +115,10 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: {
-        '@echora/core': resolve(__dirname, '../core/src/index.ts')
+        '@echora/core': resolve(__dirname, '../core/src/index.ts'),
+        // The segmentation prompt/parser the serverless endpoint also imports. One module, so the
+        // "run it for me" and "give me the prompt" paths cannot ask for different things.
+        '@shared': resolve(__dirname, '../../shared')
       }
     },
     build: {

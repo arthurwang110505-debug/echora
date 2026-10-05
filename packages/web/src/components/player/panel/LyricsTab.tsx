@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { FileDown, Search } from 'lucide-react';
 import type { LyricOrigin } from '@echora/core';
 import LyricsOffsetPanel from '../LyricsOffsetPanel';
+import LyricSegmentationPanel from '../LyricSegmentationPanel';
+import type { LyricSegmentationController } from '../../../hooks/useLyricSegmentation';
 
 // src/components/player/panel/LyricsTab.tsx
 // 歌詞資訊 tab: the three things upstream offers for the playing song — kick off an online
@@ -19,6 +21,10 @@ export type LyricsTabProps = {
   onImportLyrics: (raw: string) => boolean;
   onAdjustOffset: (deltaSeconds: number) => void;
   onResetOffset: () => void;
+  segmentation: LyricSegmentationController;
+  /** Split of the line being sung, and its text, for the panel's live preview. */
+  activeLineSplit: string[];
+  activeLineText: string | null;
 };
 
 export default function LyricsTab({
@@ -32,6 +38,9 @@ export default function LyricsTab({
   onImportLyrics,
   onAdjustOffset,
   onResetOffset,
+  segmentation,
+  activeLineSplit,
+  activeLineText,
 }: LyricsTabProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState('');
@@ -105,6 +114,12 @@ export default function LyricsTab({
           </button>
         </div>
       </div>
+
+      <LyricSegmentationPanel
+        segmentation={segmentation}
+        activeLineSplit={activeLineSplit}
+        activeLineText={activeLineText}
+      />
 
       <div className="rounded-xl border border-white/10 bg-black/15 px-3 py-2.5">
         <LyricsOffsetPanel

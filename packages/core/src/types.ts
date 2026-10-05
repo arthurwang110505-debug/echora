@@ -124,6 +124,12 @@ export interface Line {
   fullText: string;
   translation?: string;
   romanization?: string;
+  /**
+   * The user's saved word boundaries for this line, from the word-segmentation panel (AI or hand
+   * edited). Always concatenates back to `fullText`; an array that does not is ignored, because a
+   * stale split applied at an offset is worse than the default one. See src/lyrics/wordSegmentation.ts.
+   */
+  wordSegments?: string[];
   alternateTexts?: LyricAlternateText[];
   renderHints?: LineRenderHints;
   isChorus?: boolean;

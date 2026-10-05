@@ -113,7 +113,10 @@ Echora 內已存在這些檔案：
 
 ## 4. 歌詞／資料 plumbing 的深度
 
-- **詞級切分（明顯缺口）**：上游有 `wordSegmentation.ts`（`Intl.Segmenter` + 使用者為該首歌存過的細分詞），以及 **AI 切分**（`lyricSegmentation.ts` / `lyricSegmentationAi.ts` + `api/segment-lyrics`，桌面走 IPC、web 走自家端點，而且「幫我跑」與「給我 prompt 自己貼」共用同一個 prompt 模組）。Echora grep `wordSegmentation` = **0**；sonnet 內部雖然用了 `Intl.Segmenter`，但沒有使用者可調的細分詞，也沒有 AI 切分。**這對 CJK 排版品質影響最直接。**
+- **詞級切分（明顯缺口）— 已完成第一輪** ✅：上游有 `wordSegmentation.ts`（`Intl.Segmenter` + 使用者為該首歌存過的細分詞），以及 **AI 切分**（`lyricSegmentation.ts` / `lyricSegmentationAi.ts` + `api/segment-lyrics`，桌面走 IPC、web 走自家端點，而且「幫我跑」與「給我 prompt 自己貼」共用同一個 prompt 模組）。
+  Echora 原本 grep `wordSegmentation` = **0**，而且有**三份**各自為政的 `Intl.Segmenter` 呼叫（`sonnetSemantic.ts`、`cjkSemanticLayout.ts`、`localDemoSongs.ts`）—— 正是上游那個檔案開頭在講的狀況。
+  現在：單一 `src/lyrics/wordSegmentation.ts`、per-song 的切分紀錄（AI／手動）、`api/ai/segment.ts` + 根目錄 `shared/segmentationPrompt.ts` 共用 prompt，以及掛在「歌詞資訊」面板上的 UI。
+  實作與用法見 [`docs/lyric-segmentation.zh-TW.md`](./lyric-segmentation.zh-TW.md)。
 - **線上來源覆蓋**：上游有 網易雲／QQ／酷狗／Navidrome／本地／波點(bodian)／Now Playing；Echora 有 Spotify／YouTube Music／lrclib／QQ／酷狗／AMLL。缺 **Navidrome** 與網易雲。
 - **歌詞匯出**：上游有 `services/lyricExport`（含測試）；Echora grep `lyricExport` = **0**（有格式偵測與解析，但沒有匯出流程）。
 - **逐字格式**：QQ(qrc)／酷狗(krc)／AMLL TTML 都有 —— 這塊 Echora 不缺。
@@ -129,7 +132,8 @@ Echora 內已存在這些檔案：
 | 量測 runner | `playwright.probe.config.ts`，**刻意單 worker**：「只有在機器不忙的時候，render count 才可歸因」 | 無 |
 | 程式碼地圖 | `docs/CODEMAP.md` 由 TS 編譯器 + 模組圖**生成**、CI 比對；刻意只報**量級**（`512+`）避免每次檔案變動都產生無意義 commit；精確數字用 `ts-code-map` CLI／MCP 按需查 | 無 |
 | AI 協作規範 | `AGENTS.md` + `skills/*/SKILL.md`（含 file-modularization、glossary 對齊、runtime guardrails） | 無 |
-| 決策文件 | 每個模式一份「為什麼」的規格（`tempera/README.md` 幾乎是設計文件，含被否決的替代方案與接受的取捨） | `docs/` 3 份（本次新增 2 份） |
+| 決策文件 | 每個模式一份「為什麼」的規格（`tempera/README.md` 幾乎是設計文件，含被否決的替代方案與接受的取捨） | `docs/` 5 份 |
+| i18n 分區載入 | — | **待做**：兩個語系的全部文案都進 app shell（已因此三次調升 `index` 預算：360 → 390 → 394 → 397 KiB）。把各路由的文案改成 route-level bundle，約可回收 7 KiB，並讓預算重新反映真正的程式成長 |
 
 ---
 
@@ -147,8 +151,10 @@ Echora 內已存在這些檔案：
    與上游的差異：**沒有** `player/search`、`player/play`（點歌需要回播放器的控制通道，尚未做），
    也**沒有**透明 MOV 匯出（上游靠 Electron 主程序）。
 
-3. **詞切分（含 AI）+ 歌詞品質**（使用者最有感、工程量小）
-   對 CJK 排版直接有效，且上游有現成的 prompt 模組可抄。
+3. **詞切分（含 AI）+ 歌詞品質**（使用者最有感、工程量小）— **已完成第一輪** ✅
+   單一 segmenter、per-song 切分紀錄、AI 切分（共用 prompt 模組）、面板 UI；
+   sonnet／classic／partita 三個渲染路徑都會讀使用者的切分。
+   尚未做：逐行編輯器（目前是文字列格式）、上游的 `lyricExport`。
 
 4. **`tempera` / `lumiere`**（視覺最炫，但要先有 1）
    兩者加起來 23,000 行，是上游「歌詞 PV 引擎」的真正核心。
@@ -161,5 +167,6 @@ Echora 內已存在這些檔案：
 
 Echora 缺的不是功能數量，而是三件事：**（a）把渲染器當引擎而不是當元件**、**（b）把舞台當基礎設施而不是當頁面**、**（c）把效能決策當量測而不是當直覺**。
 目前 Echora 已經有 11 個模式、6 種背景與一批相當完整的 helper —— 缺的是把它們串成上游那種「可以給別人用」的產品。
-第 1、2 項（引擎化＋量測、Stage API＋OBS 輸出）已完成第一輪：舞台現在**可以被外部工具用**，
-而且它的效能有數字可以查。下一步是第 3 項（詞切分）。
+第 1、2、3 項（引擎化＋量測、Stage API＋OBS 輸出、詞切分＋AI）都已完成第一輪：
+舞台現在**可以被外部工具用**、它的效能有數字可以查，而且**CJK 的排版切分可以由使用者或模型決定**。
+下一步是第 4 項（`tempera` / `lumiere`）。

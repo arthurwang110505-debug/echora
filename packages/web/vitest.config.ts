@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@echora/core': resolve(root, '../core/src/index.ts'),
+      '@shared': resolve(root, '../../shared'),
     },
   },
   test: {
