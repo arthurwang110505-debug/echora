@@ -6,6 +6,8 @@ import Welcome, { WELCOME_APP_TARGET, WELCOME_DEMO_TARGET } from './Welcome';
 import KaraokeLine from '../components/landing/KaraokeLine';
 import zhTW from '../i18n/locales/zh-TW.json';
 import { LANDING_FEATURES, MODE_SCENES } from '../components/landing/landingContent';
+import { VISUALIZER_OPTIONS } from '../components/player/panel/stageOptions';
+import en from '../i18n/locales/en.json';
 import { LANDING_HANDOFF_KEY } from '../utils/landingHandoff';
 
 vi.mock('react-router-dom', () => ({
@@ -126,13 +128,24 @@ describe('Landing stage (Welcome) mounted smoke', () => {
     const container = mount(<Welcome />);
     const acts = Array.from(container.querySelectorAll('[data-act]')).map(act => act.getAttribute('data-act'));
     expect(acts).toEqual(['overture', 'modes', 'features', 'manifesto', 'finale']);
-    // The Modes act renders Echora's real visualizer engines on a canvas and
-    // lists every mode as a progress step.
-    expect(container.querySelectorAll('[data-act="modes"] canvas').length).toBe(1);
+    // The Modes act hosts the player's real stage (mounted lazily once it is
+    // near the viewport) and lists every mode as a progress step.
+    expect(container.querySelector('[data-act="modes"] [data-live-stage]')).toBeTruthy();
     expect(container.querySelectorAll('[data-act="modes"] ol li').length).toBe(MODE_SCENES.length);
     expect(container.textContent).toContain(MODE_SCENES[0].name);
     // The features act is a horizontal cue sheet with every feature card.
     expect(container.querySelectorAll('[data-act="features"] article').length).toBe(LANDING_FEATURES.length);
+  });
+
+  it('promises exactly the stage modes the player offers, in the same order', () => {
+    expect(MODE_SCENES.map(scene => scene.id)).toEqual(VISUALIZER_OPTIONS.map(option => option.value));
+    expect(MODE_SCENES.map(scene => scene.name)).toEqual(VISUALIZER_OPTIONS.map(option => option.label));
+    // Every mode has copy in both locales.
+    for (const scene of MODE_SCENES) {
+      const key = scene.descriptionKey.replace('welcome.', '') as keyof typeof zhTW.welcome;
+      expect(zhTW.welcome[key]).toBeTruthy();
+      expect(en.welcome[key]).toBeTruthy();
+    }
   });
 
   it('exposes sound as an explicit opt-in (never autoplay) with a pressed-state toggle', () => {

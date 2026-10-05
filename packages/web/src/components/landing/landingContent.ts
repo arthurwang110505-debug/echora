@@ -1,5 +1,6 @@
 import type { ThemeConfig } from '@echora/core';
 import { ListMusic, Mic2, MonitorSmartphone, Palette, Command, type LucideIcon } from 'lucide-react';
+import { VISUALIZER_OPTIONS } from '../player/panel/stageOptions';
 
 /**
  * Content for the landing's acts. Mode scenes map onto the real
@@ -9,10 +10,10 @@ import { ListMusic, Mic2, MonitorSmartphone, Palette, Command, type LucideIcon }
  */
 
 export interface ModeScene {
+  /** Real player stage id (see `VISUALIZER_OPTIONS`). */
   id: string;
-  /** Display name (the player lists engines by their English name). */
+  /** Display name exactly as the player's stage picker lists it. */
   name: string;
-  nameZh: string;
   descriptionKey: string;
   theme: ThemeConfig;
 }
@@ -25,15 +26,34 @@ const theme = (name: string, accentColor: string, primaryColor: string, secondar
   secondaryColor,
 });
 
-export const MODE_SCENES: ModeScene[] = [
-  { id: 'liuguang', name: 'Liuguang', nameZh: '流光', descriptionKey: 'welcome.modeLiuguang', theme: theme('Liuguang', '#62f5c4', '#6366f1', '#22d3ee') },
-  { id: 'xinxiang', name: 'Xinxiang', nameZh: '心象', descriptionKey: 'welcome.modeXinxiang', theme: theme('Xinxiang', '#a5b4fc', '#22d3ee', '#f0abfc') },
-  { id: 'fuguang', name: 'Fuguang', nameZh: '浮光', descriptionKey: 'welcome.modeFuguang', theme: theme('Fuguang', '#c4b5fd', '#62f5c4', '#fda4af') },
-  { id: 'yinlang', name: 'Yinlang', nameZh: '音浪', descriptionKey: 'welcome.modeYinlang', theme: theme('Yinlang', '#38bdf8', '#f472b6', '#fde68a') },
-  { id: 'xingchen', name: 'Xingchen', nameZh: '星辰', descriptionKey: 'welcome.modeXingchen', theme: theme('Xingchen', '#fde68a', '#818cf8', '#62f5c4') },
-  { id: 'shengtai', name: 'Shengtai', nameZh: '生態', descriptionKey: 'welcome.modeShengtai', theme: theme('Shengtai', '#86efac', '#2dd4bf', '#fbbf24') },
-  { id: 'moli', name: 'Moli', nameZh: '魔力', descriptionKey: 'welcome.modeMoli', theme: theme('Moli', '#f0abfc', '#62f5c4', '#60a5fa') },
-];
+/** One palette per real stage mode; the page relights with it while that mode is on stage. */
+const MODE_PALETTES: Record<string, [accent: string, primary: string, secondary: string]> = {
+  classic: ['#62f5c4', '#6366f1', '#22d3ee'],
+  cadenza: ['#a5b4fc', '#22d3ee', '#f0abfc'],
+  partita: ['#fde68a', '#818cf8', '#62f5c4'],
+  fume: ['#cbd5e1', '#64748b', '#a5b4fc'],
+  monet: ['#c4b5fd', '#62f5c4', '#fda4af'],
+  cappella: ['#f5f5f4', '#a8a29e', '#62f5c4'],
+  pendolo: ['#fbbf24', '#f472b6', '#38bdf8'],
+  sonnet: ['#fda4af', '#c084fc', '#fde68a'],
+  claddagh: ['#86efac', '#2dd4bf', '#fbbf24'],
+  diorama: ['#38bdf8', '#f472b6', '#fde68a'],
+  tilt: ['#f0abfc', '#62f5c4', '#60a5fa'],
+};
+
+/**
+ * The Modes act walks the player's real stage picker — same ids, same names,
+ * same order — so what the landing promises is exactly what /player offers.
+ */
+export const MODE_SCENES: ModeScene[] = VISUALIZER_OPTIONS.map(option => {
+  const [accent, primary, secondary] = MODE_PALETTES[option.value] ?? MODE_PALETTES.classic;
+  return {
+    id: option.value,
+    name: option.label,
+    descriptionKey: `welcome.mode_${option.value}`,
+    theme: theme(option.label, accent, primary, secondary),
+  };
+});
 
 export interface LandingFeature {
   icon: LucideIcon;

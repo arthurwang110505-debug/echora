@@ -11,7 +11,7 @@ import { CoverImage } from '../components/LoadingSkeletons';
 import BrandMark from '../components/BrandMark';
 import StageLightCanvas from '../components/landing/StageLightCanvas';
 import SyncedLyric from '../components/landing/SyncedLyric';
-import ModeCanvas from '../components/landing/ModeCanvas';
+import LiveStage from '../components/landing/LiveStage';
 import MagneticButton from '../components/landing/MagneticButton';
 import ScrollTextReveal from '../components/landing/ScrollTextReveal';
 import { LANDING_FEATURES, MODE_SCENES } from '../components/landing/landingContent';
@@ -31,8 +31,10 @@ export const WELCOME_APP_TARGET = '/app';
 
 /** The song the landing performs: the first showcase track. */
 const SHOW_SONG: LocalDemoSong = LOCAL_DEMO_SONGS[0];
-/** Demo transcripts store milliseconds; the lyric stage reads seconds like the player clock. */
-const SHOW_LYRICS: LyricLine[] = (LOCAL_DEMO_LYRICS[SHOW_SONG.id]?.lines ?? []).map(line => ({
+/** The real stage consumes the transcript as-is (milliseconds). */
+const SHOW_STAGE_LINES = LOCAL_DEMO_LYRICS[SHOW_SONG.id]?.lines ?? [];
+/** The landing's own lyric stage reads seconds like the player clock. */
+const SHOW_LYRICS: LyricLine[] = SHOW_STAGE_LINES.map(line => ({
   time: line.startTime / 1000,
   text: line.fullText,
   words: line.words.map(word => ({ time: word.startTime / 1000, end: word.endTime / 1000, text: word.text })),
@@ -72,7 +74,6 @@ export default function Welcome() {
   const { engine, status, soundEnabled } = useLandingAudio(SHOW_SONG.audioUrl ?? '', SHOW_SONG.durationMs ?? 120000);
   const getTime = useCallback(() => engine.getTime(), [engine]);
   const getEnergy = useCallback(() => engine.getEnergy(), [engine]);
-  const getProgress = useCallback(() => 0.5 + engine.getEnergy() * 0.5, [engine]);
 
   useLenis();
 
@@ -155,7 +156,7 @@ export default function Welcome() {
       ScrollTrigger.create({
         trigger: modes,
         start: 'top top',
-        end: `+=${modeCount * 70}%`,
+        end: `+=${modeCount * 60}%`,
         pin: true,
         scrub: true,
         anticipatePin: 1,
@@ -356,8 +357,16 @@ export default function Welcome() {
         {/* ================= ACT II — MODES ================= */}
         <section ref={modesRef} data-act="modes" className="relative h-[100svh] min-h-[560px] overflow-hidden" aria-label={t('welcome.actModesKicker')}>
           <div className="absolute inset-0" aria-hidden="true">
-            <ModeCanvas modeId={activeMode.id} theme={modeTheme} getProgress={getProgress} className="h-full w-full" />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#07090e] via-transparent to-[#07090e]" />
+            <LiveStage
+              mode={activeMode.id}
+              theme={modeTheme}
+              lines={SHOW_STAGE_LINES}
+              engine={engine}
+              coverUrl={SHOW_SONG.coverUrl}
+              songTitle={SHOW_SONG.title}
+              songArtist={artistName(SHOW_SONG)}
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#07090e] via-transparent to-[#07090e]" />
           </div>
           <div className="relative z-10 mx-auto flex h-full max-w-[1320px] flex-col justify-between px-5 pb-10 pt-[96px] sm:px-8">
             <div data-modes-copy>
@@ -371,10 +380,7 @@ export default function Welcome() {
                 <p className="font-heading text-[clamp(3.4rem,14vw,11rem)] font-black leading-[0.85] tracking-[-0.05em] text-white" style={{ textShadow: '0 0 60px var(--stage-accent)' }}>
                   {activeMode.name}
                 </p>
-                <p className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-300">
-                  <span className="font-heading text-xl font-extrabold text-white">{activeMode.nameZh}</span>
-                  <span className="text-slate-400">{t(activeMode.descriptionKey)}</span>
-                </p>
+                <p className="mt-3 max-w-md text-sm text-slate-300">{t(activeMode.descriptionKey)}</p>
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <span className="glass-pill rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">

@@ -10,11 +10,11 @@ test.describe('Echora smoke paths', () => {
   test('landing acts are scroll-driven: scrubbing the Modes act relights the stage', async ({ page }) => {
     await page.goto('/');
     const modes = page.locator('[data-act="modes"]');
-    await expect(modes).toContainText('Liuguang');
+    await expect(modes).toContainText('Classic');
     // Scroll deep into the pinned Modes act; the mode on stage must advance.
     await page.evaluate(() => window.scrollTo(0, window.innerHeight * 5.5));
     await page.waitForTimeout(600);
-    await expect(modes).not.toContainText('模式 1 / 7');
+    await expect(modes).not.toContainText('模式 1 /');
   });
 
   test('landing page links the policies Google verification asks for', async ({ page }) => {
