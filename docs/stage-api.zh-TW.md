@@ -178,7 +178,8 @@ curl -N "http://127.0.0.1:32107/obs/events?token=my-secret"
   註：該腳本量的是 bytes/1024（KiB），Vite 印的是 kB，兩者數字不同，別誤判。
 - `pnpm bench`（Sonnet 編譯）median 27.6 ms / 90 ms 預算 —— relay 與 overlay 不影響主執行緒。
 - 測試：`src/obs/protocol.test.ts`（18，純函式與 URL 契約）、
-  `src/obs/stageRelay.test.ts`（13，對真的 HTTP 伺服器與真的 SSE 連線）。
+  `src/obs/stageRelay.test.ts`（13，對真的 HTTP 伺服器與真的 SSE 連線）、
+  `src/obs/broadcast.test.ts`（3，同瀏覽器傳輸的來回傳遞），共 34 條。
 
 ### relay 修掉的真實 bug（由新測試抓到）
 
