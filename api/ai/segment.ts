@@ -34,7 +34,9 @@ type ApiRequest = IncomingMessage & {
 
 type SegmentRequest = { lines?: unknown };
 
-const AGNES_BASE_URL = 'https://apihub.agnes-ai.com/v1';
+// Overridable so `pnpm dev` + a local stub can exercise the whole path (client, proxy, prompt,
+// parser) without a real key. Unset in production, where the default applies.
+const AGNES_BASE_URL = process.env.AGNES_BASE_URL || 'https://apihub.agnes-ai.com/v1';
 const AGNES_MODEL = process.env.AGNES_MODEL || 'agnes-2.0-flash';
 
 const MAX_LINES = 400;

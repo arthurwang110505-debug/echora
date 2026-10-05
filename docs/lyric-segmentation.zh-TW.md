@@ -116,6 +116,16 @@ ECHORA_ALLOWED_ORIGINS  選用，逗號分隔；預設只允許 *.vercel.app 與
 面板上還有**目前這行的切分預覽**（空白會顯示成 `␣`）—— 對 CJK 來說，看到
 `把回忆拼好给你` 變成 `把 / 回忆 / 拼好 / 给 / 你` 就是這個功能的回饋本身。
 
+### 5. 本機開發：不需要真的 key 也能跑完整條路徑
+
+```
+AGNES_API_KEY=test AGNES_BASE_URL=http://127.0.0.1:32155/v1 pnpm dev
+```
+
+`AGNES_BASE_URL` 可以覆寫（正式環境不設，走預設值），所以把它指到一個假的上游就能把
+**前端 → proxy → prompt → 解析 → 紀錄** 整條路徑跑一遍，不花任何 key。
+這也是驗證 prompt 有沒有真的帶上那些規則的方法：假上游把收到的 request 記下來，直接看。
+
 ---
 
 ## 三、驗證
@@ -129,6 +139,11 @@ ECHORA_ALLOWED_ORIGINS  選用，逗號分隔；預設只允許 *.vercel.app 與
   - `src/services/lyricSegmentationAi.test.ts`（9）：分批、進度、單批失敗、全部失敗、abort；
   - `src/utils/lyrics/cjkSemanticLayout.test.ts`（5）、`sonnet/sonnetSemantic.test.ts`（6）：覆寫真的到得了排版層。
 - `tsc` 乾淨、`eslint src bench` 0 error、build 成功、bundle-size 通過。
+- **端到端（經過真的 dev server）**：`POST /api/ai/segment`（由 dev 掛載的**真** handler 處理）
+  → 假上游 → 200，回傳的邊界接得回原文；並確認送出的 request 是
+  `agnese-2.0-flash / temperature 0 / {"type":"json_object"}`，system prompt 帶著
+  `Lossless`、`Japanese specifically`、`NOT part of the`、`Never translate` 與日文範例，
+  user prompt 是編號過的歌詞行。
 
 ### 一個原本會很貴的 bug（測試寫出來才想到）
 
@@ -146,8 +161,10 @@ ECHORA_ALLOWED_ORIGINS  選用，逗號分隔；預設只允許 *.vercel.app 與
 3. **上限 40 首**：紀錄放 localStorage（跟 `echora.lyrics-offsets` 同一個做法），
    超過就淘汰最舊的。上游是放在 cache DB 的 `lyricSeg_` 前綴下（刻意避開「清除歌詞快取」會掃到的前綴），
    Echora 沒有那層，所以用上限換取不會撐爆 5 MB。
-4. **`api/ai/segment.ts` 只在 Vercel 上跑**：本機 `vite dev` 沒有 serverless functions，
-   按「用 AI 切分」會得到一句明確的錯誤（而不是「回應不完整」），並引導改用「複製 prompt」。
+4. **`api/ai/segment.ts` 正式環境跑在 Vercel 上**，本機則由 `vite-plugins/devAiFunctions.ts`
+   在 `vite dev` 裡掛上同一支 handler（另有 `/api/ai/theme`、`/api/ai/status`）。若沒有掛到
+   （例如用了別的伺服器），按「用 AI 切分」會得到一句明確的錯誤並引導改用「複製 prompt」，
+   而不是含混的「回應不完整」。
 5. **沒有 `lyricExport`**：上游有歌詞匯出流程，Echora 仍缺（與本項無關，記在缺口清單 §4）。
 6. **app shell 預算**：這次的文案讓 `index` 由 391.9 → 394.5 KiB，預算已第三次調升
    （390 → 394 → 397 KiB）。三個調升都是同一個根因：**兩個語系的文案全在 shell 裡**。
