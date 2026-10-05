@@ -31,54 +31,108 @@
     <title>Echora - 沉浸式動態歌詞音樂舞台</title>
 
     <style>
-      /* Boot screen only: shown until React replaces it with the app shell. */
+      /* Boot screen only: shown until React replaces it with the app shell.
+         Visually it is the same loader as the in-app route skeleton; the copy
+         below it stays as static, crawlable product text (OAuth brand review). */
       .echora-boot {
         box-sizing: border-box;
-        max-width: 640px;
-        margin: 0 auto;
-        padding: 14vh 22px 48px;
+        position: relative;
+        display: flex;
+        min-height: 100vh;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        padding: 48px 22px;
+        overflow: hidden;
         color: #cbd5e1;
         font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-        font-size: 13px;
+        font-size: 12px;
         line-height: 1.7;
       }
+      .echora-boot::before,
+      .echora-boot::after {
+        content: '';
+        position: absolute;
+        width: 34rem;
+        height: 34rem;
+        border-radius: 50%;
+        filter: blur(120px);
+        opacity: 0.35;
+        pointer-events: none;
+      }
+      .echora-boot::before { left: -14rem; top: -12rem; background: rgba(98, 245, 196, 0.22); }
+      .echora-boot::after { right: -14rem; bottom: -14rem; background: rgba(99, 102, 241, 0.22); }
+      .echora-boot__mark {
+        position: relative;
+        z-index: 1;
+        width: 60px;
+        height: 60px;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 20px 50px rgba(0, 0, 0, 0.45), 0 0 48px rgba(98, 245, 196, 0.16);
+      }
+      .echora-boot__mark img { display: block; width: 100%; height: 100%; object-fit: cover; }
+      .echora-boot__eq { position: relative; z-index: 1; display: flex; height: 18px; align-items: flex-end; gap: 3px; }
+      .echora-boot__eq span {
+        width: 3px; height: 100%; border-radius: 999px;
+        background: linear-gradient(to top, #62f5c4, rgba(98, 245, 196, 0.35));
+        transform-origin: bottom;
+        animation: echoraBootEq 1.1s ease-in-out infinite;
+      }
+      .echora-boot__eq span:nth-child(2) { animation-delay: .15s; }
+      .echora-boot__eq span:nth-child(3) { animation-delay: .3s; }
+      .echora-boot__eq span:nth-child(4) { animation-delay: .1s; }
+      .echora-boot__eq span:nth-child(5) { animation-delay: .25s; }
+      @keyframes echoraBootEq { 0%, 100% { transform: scaleY(.25); opacity: .6; } 50% { transform: scaleY(1); opacity: 1; } }
+      .echora-boot__rail { position: relative; z-index: 1; width: 176px; height: 2px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, 0.08); }
+      .echora-boot__rail::after {
+        content: ''; position: absolute; inset: 0; width: 38%; border-radius: inherit;
+        background: linear-gradient(90deg, transparent, #62f5c4 50%, transparent);
+        box-shadow: 0 0 14px rgba(98, 245, 196, 0.6);
+        animation: echoraBootRail 1.5s cubic-bezier(.65, 0, .35, 1) infinite;
+      }
+      @keyframes echoraBootRail { from { transform: translateX(-110%); } to { transform: translateX(290%); } }
       .echora-boot__brand {
-        margin: 0 0 14px;
+        position: relative; z-index: 1;
+        margin: 0;
         color: #fff;
-        font-size: 17px;
+        font-size: 11px;
         font-weight: 800;
-        letter-spacing: 0.14em;
+        letter-spacing: 0.22em;
+        text-align: center;
       }
       .echora-boot__brand span {
         display: block;
         margin-top: 6px;
-        color: #62f5c4;
-        font-size: 11px;
+        color: rgba(148, 163, 184, 0.75);
+        font-size: 10px;
+        font-weight: 600;
         letter-spacing: 0.06em;
       }
-      .echora-boot__lede {
-        margin: 0 0 10px;
-        color: #94a3b8;
+      .echora-boot__card {
+        position: relative; z-index: 1;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 560px;
+        margin-top: 18px;
+        padding: 16px 18px;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.025);
       }
+      .echora-boot__lede { margin: 0 0 8px; color: #94a3b8; }
       .echora-boot__links {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px 14px;
-        margin: 16px 0;
+        gap: 6px 14px;
+        margin: 12px 0;
         padding: 0;
         list-style: none;
       }
-      .echora-boot__links a {
-        color: #62f5c4;
-        text-decoration: underline;
-        text-underline-offset: 2px;
-      }
-      .echora-boot__note {
-        margin: 0;
-        color: #64748b;
-        font-size: 11px;
-        line-height: 1.6;
-      }
+      .echora-boot__links a { color: #62f5c4; text-decoration: underline; text-underline-offset: 2px; }
+      .echora-boot__note { margin: 0; color: #64748b; font-size: 10.5px; line-height: 1.6; }
+      @media (prefers-reduced-motion: reduce) { .echora-boot__eq span, .echora-boot__rail::after { animation: none; } }
     </style>
   </head>
   <body class="bg-[#07090e] text-slate-100 antialiased selection:bg-[#62f5c4] selection:text-black font-sans">
@@ -93,7 +147,11 @@
     -->
     <div id="root">
       <div class="echora-boot">
+        <div class="echora-boot__mark" aria-hidden="true"><img src="/echora-icon-192.png" alt="" width="60" height="60" /></div>
+        <div class="echora-boot__eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="echora-boot__rail" aria-hidden="true"></div>
         <p class="echora-boot__brand">ECHORA <span>沉浸式動態歌詞音樂舞台 · Immersive synced-lyrics stage</span></p>
+        <div class="echora-boot__card">
         <p class="echora-boot__lede">
           Echora 是一款在瀏覽器運行的沉浸式歌詞與音樂舞台。播放內建展示曲目，或連接自己的 YouTube Music 歌單，就能看到逐字同步歌詞、視覺舞台與 AI 生成配色。Echora 沒有自己的帳號系統，也不會把你的歌單或聽歌紀錄上傳到我們的伺服器。
         </p>
@@ -114,6 +172,7 @@
           and is handled according to the Google API Services User Data Policy, including the Limited Use requirements.<br />
           Echora 使用 YouTube API Services：來自 Google API 的資訊僅用於在應用程式內顯示你自己的歌單，並依 Google API Services User Data Policy（含 Limited Use 要求）處理。
         </p>
+        </div>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
