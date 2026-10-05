@@ -143,9 +143,14 @@ stage does.
 ## Verification
 
 * `pnpm --filter=@echora/web exec tsc --noEmit` — clean
-* `pnpm --filter=@echora/web test` — 47 files / 254 tests pass (7 new: measure memo + hold settle)
+* `pnpm --filter=@echora/web test` — 49 files / 270 tests pass (23 new: measure memo, hold settle,
+  song-handover curve, stage probe)
+* `pnpm bench` — sonnet program compile: 33 ms median for a 120-line song (budget 90 ms)
 * `pnpm build` — succeeds; `node scripts/check-bundle-size.mjs` — passes
 * Layout benchmark above (766 → 213 pretext calls, 17.59 ms → 3.53 ms on the repeat pass)
+
+The `songHandover` dissolve listed below was implemented afterwards; the measurement layer that
+makes the remaining work checkable on a real device is in `docs/stage-measurement.zh-TW.md`.
 
 Browser profiling could not be run in this sandbox (Playwright's browser CDN is unreachable), so a
 pass on a real device — skip tracks, drag the tuning sliders, switch themes, wait through an
@@ -153,9 +158,10 @@ instrumental — is still worth doing.
 
 ## Remaining upstream work (not done here)
 
-* The full `songHandover` dissolve: upstream builds the incoming scene under a wall-clock cover
-  (`SONNET_SONG_SWAP_MS = 560`) and adopts it at the halfway point. This change removes the rebuild
-  and the blank frame, but a track change is still a cut rather than a dissolve.
+* ~~The full `songHandover` dissolve~~ — **done**: `sonnet/songHandover.ts` holds the outgoing
+  picture in a dedicated container and cross-fades it over `SONNET_SONG_SWAP_MS` (560 ms) while the
+  incoming program lays out its first scene. Still missing from that mechanism: upstream's
+  wall-clock cover for the case where the incoming build outlasts the dissolve.
 * `mod()`/`setModulation` (Folium mod tunables) and `transparentBackground` from the same commit.
 * `loadPixi()`'s `highp` fragment-precision flip (Folia `2bd643a`, Linux/NVIDIA black-triangle fix).
 * Sonnet's `repeatEdgePixels = true` on the outro/transition blur filters (vignette drift when the

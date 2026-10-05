@@ -6,7 +6,7 @@ export default tseslint.config(
     ignores: ['dist/**', 'node_modules/**'],
   },
   {
-    files: ['src/**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}', 'bench/**/*.ts'],
     plugins: {
       'react-hooks': reactHooks,
     },

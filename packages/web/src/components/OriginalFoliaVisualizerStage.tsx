@@ -11,6 +11,7 @@ import type { Line, ThemeConfig } from "@echora/core";
 import i18n from "../i18n";
 import { resolveStageAudioBands } from "../playback/audioBands";
 import { sampleLocalAudioBands } from "../playback/localAudioAnalyser";
+import { beginStageProbe, endStageProbe, installStageProbeGlobals } from "../utils/stageProbe";
 import OriginalVisualizerRenderer from "./OriginalVisualizerRendererProxy";
 
 type OriginalMode =
@@ -267,6 +268,19 @@ export default function OriginalFoliaVisualizerStage({
     () => ({ bass, lowMid, mid, vocal, treble }),
     [bass, lowMid, mid, vocal, treble],
   );
+  useEffect(() => {
+    installStageProbeGlobals();
+  }, []);
+
+  // The stage's instrument cluster: it samples the main thread while a stage is mounted and labels
+  // the session with the mode, so "which stage stutters, and on which device" is a measurement
+  // rather than an impression. Everything here is a no-op unless the probe is switched on
+  // (see utils/stageProbe.ts).
+  useEffect(() => {
+    beginStageProbe(mode);
+    return () => endStageProbe();
+  }, [mode]);
+
   const playingRef = useRef(isPlaying);
   const timeRef = useRef(safeDisplayedTime);
   const fallbackBandsRef = useRef(audioBands);

@@ -127,9 +127,10 @@ Echora 內已存在這些檔案：
 
 ## 建議的優先順序
 
-1. **引擎化 + 量測紀律**（體質，與模式數量無關）
-   compile-then-render、scene cache ±1、就地換歌、一幀一件貴事；加上 probe 式的效能量測。
-   → 不做這層，搬任何新模式都會重演今天的卡頓。
+1. **引擎化 + 量測紀律**（體質，與模式數量無關）— **已完成第一輪** ✅
+   compile-then-render、scene cache ±1、就地換歌（含 560 ms 溶解）、一幀一件貴事；加上可在真機
+   開啟的 stage probe 與 `pnpm bench` 基準。
+   實作與用法見 [`docs/stage-measurement.zh-TW.md`](./stage-measurement.zh-TW.md)。
 
 2. **Stage API + OBS 頁面**（投報率最高）
    Echora 已經有 80% 的 scaffold（URL／cfg／appearance codec／playerCap 對映全都在），缺的只是**頁面入口 + 服務端 + 接線**。
