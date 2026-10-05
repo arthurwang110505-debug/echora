@@ -7,6 +7,7 @@ import { type Song } from '@echora/core';
 import { spotifyClientId } from '../integrations/spotifyAuth';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { LOCAL_DEMO_SONGS } from '../store/localDemoSongs';
+import { consumeLandingHandoff } from '../utils/landingHandoff';
 import { CarouselSkeleton, CoverImage } from '../components/LoadingSkeletons';
 import BrandMark from '../components/BrandMark';
 import { shouldResetSearchOnSourceChange } from '../utils/sourceState';
@@ -117,6 +118,18 @@ export default function AppHome() {
       setActiveSource('local');
       params.delete('demo');
       paramsChanged = true;
+      // The landing page performs a demo track; if the visitor arrived from
+      // its CTA, keep that song running at the same second so the stage
+      // simply expands into the player instead of restarting.
+      const handoff = consumeLandingHandoff();
+      const handoffSong = handoff ? LOCAL_DEMO_SONGS.find(song => song.id === handoff.songId) : null;
+      if (handoff && handoffSong) {
+        setPlaylist(LOCAL_DEMO_SONGS);
+        play(handoffSong, LOCAL_DEMO_SONGS);
+        usePlayer.getState().seek(handoff.time);
+        navigate('/player?demo=1', { replace: true, state: { demo: true } });
+        return;
+      }
     }
     if (params.get('connect') === '1') {
       setShowConnectModal(true);

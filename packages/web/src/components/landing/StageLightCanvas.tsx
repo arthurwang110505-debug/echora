@@ -83,9 +83,21 @@ interface SceneState {
   tiltY: number;
 }
 
-export default function StageLightCanvas({ className = '' }: { className?: string }) {
+export interface StageLightCanvasProps {
+  className?: string;
+  /**
+   * Live audio energy 0..1 (from the landing audio analyser). When it returns a
+   * value above 0 the lights "hit" on the real music instead of the synthetic
+   * 96 BPM clock.
+   */
+  getEnergy?: () => number;
+}
+
+export default function StageLightCanvas({ className = '', getEnergy }: StageLightCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const prefersReducedMotion = useReducedMotion();
+  const energyRef = useRef(getEnergy);
+  energyRef.current = getEnergy;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -96,6 +108,7 @@ export default function StageLightCanvas({ className = '' }: { className?: strin
     const state: SceneState = { width: 0, height: 0, pointerX: 0, pointerY: 0, tiltX: 0, tiltY: 0 };
     let frame = 0;
     let running = true;
+    let visible = true;
 
     const rgba = (color: [number, number, number], alpha: number) =>
       `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha.toFixed(3)})`;
@@ -124,7 +137,9 @@ export default function StageLightCanvas({ className = '' }: { className?: strin
       // Sharp attack, quick decay — reads like a lighting "hit" on each beat.
       const hit = Math.pow(1 - beatPhase, 3);
       const downbeat = barIndex % 4 === 0 ? 1.15 : 1;
-      const pulse = hit * downbeat;
+      const energy = energyRef.current?.() ?? 0;
+      // Real audio wins over the synthetic clock as soon as it has signal.
+      const pulse = energy > 0.02 ? Math.min(1.4, energy * 1.6) : hit * downbeat;
       const floorY = height * 0.965;
 
       context.clearRect(0, 0, width, height);
@@ -242,7 +257,7 @@ export default function StageLightCanvas({ className = '' }: { className?: strin
     };
 
     const start = () => {
-      if (running && frame === 0 && !document.hidden) {
+      if (running && visible && frame === 0 && !document.hidden) {
         frame = requestAnimationFrame(loop);
       }
     };
@@ -270,6 +285,14 @@ export default function StageLightCanvas({ className = '' }: { className?: strin
     }) : null;
     if (canvas.parentElement && observer) observer.observe(canvas.parentElement);
 
+    // Only burn frames while the stage is actually on screen.
+    const intersection = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver(entries => {
+      visible = entries.some(entry => entry.isIntersecting);
+      if (visible) start();
+      else stop();
+    }, { rootMargin: '12% 0px' }) : null;
+    intersection?.observe(canvas);
+
     if (prefersReducedMotion) {
       // One calm static frame — no loops for reduced-motion users.
       draw(performance.now());
@@ -283,6 +306,7 @@ export default function StageLightCanvas({ className = '' }: { className?: strin
       running = false;
       stop();
       if (observer) observer.disconnect();
+      intersection?.disconnect();
       window.removeEventListener('pointermove', handlePointer);
       document.removeEventListener('visibilitychange', handleVisibility);
     };

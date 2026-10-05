@@ -7,6 +7,16 @@ test.describe('Echora smoke paths', () => {
     await expect(page.getByRole('button', { name: '開始體驗' }).first()).toBeVisible();
   });
 
+  test('landing acts are scroll-driven: scrubbing the Modes act relights the stage', async ({ page }) => {
+    await page.goto('/');
+    const modes = page.locator('[data-act="modes"]');
+    await expect(modes).toContainText('Liuguang');
+    // Scroll deep into the pinned Modes act; the mode on stage must advance.
+    await page.evaluate(() => window.scrollTo(0, window.innerHeight * 5.5));
+    await page.waitForTimeout(600);
+    await expect(modes).not.toContainText('模式 1 / 7');
+  });
+
   test('landing page links the policies Google verification asks for', async ({ page }) => {
     await page.goto('/');
     // Plain anchors, not onClick buttons: Google's OAuth brand verification and
