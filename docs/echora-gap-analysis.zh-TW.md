@@ -53,7 +53,7 @@ Echora 缺的正是這一層 —— 而這正是本次卡頓的根因（見 `doc
 
 這是上游最被低估的價值：讓舞台可以被 OBS、直播、外部程式、剪輯軟體使用。
 
-### 2.1 Stage API —— **完全沒有**
+### 2.1 Stage API —— **上游有 7 端點；Echora 第一輪做了 7 個（少了點歌）**
 
 上游（桌面端）在 `127.0.0.1:32107` 提供 Bearer token 的本機 HTTP API，共 7 個端點：
 
@@ -66,7 +66,11 @@ GET  /stage/player/status
 
 外部程式可推歌詞、推媒體 session、搜尋並點播；官方附一支 **B 站直播彈幕點歌**示範（`test/manual/bili-livesong/main.py`），以及一個 Quickshell／Waybar 狀態列歌詞外掛。
 
-Echora 的狀況：`utils/stageClientDemo.ts` 只有型別與工具函式、**0 個使用者**；`store/stageStore.ts` 是 Echora 自己的「舞台偏好」store，跟 Stage API 無關。→ 純 scaffold，沒有服務端也沒有頁面。
+Echora 的狀況（**第一輪已完成**）：`packages/web/stage-server/`（無依賴 relay）+
+`src/obs/`（overlay 端協定、傳輸、發布器）+ `/obs` 頁面 + 設定頁開關。
+舊的 `utils/stageClientDemo.ts` 仍是無人使用的 scaffold —— 新的實作沒有沿用它的形狀
+（它依賴數個從未被移植的模組，硬接會把壞掉的 import 拉進型別檢查範圍）。
+端點少於上游：**沒有** `player/search` 與 `player/play`。
 
 ### 2.2 OBS 整合 —— **有整組 helper，但沒有頁面（dead scaffolding）**
 
@@ -81,7 +85,11 @@ Echora 內已存在這些檔案：
 - `webObsTarget.ts`（「複製 OBS URL」按鈕的選源邏輯）**沒有任何 import 者**；
 - `useSettingsUiStore` 甚至沒有 `enableNowPlayingStage` / `enablePlayerCapStage` / `playerCapHost` 這些欄位。
 
-也就是說：**URL 產生器在、頁面不在、按鈕沒接線。** 上游還有一個關鍵細節值得抄：OBS 頁面是 `127.0.0.1:PORT`（與主視窗不同源），讀不到主視窗的 IndexedDB，所以圖片池／封面／表情包要**解析成 data URL 隨 SSE config 一起下發**。
+也就是說：**URL 產生器在、頁面不在、按鈕沒接線。**（第一輪補上了 `/obs` 頁面與設定頁接線；
+新的 overlay 走 `src/obs/protocol.ts`，舊 helper 仍留著但**沒有被新程式碼引用** ——
+要把 `src/utils` 併回型別檢查範圍時再一起處理。）
+上游那個關鍵細節已經抄進來：OBS 頁面與主視窗不同源、讀不到它的 storage，
+所以 overlay 能畫的東西必須**隨 config 一起下發**；`coverUrl` 例外，保留一般網址。
 
 ### 2.3 其他舞台輸出
 
@@ -132,9 +140,12 @@ Echora 內已存在這些檔案：
    開啟的 stage probe 與 `pnpm bench` 基準。
    實作與用法見 [`docs/stage-measurement.zh-TW.md`](./stage-measurement.zh-TW.md)。
 
-2. **Stage API + OBS 頁面**（投報率最高）
-   Echora 已經有 80% 的 scaffold（URL／cfg／appearance codec／playerCap 對映全都在），缺的只是**頁面入口 + 服務端 + 接線**。
-   → 這是「讓舞台被拿來用」的關鍵，對直播／剪輯使用者是殺手級功能。
+2. **Stage API + OBS 頁面**（投報率最高）— **已完成第一輪** ✅
+   relay（7 端點 + token + SSE）與 `/obs` overlay 頁面都在，
+   傳輸有 relay 與同瀏覽器 channel 兩種，設定頁可開關並複製 overlay URL。
+   架構與用法見 [`docs/stage-api.zh-TW.md`](./stage-api.zh-TW.md)。
+   與上游的差異：**沒有** `player/search`、`player/play`（點歌需要回播放器的控制通道，尚未做），
+   也**沒有**透明 MOV 匯出（上游靠 Electron 主程序）。
 
 3. **詞切分（含 AI）+ 歌詞品質**（使用者最有感、工程量小）
    對 CJK 排版直接有效，且上游有現成的 prompt 模組可抄。
@@ -150,3 +161,5 @@ Echora 內已存在這些檔案：
 
 Echora 缺的不是功能數量，而是三件事：**（a）把渲染器當引擎而不是當元件**、**（b）把舞台當基礎設施而不是當頁面**、**（c）把效能決策當量測而不是當直覺**。
 目前 Echora 已經有 11 個模式、6 種背景與一批相當完整的 helper —— 缺的是把它們串成上游那種「可以給別人用」的產品。
+第 1、2 項（引擎化＋量測、Stage API＋OBS 輸出）已完成第一輪：舞台現在**可以被外部工具用**，
+而且它的效能有數字可以查。下一步是第 3 項（詞切分）。

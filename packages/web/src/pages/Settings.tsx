@@ -12,6 +12,8 @@ import type { ThemeConfig } from '@echora/core';
 import type { MotionPreference } from '../store/themeStore';
 import { getCorrespondingSourceUrl } from '../lib/sourceAvailability';
 import { getLanguage, setLanguage, type AppLanguage } from '../i18n';
+import { useObsStageStore } from '../store/obsStageStore';
+import { buildObsStageOverlayUrl } from '../obs/protocol';
 
 export default function Settings() {
   const { t } = useTranslation();
@@ -30,6 +32,27 @@ export default function Settings() {
   const [generatedTheme, setGeneratedTheme] = useState<ThemeConfig | null>(null);
   const [systemReducedMotion, setSystemReducedMotion] = useState(false);
   const [generationError, setGenerationError] = useState('');
+  // Stage overlay (OBS): the store owns the settings, the copied flag is local UI state.
+  const obsStage = useObsStageStore();
+  const [overlayCopied, setOverlayCopied] = useState(false);
+  const overlayUrl = typeof window === 'undefined'
+    ? ''
+    : buildObsStageOverlayUrl(window.location.origin, {
+        relay: obsStage.relay,
+        token: obsStage.token,
+        transport: obsStage.transport,
+        quiet: obsStage.quietOverlay,
+      });
+  const copyOverlayUrl = async () => {
+    if (!overlayUrl) return;
+    try {
+      await navigator.clipboard.writeText(overlayUrl);
+      setOverlayCopied(true);
+      window.setTimeout(() => setOverlayCopied(false), 2000);
+    } catch {
+      setOverlayCopied(false);
+    }
+  };
 
   const refreshAgnesStatus = async () => {
     try {
@@ -239,6 +262,107 @@ export default function Settings() {
             <p className="font-bold text-white">{t('settings.spectrumTitle')}</p>
             <p className="mt-1">{spectrumLabel}</p>
             <p className="mt-1 text-[11px] text-slate-500">{t('settings.spectrumHint')}</p>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="font-mono text-xs font-extrabold uppercase tracking-widest text-[#62f5c4]">{t('settings.obsTitle')}</h2>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="max-w-md">
+                <p className="font-bold text-white">{t('settings.obsEnable')}</p>
+                <p className="mt-0.5 leading-5 text-slate-400">{t('settings.obsEnableHint')}</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={obsStage.enabled}
+                aria-label={t('settings.obsEnable')}
+                onClick={() => obsStage.setEnabled(!obsStage.enabled)}
+                className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors ${obsStage.enabled ? 'border-[#62f5c4]/40 bg-[#62f5c4]/30' : 'border-white/15 bg-white/[0.08]'}`}
+              >
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${obsStage.enabled ? 'left-[22px]' : 'left-0.5'}`} />
+              </button>
+            </div>
+
+            {obsStage.enabled && (
+              <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-bold text-white">{t('settings.obsTransport')}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">{t('settings.obsTransportHint')}</p>
+                  </div>
+                  <select
+                    value={obsStage.transport}
+                    onChange={event => obsStage.setTransport(event.target.value as 'relay' | 'broadcast')}
+                    aria-label={t('settings.obsTransport')}
+                    className="rounded-xl border border-white/10 bg-[#111720] px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#62f5c4]"
+                  >
+                    <option value="relay">{t('settings.obsTransportRelay')}</option>
+                    <option value="broadcast">{t('settings.obsTransportBroadcast')}</option>
+                  </select>
+                </div>
+
+                {obsStage.transport === 'relay' && (
+                  <>
+                    <label className="block">
+                      <span className="font-bold text-white">{t('settings.obsRelay')}</span>
+                      <span className="mt-0.5 block text-[11px] text-slate-500">{t('settings.obsRelayHint')}</span>
+                      <input
+                        type="text"
+                        value={obsStage.relay}
+                        onChange={event => obsStage.setRelay(event.target.value)}
+                        spellCheck={false}
+                        autoComplete="off"
+                        placeholder="127.0.0.1:32107"
+                        className="mt-2 w-full rounded-xl border border-white/10 bg-[#111720] px-3 py-2 font-mono text-xs text-white outline-none focus:border-[#62f5c4]"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="font-bold text-white">{t('settings.obsToken')}</span>
+                      <span className="mt-0.5 block text-[11px] text-slate-500">{t('settings.obsTokenHint')}</span>
+                      <input
+                        type="password"
+                        value={obsStage.token}
+                        onChange={event => obsStage.setToken(event.target.value)}
+                        spellCheck={false}
+                        autoComplete="off"
+                        className="mt-2 w-full rounded-xl border border-white/10 bg-[#111720] px-3 py-2 font-mono text-xs text-white outline-none focus:border-[#62f5c4]"
+                      />
+                    </label>
+                  </>
+                )}
+
+                <label className="flex items-center gap-2 font-bold text-white">
+                  <input
+                    type="checkbox"
+                    checked={obsStage.quietOverlay}
+                    onChange={event => obsStage.setQuietOverlay(event.target.checked)}
+                    className="h-4 w-4 rounded border-white/20 bg-[#111720] accent-[#62f5c4]"
+                  />
+                  {t('settings.obsQuiet')}
+                </label>
+
+                <div>
+                  <p className="font-bold text-white">{t('settings.obsOverlayUrl')}</p>
+                  <p className="mt-0.5 text-[11px] leading-5 text-slate-500">{t('settings.obsOverlayUrlHint')}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <code className="min-w-0 flex-1 break-all rounded-xl border border-white/10 bg-black/30 px-3 py-2 font-mono text-[11px] text-slate-300">{overlayUrl}</code>
+                    <button type="button" onClick={() => void copyOverlayUrl()} className="rounded-xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-3.5 py-2 text-xs font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/20">
+                      {overlayCopied ? t('settings.obsCopied') : t('settings.obsCopy')}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[11px] leading-5 text-slate-500">{t('settings.obsServerHint')}</p>
+                  <code className="mt-1 block rounded-xl border border-white/10 bg-black/30 px-3 py-2 font-mono text-[11px] text-slate-400">pnpm stage:server</code>
+                  {!obsStage.token && obsStage.transport === 'relay' && (
+                    <p className="mt-2 text-[11px] leading-5 text-amber-300">{t('settings.obsTokenMissing')}</p>
+                  )}
+                  {window.location.protocol === 'https:' && obsStage.transport === 'relay' && (
+                    <p className="mt-2 text-[11px] leading-5 text-slate-400">{t('settings.obsHttpsHint')}</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </section>
 

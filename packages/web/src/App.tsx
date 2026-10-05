@@ -17,6 +17,9 @@ const Library = lazyWithRetry(() => import('./pages/Library'), 'route-library');
 const YouTubeCallback = lazyWithRetry(() => import('./pages/YouTubeCallback'), 'route-youtube-callback');
 const Privacy = lazyWithRetry(() => import('./pages/Privacy'), 'route-privacy');
 const Terms = lazyWithRetry(() => import('./pages/Terms'), 'route-terms');
+// The overlay an OBS browser source points at. Chrome-free by design, and outside the app shell
+// chrome the other routes render inside.
+const ObsStage = lazyWithRetry(() => import('./pages/ObsStage'), 'route-obs-stage');
 
 function RouteLoader() {
   return <RouteSkeleton />;
@@ -87,6 +90,7 @@ const router = createBrowserRouter([
       { path: '/library', element: <Library /> },
       { path: '/privacy', element: <Privacy /> },
       { path: '/terms', element: <Terms /> },
+      { path: '/obs', element: <ObsStage /> },
       { path: '/oauth/youtube/callback', element: <YouTubeCallback /> },
     ],
   },

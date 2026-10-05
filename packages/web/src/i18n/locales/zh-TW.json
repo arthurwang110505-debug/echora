@@ -304,7 +304,26 @@
     "termsOfService": "服務條款",
     "viewFullPrivacy": "查看完整隱私權政策",
     "viewFullTerms": "查看服務條款",
-    "googleAccessLink": "管理 Google 帳號存取權"
+    "googleAccessLink": "管理 Google 帳號存取權",
+    "obsTitle": "舞台輸出（OBS）",
+    "obsEnable": "發布舞台輸出",
+    "obsEnableHint": "把即時歌詞舞台送到 OBS 瀏覽器來源，或另一個視窗。",
+    "obsTransport": "傳輸方式",
+    "obsTransportHint": "relay 任何瀏覽器都能連；channel 只到同一個瀏覽器。",
+    "obsTransportRelay": "本機 relay",
+    "obsTransportBroadcast": "同瀏覽器",
+    "obsRelay": "Relay 位址",
+    "obsRelayHint": "host:port，預設只綁 loopback。",
+    "obsToken": "Relay token",
+    "obsTokenHint": "需與 relay 的 --token 一致。",
+    "obsQuiet": "隱藏 overlay 狀態卡",
+    "obsOverlayUrl": "Overlay 網址",
+    "obsOverlayUrlHint": "貼進 OBS 瀏覽器來源（1920x1080、透明背景）。",
+    "obsCopy": "複製",
+    "obsCopied": "已複製",
+    "obsServerHint": "先啟動 relay：",
+    "obsTokenMissing": "請設定 token，並用同一組啟動 relay。",
+    "obsHttpsHint": "https 頁面可連 loopback http relay；overlay 與 relay 請同機。"
   },
   "player": {
     "synced": "已同步",
@@ -474,7 +493,8 @@
     "connectYoutubeTermsLink": "YouTube 服務條款",
     "connectGooglePrivacyLink": "Google 隱私權政策",
     "enterFullscreen": "全螢幕",
-    "enterFullscreenAria": "進入全螢幕播放"
+    "enterFullscreenAria": "進入全螢幕播放",
+    "obsPublishing": "輸出中"
   },
   "panel": {
     "toggleAria": "展開控制面板",

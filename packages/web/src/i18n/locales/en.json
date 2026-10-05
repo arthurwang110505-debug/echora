@@ -304,7 +304,26 @@
     "termsOfService": "Terms of Service",
     "viewFullPrivacy": "View full privacy policy",
     "viewFullTerms": "View terms of service",
-    "googleAccessLink": "Manage Google Account access"
+    "googleAccessLink": "Manage Google Account access",
+    "obsTitle": "Stage overlay (OBS)",
+    "obsEnable": "Publish the stage",
+    "obsEnableHint": "Send the live lyrics stage to an OBS browser source or another window.",
+    "obsTransport": "Transport",
+    "obsTransportHint": "A relay reaches any browser; the channel only reaches this browser.",
+    "obsTransportRelay": "Local relay",
+    "obsTransportBroadcast": "Same browser",
+    "obsRelay": "Relay address",
+    "obsRelayHint": "host:port; loopback only by default.",
+    "obsToken": "Relay token",
+    "obsTokenHint": "Must match the relay's --token.",
+    "obsQuiet": "Hide overlay status card",
+    "obsOverlayUrl": "Overlay URL",
+    "obsOverlayUrlHint": "Paste into an OBS browser source (1920x1080, transparent).",
+    "obsCopy": "Copy",
+    "obsCopied": "Copied",
+    "obsServerHint": "Start the relay first:",
+    "obsTokenMissing": "Set a token and start the relay with the same one.",
+    "obsHttpsHint": "An https page may reach a loopback http relay; keep both on this machine."
   },
   "player": {
     "synced": "Synced",
@@ -474,7 +493,8 @@
     "connectYoutubeTermsLink": "YouTube Terms of Service",
     "connectGooglePrivacyLink": "Google Privacy Policy",
     "enterFullscreen": "Fullscreen",
-    "enterFullscreenAria": "Enter fullscreen playback"
+    "enterFullscreenAria": "Enter fullscreen playback",
+    "obsPublishing": "On air"
   },
   "panel": {
     "toggleAria": "Expand the control panel",

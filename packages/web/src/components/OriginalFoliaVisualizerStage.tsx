@@ -49,6 +49,15 @@ interface Props {
   visualizerTunings?: Record<string, unknown>;
   isPlayerChromeHidden?: boolean;
   settingsOpen?: boolean;
+  /**
+   * Overrides the clock the stage animates from, sampled once per frame while playing.
+   *
+   * `displayedTime` is a prop, so it only moves the stage when React re-renders it - fine for local
+   * playback where the value updates continuously, useless for a remote source that pushes a clock
+   * anchor a few times a second. A provider lets the overlay's existing rAF loop read an
+   * extrapolated position at 60 fps with no React churn (see src/pages/ObsStage.tsx).
+   */
+  timeProvider?: () => number;
 }
 
 const MODES: OriginalMode[] = [
@@ -220,6 +229,7 @@ export default function OriginalFoliaVisualizerStage({
   visualizerTunings,
   isPlayerChromeHidden = false,
   settingsOpen = false,
+  timeProvider,
 }: Props) {
   useEffect(() => {
     // Do not make the active player compete with downloads, module parsing, and
@@ -284,8 +294,10 @@ export default function OriginalFoliaVisualizerStage({
   const playingRef = useRef(isPlaying);
   const timeRef = useRef(safeDisplayedTime);
   const fallbackBandsRef = useRef(audioBands);
+  const timeProviderRef = useRef(timeProvider);
   playingRef.current = isPlaying;
   timeRef.current = safeDisplayedTime;
+  timeProviderRef.current = timeProvider;
   fallbackBandsRef.current = audioBands;
 
   useEffect(() => {
@@ -305,7 +317,8 @@ export default function OriginalFoliaVisualizerStage({
       }
 
       const playing = playingRef.current;
-      const time = timeRef.current;
+      // A provider is sampled per frame; otherwise the prop is the clock, as before.
+      const time = timeProviderRef.current ? timeProviderRef.current() : timeRef.current;
       const levels = resolveStageAudioBands({
         isPlaying: playing,
         displayedTime: time,

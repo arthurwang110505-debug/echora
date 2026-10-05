@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "lint": "eslint src bench",
     "test": "vitest run",
-    "bench": "vitest run --config vitest.bench.config.ts"
+    "bench": "vitest run --config vitest.bench.config.ts",
+    "stage:server": "node stage-server/cli.mjs"
   },
   "dependencies": {
     "@applemusic-like-lyrics/ttml": "^1.0.1",

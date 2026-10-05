@@ -19,7 +19,11 @@ const BUDGETS = [
   // ships in this chunk because the legal routes resolve `t()` from the shared
   // resources. Moving that copy into route-level resource bundles would let this
   // budget come back down.
-  { prefix: 'index-', name: 'app shell (index)', maxKb: 390 },
+  // Bumped 390 → 394 KiB for the stage-overlay settings card: the shell was already
+  // sitting exactly on 390.0, so the ~20 new user-facing strings (both locales,
+  // already trimmed to one short hint each) pushed it to 391.9. Same root cause as
+  // the bump above, and the same route-level split would reclaim it.
+  { prefix: 'index-', name: 'app shell (index)', maxKb: 394 },
   { prefix: 'three-runtime-', name: 'three-runtime', maxKb: 950 },
   { prefix: 'sonnet-scene-', name: 'sonnet-scene', maxKb: 2500 },
   { prefix: 'stage-runtime-', name: 'stage-runtime', maxKb: 200 },
