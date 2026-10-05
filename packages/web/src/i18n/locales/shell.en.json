@@ -1,0 +1,49 @@
+{
+  "appHome": {
+    "errorBoundaryTitle": "The stage didn't load properly",
+    "errorBoundaryCopy": "This is usually caused by an outdated cache or a temporary load failure. You can safely reload the latest version.",
+    "errorBoundaryReload": "Reload latest version",
+    "loadingStage": "Loading Echora stage content…",
+    "loadingHome": "Preparing the Echora home page and 3D music carousel…",
+    "loadingPlayer": "Restoring the play queue and Echora stage…",
+    "loadingPanel": "Loading stage settings…",
+    "pageLoadError": "This page couldn't load",
+    "pageLoadErrorCopyStale": "This is usually caused by an outdated cache or a temporary load failure. Reloading keeps the current URL and playback selection.",
+    "pageLoadErrorCopyGeneric": "This page hit a temporary error. You can reload the current page or go back home.",
+    "clearCacheReload": "Clear cache and reload",
+    "backToPlayerHome": "Back to the player home"
+  },
+  "player": {
+    "ytConnectFailed": "YouTube Music connection incomplete",
+    "ytConnectFailedCopy": "Could not verify authorization or read account data; returning to the previous page to show how to fix it.",
+    "ytVerifying": "Verifying YouTube Music authorization…",
+    "ytVerifyingCopy": "After authorization, account and playlist access will be verified.",
+    "lyricsOriginUpload": "Your uploaded lyrics file",
+    "lyricsOriginDemoTranscript": "Demo transcript (unofficial)",
+    "lyricsOriginBundled": "Built-in demo lyrics",
+    "lyricsOriginLrclib": "From LRCLib",
+    "volume": "Volume",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "muteOn": "Currently muted",
+    "muteOff": "Current volume {{percent}}",
+    "nowPlaying": "Now playing",
+    "openPlayerAria": "Open the player for {{title}}",
+    "removeFavoriteAria": "Remove {{title}} from favorites",
+    "addFavoriteAria": "Add {{title}} to favorites",
+    "pausePlayback": "Pause playback",
+    "resumePlayback": "Resume playback",
+    "localLoadFailed": "Local audio failed to load. Try again later or pick another showcase track.",
+    "localPlayUnavailable": "Local audio couldn't play. Make sure the browser allows playback or try again later.",
+    "localNoAudioFile": "This showcase track has no available audio file.",
+    "sceneLoadFailed": "The {{mode}} stage couldn't load right now",
+    "sceneFallbackCopy": "Your stage selection is kept and won't switch back to Classic without consent. You can retry, or manually choose Classic.",
+    "retryScene": "Retry {{mode}}",
+    "switchToClassic": "Switch to Classic"
+  },
+  "footer": {
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "backToApp": "Back to app"
+  }
+}

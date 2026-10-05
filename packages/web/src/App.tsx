@@ -8,15 +8,21 @@ import PersistentMiniPlayer from './components/PersistentMiniPlayer';
 import { RouteSkeleton } from './components/LoadingSkeletons';
 import './App.css';
 import { isChunkLoadError, lazyWithRetry, recoverFromStaleBuild } from './utils/recovery';
+import { withLocaleBundle } from './i18n';
 
-const Welcome = lazyWithRetry(() => import('./pages/Welcome'), 'route-welcome');
-const AppHome = lazyWithRetry(() => import('./pages/AppHome'), 'route-app-home');
-const Player = lazyWithRetry(() => import('./pages/Player'), 'route-player');
-const Settings = lazyWithRetry(() => import('./pages/Settings'), 'route-settings');
-const Library = lazyWithRetry(() => import('./pages/Library'), 'route-library');
+// Every route pulls its own copy with it: the entry chunk carries only the strings the app shell
+// itself renders (`i18n/locales/shell.*.json`). The assignment lives in `i18n/bundles.ts` and is
+// policed by `i18n/localeBundles.test.ts`.
+const Welcome = lazyWithRetry(withLocaleBundle('home', () => import('./pages/Welcome')), 'route-welcome');
+const AppHome = lazyWithRetry(withLocaleBundle('home', () => import('./pages/AppHome')), 'route-app-home');
+const Player = lazyWithRetry(withLocaleBundle('player', () => import('./pages/Player')), 'route-player');
+const Settings = lazyWithRetry(withLocaleBundle('settings', () => import('./pages/Settings')), 'route-settings');
+const Library = lazyWithRetry(withLocaleBundle('library', () => import('./pages/Library')), 'route-library');
+const Privacy = lazyWithRetry(withLocaleBundle('legal', () => import('./pages/Privacy')), 'route-privacy');
+const Terms = lazyWithRetry(withLocaleBundle('legal', () => import('./pages/Terms')), 'route-terms');
+// These two render from the shell copy on purpose: the OBS overlay and the OAuth callback are the
+// lightest pages in the app, and neither should drag the player's panel strings in behind it.
 const YouTubeCallback = lazyWithRetry(() => import('./pages/YouTubeCallback'), 'route-youtube-callback');
-const Privacy = lazyWithRetry(() => import('./pages/Privacy'), 'route-privacy');
-const Terms = lazyWithRetry(() => import('./pages/Terms'), 'route-terms');
 // The overlay an OBS browser source points at. Chrome-free by design, and outside the app shell
 // chrome the other routes render inside.
 const ObsStage = lazyWithRetry(() => import('./pages/ObsStage'), 'route-obs-stage');

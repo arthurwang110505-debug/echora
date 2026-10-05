@@ -256,7 +256,7 @@ export default function Settings() {
               </div>
               <VolumeControl showLabel={false} />
             </div>
-            <p className="mt-3 text-[11px] leading-5 text-slate-400">{t('player.volumeShortcutHint')}</p>
+            <p className="mt-3 text-[11px] leading-5 text-slate-400">{t('settings.volumeShortcutHint')}</p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs leading-6 text-slate-300">
             <p className="font-bold text-white">{t('settings.spectrumTitle')}</p>

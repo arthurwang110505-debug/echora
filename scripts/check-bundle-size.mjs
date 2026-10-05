@@ -12,25 +12,18 @@ import { resolve } from 'node:path';
 const DIST = resolve(process.cwd(), 'packages/web/dist/assets');
 
 const BUDGETS = [
-  // The app shell now bundles the react-i18next runtime plus inline zh-TW/en
-  // resources (P1-5), which legitimately grew index by ~35 kB over the baseline.
-  // Bumped 360 → 390 kB when the privacy policy and terms gained the Google API
-  // Services / Limited Use disclosures (OAuth verification): every locale's copy
-  // ships in this chunk because the legal routes resolve `t()` from the shared
-  // resources. Moving that copy into route-level resource bundles would let this
-  // budget come back down.
-  // Bumped 390 → 394 KiB for the stage-overlay settings card, then 394 → 397 for the
-  // word-segmentation panel's copy. Both are the same root cause and neither is real
-  // weight: ~2 kB of user-facing strings per feature, two locales, all of it in this
-  // chunk. Cumulative cost so far: 390.0 → 394.5 KiB, i.e. this budget is now the
-  // window on an i18n architecture problem rather than on app growth.
+  // The app shell bundles the react-i18next runtime plus `locales/shell.*.json` — the strings the
+  // shell itself can render (error boundary, skeletons, the persistent mini player, the OBS
+  // overlay and the OAuth callback) and nothing else. Every other string now travels with the
+  // route that renders it: `en.json` / `zh-TW.json` used to be imported by `i18n/index.ts`, which
+  // put both languages' player, settings, landing and legal copy in *this* chunk whether or not
+  // anyone visited those pages, and the budget was raised three times (360 → 390 → 394 → 397)
+  // for copy that never belonged here.
   //
-  // The fix is the one the comment above already names: move locale copy out of the
-  // shared resources into route-level bundles (the player's panel strings belong to
-  // the lazily loaded player chunk, which is where the panel itself already lives).
-  // ~7 KiB comes back, and this budget stops being raised for content it should
-  // never have carried. Tracked in docs/echora-gap-analysis.zh-TW.md ("i18n 分區載入").
-  { prefix: 'index-', name: 'app shell (index)', maxKb: 397 },
+  // Measured effect of the split: 394.5 → 325.0 kB, i.e. the shell is 69.5 kB lighter. New page
+  // copy belongs in `i18n/locales/<bundle>.*.json`, and `src/i18n/localeBundles.test.ts` fails if
+  // a route references a key no bundle it loads carries.
+  { prefix: 'index-', name: 'app shell (index)', maxKb: 335 },
   { prefix: 'three-runtime-', name: 'three-runtime', maxKb: 950 },
   { prefix: 'sonnet-scene-', name: 'sonnet-scene', maxKb: 2500 },
   { prefix: 'stage-runtime-', name: 'stage-runtime', maxKb: 200 },

@@ -133,7 +133,7 @@ Echora 內已存在這些檔案：
 | 程式碼地圖 | `docs/CODEMAP.md` 由 TS 編譯器 + 模組圖**生成**、CI 比對；刻意只報**量級**（`512+`）避免每次檔案變動都產生無意義 commit；精確數字用 `ts-code-map` CLI／MCP 按需查 | 無 |
 | AI 協作規範 | `AGENTS.md` + `skills/*/SKILL.md`（含 file-modularization、glossary 對齊、runtime guardrails） | 無 |
 | 決策文件 | 每個模式一份「為什麼」的規格（`tempera/README.md` 幾乎是設計文件，含被否決的替代方案與接受的取捨） | `docs/` 5 份 |
-| i18n 分區載入 | — | **待做**：兩個語系的全部文案都進 app shell（已因此三次調升 `index` 預算：360 → 390 → 394 → 397 KiB）。把各路由的文案改成 route-level bundle，約可回收 7 KiB，並讓預算重新反映真正的程式成長 |
+| i18n 分區載入 | — | **已完成** ✅：原本兩個語系的全部文案都進 app shell（曾因此三次調升 `index` 預算：360 → 390 → 394 → 397 KiB）。現在 shell 只留自己會渲染的 41 條字串，其餘依路由分成 5 個 bundle 隨頁面載入，`index` 由 394.5 → **325.0 KiB**（預算下調 397 → 335 KiB）。見 [`docs/i18n-bundles.zh-TW.md`](./i18n-bundles.zh-TW.md) |
 
 ---
 
