@@ -68,11 +68,16 @@ export function RouteSkeleton() {
   const { t } = useTranslation();
   return (
     <div className="echora-route-skeleton" role="status" aria-busy="true" aria-live="polite">
-      <div className="echora-route-skeleton-orbit" aria-hidden="true" />
-      <div className="echora-route-skeleton-mark" aria-hidden="true">E</div>
-      <SkeletonBlock className="echora-route-skeleton-kicker" />
-      <SkeletonBlock className="echora-route-skeleton-title" />
-      <SkeletonBlock className="echora-route-skeleton-copy" />
+      <div className="echora-route-skeleton-glow echora-route-skeleton-glow-a" aria-hidden="true" />
+      <div className="echora-route-skeleton-glow echora-route-skeleton-glow-b" aria-hidden="true" />
+      <div className="echora-route-skeleton-mark" aria-hidden="true">
+        <img src="/echora-icon-192.png" alt="" width={60} height={60} />
+      </div>
+      <div className="echora-route-skeleton-eq" aria-hidden="true">
+        <span /><span /><span /><span /><span />
+      </div>
+      <div className="echora-route-skeleton-rail" aria-hidden="true" />
+      <p className="echora-route-skeleton-caption" aria-hidden="true">ECHORA</p>
       <SkeletonStatus>{t('appHome.loadingStage')}</SkeletonStatus>
     </div>
   );
@@ -213,13 +218,10 @@ export function StageSkeleton() {
       <div className="echora-stage-skeleton-orbit echora-stage-skeleton-orbit-outer" />
       <div className="echora-stage-skeleton-orbit echora-stage-skeleton-orbit-inner" />
       <SkeletonArtwork className="echora-stage-skeleton-art" />
-      <div className="echora-stage-skeleton-copy">
-        <SkeletonBlock className="h-2.5 w-36 rounded-full" />
-        <SkeletonBlock className="mt-4 h-9 w-56 rounded-xl" />
-        <SkeletonBlock className="mx-auto mt-3 h-3 w-28 rounded-full opacity-70" />
-        <div className="mt-8 flex items-end justify-center gap-1.5">
-          {[18, 28, 42, 24, 36, 52, 30, 44, 22, 34, 46].map((height, index) => <SkeletonBlock key={index} className="w-1.5 rounded-full" style={{ height }} />)}
-        </div>
+      <div className="echora-stage-skeleton-lyrics">
+        <SkeletonBlock className="echora-stage-skeleton-lyric-prev" />
+        <SkeletonBlock className="echora-stage-skeleton-lyric-current" />
+        <SkeletonBlock className="echora-stage-skeleton-lyric-next" />
       </div>
     </div>
   );
@@ -227,5 +229,23 @@ export function StageSkeleton() {
 
 export function PanelSkeleton() {
   const { t } = useTranslation();
-  return <div className="echora-panel-skeleton" role="status" aria-busy="true">{t('appHome.loadingPanel')}</div>;
+  return (
+    <div className="echora-panel-skeleton" role="status" aria-busy="true">
+      <div className="flex gap-2" aria-hidden="true">
+        <SkeletonBlock className="h-8 w-20 rounded-full" />
+        <SkeletonBlock className="h-8 w-20 rounded-full" />
+        <SkeletonBlock className="h-8 w-20 rounded-full" />
+      </div>
+      {[1, 2, 3].map(item => (
+        <div key={item} className="echora-panel-skeleton-row" aria-hidden="true">
+          <SkeletonBlock className="h-9 w-9 shrink-0 rounded-xl" />
+          <div className="flex-1 space-y-2">
+            <SkeletonBlock className="h-3 w-3/4 rounded-full" />
+            <SkeletonBlock className="h-2.5 w-1/2 rounded-full" />
+          </div>
+        </div>
+      ))}
+      <SkeletonStatus>{t('appHome.loadingPanel')}</SkeletonStatus>
+    </div>
+  );
 }

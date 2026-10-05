@@ -238,3 +238,61 @@
 
 :root[data-motion='reduced'] .karaoke-word-fill { transition: none; }
 :root[data-motion='reduced'] .stage-progress { animation: none !important; width: 42%; }
+
+/* ============================================================
+   Scroll-performance landing (acts)
+   ============================================================ */
+
+/* Lenis smooth scroll */
+html.lenis-active,
+html.lenis-active body { height: auto; }
+html.lenis-active { scroll-behavior: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-stopped { overflow: hidden; }
+
+/* Synced lyric stage — words light at their real timestamps */
+.synced-lyric { display: flex; flex-direction: column; align-items: center; gap: 1.1rem; }
+.synced-lyric-line {
+  margin: 0;
+  text-wrap: balance;
+  animation: syncedLineIn 520ms var(--ease-out-smooth, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+.synced-word .karaoke-word-fill {
+  transition: text-shadow 220ms ease;
+  will-change: clip-path;
+}
+.synced-word.is-filled .karaoke-word-fill {
+  text-shadow:
+    0 0 10px rgba(255, 255, 255, 0.35),
+    0 0 34px var(--karaoke-accent);
+}
+.synced-lyric-next {
+  margin: 0;
+  max-width: 36rem;
+  font-family: var(--font-sans);
+  font-size: clamp(0.8rem, 1.4vw, 1rem);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgba(148, 163, 184, 0.55);
+  animation: syncedLineIn 520ms 120ms var(--ease-out-smooth, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+@keyframes syncedLineIn {
+  from { opacity: 0; transform: translate3d(0, 18px, 0); filter: blur(10px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+
+/* Pinned acts: GSAP pins by wrapping; keep the stage from leaking horizontally. */
+[data-landing] .pin-spacer { overflow: visible; }
+
+@media (prefers-reduced-motion: reduce) {
+  .synced-lyric-line,
+  .synced-lyric-next { animation: none; }
+  /* No pinning / scrubbing: acts stack, the hero copy must simply be visible. */
+  [data-act='overture'],
+  [data-act='modes'],
+  [data-act='features'] { height: auto; min-height: 100svh; }
+  [data-act='features'] > div:last-child { flex-wrap: wrap; width: auto; }
+  /* The hero copy sits in flow beneath the lyric instead of being scrubbed in. */
+  [data-hero-block] { position: static; padding-top: 2rem; }
+  [data-act='overture'] > div[aria-hidden='true']:last-child { display: none; }
+}

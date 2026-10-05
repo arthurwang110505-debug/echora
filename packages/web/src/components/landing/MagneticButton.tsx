@@ -1,4 +1,4 @@
-import { useCallback, type ReactNode } from 'react';
+import { useCallback, type CSSProperties, type ReactNode } from 'react';
 import { motion, useMotionValue, useSpring, useReducedMotion } from 'framer-motion';
 
 /**
@@ -13,6 +13,7 @@ interface MagneticButtonProps {
   strength?: number;
   maxShift?: number;
   ariaLabel?: string;
+  style?: CSSProperties;
 }
 
 export default function MagneticButton({
@@ -22,6 +23,7 @@ export default function MagneticButton({
   strength = 0.24,
   maxShift = 10,
   ariaLabel,
+  style,
 }: MagneticButtonProps) {
   const prefersReducedMotion = useReducedMotion();
   const rawX = useMotionValue(0);
@@ -50,7 +52,7 @@ export default function MagneticButton({
       onPointerMove={handleMove}
       onPointerLeave={handleLeave}
       aria-label={ariaLabel}
-      style={prefersReducedMotion ? undefined : { x, y }}
+      style={prefersReducedMotion ? style : { ...style, x, y }}
       whileTap={prefersReducedMotion ? undefined : { scale: 0.955 }}
       className={className}
     >
