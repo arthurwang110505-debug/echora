@@ -15,7 +15,13 @@ export type LocaleBundleName = 'home' | 'player' | 'settings' | 'library' | 'leg
 /** Which top-level locale sections travel in which lazy bundle. */
 export const LOCALE_BUNDLE_SECTIONS: Record<LocaleBundleName, readonly string[]> = {
   home: ['welcome', 'appHome'],
-  player: ['player', 'panel', 'ui', 'lyricSegmentation'],
+  // `options` is the visualizer settings copy, and it lives in the player bundle because that is
+  // where it is rendered: the quick-tuning panel hosts the Tempera canvas-image pool. A section
+  // cannot have a file of its own - the file name is the bundle name - so it sits inside
+  // player.*.json. The other modes' settings panels are still unreachable (see
+  // docs/tempera-port.zh-TW.md), so their keys are not written down yet: a section can grow one
+  // mode at a time, it just cannot be half a mode.
+  player: ['player', 'panel', 'ui', 'lyricSegmentation', 'options'],
   settings: ['settings'],
   library: ['library'],
   legal: ['privacy', 'terms'],

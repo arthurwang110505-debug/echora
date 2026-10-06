@@ -2,14 +2,16 @@
 //
 // Echora note: this test lives in the visualizer tree rather than next to the component it covers,
 // because it has to import the tuning registry - and the registry's tree (`src/original-folia-
-// visualizers/**`) is excluded from the main tsconfig, while `src/components/**` is not. A test
-// under `src/components` that imports the registry would drag `src/types.ts` into the main `tsc`
-// program and fail the build on that file's pre-existing, separately-tracked debt. Here the file is
-// type-checked by `scripts/check-visualizer-types.mjs` instead.
+// visualizers/**`) is excluded from the main tsconfig, while `src/components/**` is not. Here the
+// file is type-checked by `scripts/check-visualizer-types.mjs` instead. The debt that made this
+// position mandatory rather than merely convenient - `src/types.ts`'s seven missing type modules,
+// which any main-program import of the vendored types used to surface - was paid off with the
+// canvas-image pool port (see docs/tempera-image-pool.zh-TW.md).
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import OriginalFoliaTuningPanel from '../components/OriginalFoliaTuningPanel';
+import i18n from '../i18n';
 import { DEFAULT_TEMPERA_TUNING } from '../types';
 import type { VisualizerSharedProps } from './definition';
 import { applyVisualizerTuning } from './tuningRegistry';
@@ -114,6 +116,41 @@ describe('OriginalFoliaTuningPanel', () => {
     expect(writtenTuning.motionAmount).toBe(1.5);
     expect(injected?.layerImages).toEqual(DEFAULT_TEMPERA_TUNING.layerImages);
     expect(injected?.colorMode).toBe('duo');
+  });
+
+  it('hosts the Tempera canvas-image pool, and only for Tempera', () => {
+    // The pool is the one part of Tempera whose files live outside the tuning: the images go to
+    // IndexedDB through the ported services, and only ids/placement are written back. The panel is
+    // the live surface for it, so this pins that it is rendered for its own mode and nowhere else.
+    const heading = i18n.t('options.temperaImageSection');
+    const hint = i18n.t('options.temperaLayerImageHint');
+
+    render('tempera');
+    expect(container.textContent).toContain(heading);
+    expect(container.textContent).toContain(hint);
+
+    // A second mode needs its own root: React 19 refuses to render into an unmounted one.
+    const other = document.createElement('div');
+    document.body.appendChild(other);
+    const otherRoot = createRoot(other);
+    act(() => {
+      otherRoot.render(
+        <OriginalFoliaTuningPanel
+          mode="sonnet"
+          autoMode={false}
+          onAutoModeChange={() => {}}
+          onModeChange={() => {}}
+          onClose={() => {}}
+          backgroundMode={'latent'}
+          onBackgroundModeChange={() => {}}
+          tunings={{}}
+          onTuningsChange={() => {}}
+        />,
+      );
+    });
+    expect(other.textContent).not.toContain(heading);
+    act(() => otherRoot.unmount());
+    other.remove();
   });
 
   it('writes only the mode being tuned', () => {

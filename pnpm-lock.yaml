@@ -66,6 +66,9 @@ importers:
       blueimp-md5:
         specifier: ^2.19.0
         version: 2.19.0
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       framer-motion:
         specifier: ^11.18.2
         version: 11.18.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

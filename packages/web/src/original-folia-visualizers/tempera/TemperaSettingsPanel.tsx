@@ -10,6 +10,7 @@ import { colorWithAlpha } from '../colorMix';
 import type { VisualizerSettingsPanelProps } from '../definition';
 import VisualizerPresetGroup, { type VisualizerPresetOption } from '../VisualizerPresetGroup';
 import { TemperaRangeControl, TemperaSettingsSection } from './TemperaSettingsControls';
+import TemperaImageLayerControls from './TemperaImageLayerControls';
 
 // src/components/visualizer/tempera/TemperaSettingsPanel.tsx
 // Keeps Tempera's tuning controls adjacent to the mode implementation.
@@ -68,10 +69,16 @@ const TemperaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                 </div>
             </div>
 
-            {/* Echora note: upstream's "画布图片" (canvas image) section sits here. The image pool
-                is the one part of Tempera this port leaves out - it needs the IndexedDB store, the
-                zip archive (`fflate`) and four pool components, and the renderer treats an empty
-                pool as a fully supported configuration. See docs/tempera-port.zh-TW.md. */}
+            <TemperaSettingsSection title={t('options.temperaImageSection') || '畫布圖片'}>
+                <TemperaImageLayerControls
+                    images={temperaTuning.layerImages}
+                    depth={temperaTuning.layerImageDepth}
+                    frequency={temperaTuning.layerImageFrequency}
+                    rangeInputClass={rangeInputClass}
+                    isDaylight={isDaylight}
+                    onCommit={patch => onTemperaTuningChange?.(patch)}
+                />
+            </TemperaSettingsSection>
 
             <TemperaSettingsSection title={t('options.temperaQualitySection')}>
                 <div

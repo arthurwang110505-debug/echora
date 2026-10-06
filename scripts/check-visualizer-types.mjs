@@ -32,12 +32,17 @@ if (!existsSync(PROJECT)) {
 }
 
 /**
- * Long-standing debt of `src/types.ts`, which was vendored before three of the modules it imports
- * (`types/onlineMusic`, `types/localLibrary`, `types/localCover`) were dropped. Only the dead
- * `src/utils/**` code from that earlier port uses those names; nothing in the visualizer tree
- * does. Kept as one entry per (file, error code) with an exact count.
+ * Empty on purpose, and worth keeping: the check fails both when a new error appears *and* when an
+ * entry here stops matching, so paying a debt is a two-line change rather than something that can
+ * be forgotten while the allowlist quietly keeps hiding it.
+ *
+ * The one entry this used to carry - seven `TS2307`s in `src/types.ts` for `types/onlineMusic`,
+ * `types/localLibrary` and `types/localCover` - was paid off with the Tempera canvas-image pool:
+ * the pool's helpers import `src/types.ts` from code the *main* program reaches, so those missing
+ * modules stopped being a visualizer-only debt and started failing `pnpm build`. All three were
+ * ported from upstream (token-identical, see `docs/tempera-image-pool.zh-TW.md`).
  */
-const KNOWN_DEBT = [{ file: 'src/types.ts', code: 'TS2307', count: 7 }];
+const KNOWN_DEBT = [];
 
 const result = spawnSync(process.execPath, [TSC, '-p', PROJECT, '--noEmit', '--pretty', 'false'], {
   cwd: resolve(process.cwd(), 'packages/web'),
