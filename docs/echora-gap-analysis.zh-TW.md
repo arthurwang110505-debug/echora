@@ -30,7 +30,7 @@ Folia 有 14 個模式，Echora 移植 11 個。缺的是：
 
 | 缺的模式 | 規模 | 它是什麼 |
 |---|---:|---|
-| `tempera` 凝彩 | 11,426 行 / 50 檔 | 網點（screentone）MG 風 PV。**121 種 shot kind / 13 個家族**；用 difference filter 逐像素決定 ink/paper 反色；真的在色塊上挖洞露出背景層；≥1.2s 的間奏編譯成「bridge shot」讓器樂段一直在動；shot 之間沿 `flowAngle` 接力，切點讀起來是一個長鏡頭 |
+| `tempera` 凝彩 | 11,426 行 / 50 檔（**核心已移植**，見 [`docs/tempera-port.zh-TW.md`](./tempera-port.zh-TW.md)；只差畫布圖片池） | 網點（screentone）MG 風 PV。**121 種 shot kind / 13 個家族**；用 difference filter 逐像素決定 ink/paper 反色；真的在色塊上挖洞露出背景層；≥1.2s 的間奏編譯成「bridge shot」讓器樂段一直在動；shot 之間沿 `flowAngle` 接力，切點讀起來是一個長鏡頭 |
 | `lumiere` 繪光 | 11,536 行 / 60 檔 | 舞台燈光導演：體積光、煙霧、線稿「圖形組」、11 種燈架（astral／botany／caustic／optics／prism／stage／zenith…）；可把整首編譯成**單一無縫單元**（段落間走燈位交接，約 45–50 ms 建場景） |
 | `still` 静止 | 115 行 | 極省資源的靜態模式（低階裝置／省電） |
 | `videoLayer` | 1 個檔案 | 歌詞後方的影片圖層（搭配背景「完全空白」選項） |
@@ -41,8 +41,9 @@ Folia 有 14 個模式，Echora 移植 11 個。缺的是：
 
 1. **compile-then-render**：先把整首編譯成 shot program（段落／鏡頭／時間軸），渲染只讀絕對播放時間；— Echora **已有**（sonnet program）
 2. **scene cache ±1**：只保留當前與相鄰段落；— Echora **已有**（sonnet scene cache）
-3. **就地換歌**（`songHandover` + `pixiRuntimeHost`）：換歌不重建 WebGL；— **A 層已完成** ✅
+3. **就地換歌**（`songHandover` + `pixiRuntimeHost`）：換歌不重建 WebGL；— **已完成** ✅
    （`pixiRuntimeHost` / `loadPixi` / `pixiDisplayResources` / `subtitleFontSizes` 已搬入，sonnet 已改用；
+   `tempera` 本體（含 13 族 / 121 種 shot kind）也已移植並接上五個 UI 介面，
    見 [`docs/tempera-port.zh-TW.md`](./tempera-port.zh-TW.md)）
 4. **一幀最多做一件貴的事**；— Echora **已有**
 
@@ -158,7 +159,8 @@ Echora 內已存在這些檔案：
    sonnet／classic／partita 三個渲染路徑都會讀使用者的切分。
    尚未做：逐行編輯器（目前是文字列格式）、上游的 `lyricExport`。
 
-4. **`tempera` / `lumiere`**（視覺最炫，但要先有 1）
+4. **`lumiere`**（`tempera` 已完成：核心 + 構圖 + 面板 + 接線；`lumiere` 面板會借用
+   `tempera/TemperaSettingsControls.tsx`，那 73 行已經在原位）
    兩者加起來 23,000 行，是上游「歌詞 PV 引擎」的真正核心。
 
 5. **明確放棄**：壁紙模式、Folium、Discord／托盤（PWA 不可行或非核心）、Automix（模型體積與推論環境不合理）。
@@ -171,4 +173,4 @@ Echora 缺的不是功能數量，而是三件事：**（a）把渲染器當引�
 目前 Echora 已經有 11 個模式、6 種背景與一批相當完整的 helper —— 缺的是把它們串成上游那種「可以給別人用」的產品。
 第 1、2、3 項（引擎化＋量測、Stage API＋OBS 輸出、詞切分＋AI）都已完成第一輪：
 舞台現在**可以被外部工具用**、它的效能有數字可以查，而且**CJK 的排版切分可以由使用者或模型決定**。
-下一步是第 4 項（`tempera` / `lumiere`）。
+下一步是第 4 項剩下的 `lumiere`（`tempera` 已於本輪完成，含 13 族 / 121 種 shot kind）。

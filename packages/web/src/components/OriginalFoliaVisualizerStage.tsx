@@ -17,6 +17,7 @@ import OriginalVisualizerRenderer from "./OriginalVisualizerRendererProxy";
 type OriginalMode =
   | "classic"
   | "cadenza"
+  | "tempera"
   | "partita"
   | "fume"
   | "monet"
@@ -63,6 +64,7 @@ interface Props {
 const MODES: OriginalMode[] = [
   "classic",
   "cadenza",
+  "tempera",
   "partita",
   "fume",
   "monet",
@@ -75,8 +77,8 @@ const MODES: OriginalMode[] = [
 ];
 
 // Each mode's scene ships in its own chunk (see lazyVisualizer). After the player
-// has mounted and the browser goes idle, walk the remaining mode chunks plus
-// Sonnet's Pixi runtime one at a time. import.meta.glob keeps these as dynamic
+// has mounted and the browser goes idle, walk the remaining mode chunks plus the
+// Pixi runtime each of the two WebGL modes loads on demand, one at a time. import.meta.glob keeps these as dynamic
 // loaders, so nothing here changes the module graph for the type checker and the
 // chunks are exactly the ones the lazy entries load. Switching modes later simply
 // never waits on a download or a main-thread parse spike.
@@ -85,9 +87,10 @@ let hasScheduledStagePrefetch = false;
 const STAGE_MODE_CHUNK_LOADERS = import.meta.glob<Promise<unknown>>(
   "../original-folia-visualizers/*/Visualizer*.tsx",
 );
-const STAGE_RUNTIME_CHUNK_LOADERS = import.meta.glob<Promise<unknown>>(
+const STAGE_RUNTIME_CHUNK_LOADERS = import.meta.glob<Promise<unknown>>([
   "../original-folia-visualizers/sonnet/createSonnetPixiRuntime.ts",
-);
+  "../original-folia-visualizers/tempera/createTemperaPixiRuntime.ts",
+]);
 
 const scheduleStagePrefetch = () => {
   if (hasScheduledStagePrefetch || typeof window === "undefined") return;

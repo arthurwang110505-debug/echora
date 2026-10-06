@@ -10,7 +10,7 @@ import type {
     UrlBackgroundItem,
     VisualizerBackgroundMode,
 } from '../../types';
-import type { StagePerformanceTier } from '../../../utils/stagePerformance';
+import type { StagePerformanceTier } from '../../utils/stagePerformance';
 
 // src/components/visualizer/backgrounds/definition.ts
 // Shared contracts for discoverable visualizer background modes.

@@ -116,6 +116,12 @@ shell 41 條全中，`settings` / `legal` 0 條，其餘只有刻意留在 shell
 
 ## 7. 對第 4 項（tempera）的意義
 
+**結果（tempera 那輪結束時）**：實際只加了 `welcome.mode_tempera` 一組（兩語系各 1 鍵，落在
+`home.*.json`），因為 landing 的 Modes act 走 `VISUALIZER_OPTIONS`、而 `LandingStage.test.tsx`
+逐模式比對 id／名稱／兩語系文案。面板自己的 `options.*` 33 鍵**沒有**加：那些面板目前沒有任何
+live 介面會渲染（`VisPlayground` 從 `main.tsx` 走不到），見
+[`docs/tempera-port.zh-TW.md`](./tempera-port.zh-TW.md) §3.6。
+
 tempera 的文案（上游：en 94 鍵、zh 92 鍵；換算到 Echora 兩語系約 +10～12 KiB gzip）現在會落在
 `player.*.json`，**不進 `index`**。也就是說第 4 項不會再撞到 app shell 預算，
 `index` 335 KiB 的額度留給真正的 shell 程式碼成長。

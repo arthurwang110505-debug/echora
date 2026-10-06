@@ -25,6 +25,8 @@ interface VisualizerSubtitleOverlayProps {
     opacity?: number;
     subtitleOverlayOpacity?: number;
     subtitleOverlayBackground?: boolean;
+    /** Blur the next-line preview; on by default, as it has always looked in Echora. */
+    subtitleUpcomingLyricsBlur?: boolean;
     isPlayerChromeHidden?: boolean;
     hideTranslationSubtitle?: boolean;
     showSubtitleTranslation?: boolean;
@@ -74,6 +76,7 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
     opacity = 0.6,
     subtitleOverlayOpacity,
     subtitleOverlayBackground = true,
+    subtitleUpcomingLyricsBlur = true,
     isPlayerChromeHidden = false,
     hideTranslationSubtitle = false,
     showSubtitleTranslation = true,
@@ -166,7 +169,7 @@ const VisualizerSubtitleOverlay: React.FC<VisualizerSubtitleOverlayProps> = ({
                                 {upcomingLines.map((line, index) => (
                                     <p
                                         key={index}
-                                        className="mx-auto max-w-[calc(100vw-1.5rem)] whitespace-normal break-words transition-all duration-500 blur-[1px]"
+                                        className={`mx-auto max-w-[calc(100vw-1.5rem)] whitespace-normal break-words transition-all duration-500${subtitleUpcomingLyricsBlur ? ' blur-[1px]' : ''}`}
                                         style={{
                                             color: theme.secondaryColor,
                                             fontSize: scaleFontSize(upcomingFontSize),

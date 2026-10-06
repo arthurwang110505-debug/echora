@@ -17,6 +17,7 @@ import {
     type PendoloTuning,
     type SonnetTuning,
     type SubtitleContentMode,
+    type TemperaTuning,
     type Theme,
     type TiltTuning,
     type VisualizerMode,
@@ -26,7 +27,7 @@ import type { VisualizerBackgroundConfig } from './backgrounds/definition';
 
 // src/components/visualizer/definition.ts
 // Shared contracts for discoverable visualizer modes.
-export type VisualizerTuningKind = 'none' | 'classic' | 'cadenza' | 'partita' | 'fume' | 'claddagh' | 'cappella' | 'tilt' | 'monet' | 'diorama' | 'pendolo' | 'sonnet';
+export type VisualizerTuningKind = 'none' | 'classic' | 'cadenza' | 'partita' | 'fume' | 'claddagh' | 'cappella' | 'tilt' | 'monet' | 'diorama' | 'pendolo' | 'sonnet' | 'tempera';
 
 export interface VisualizerSharedProps {
     currentTime: MotionValue<number>;
@@ -51,6 +52,12 @@ export interface VisualizerSharedProps {
     subtitleFontScale?: number;
     subtitleOverlayOpacity?: number;
     subtitleOverlayBackground?: boolean;
+    /**
+     * Blur the next-line preview under the active lyric. Upstream's shell passes this through to
+     * the shared overlay; Echora's overlay hardcoded the blur until the Tempera port, so the prop
+     * arrives together with the mode that exposes it (its panel has a switch for it).
+     */
+    subtitleUpcomingLyricsBlur?: boolean;
     showHarmonySubtitle?: boolean;
     harmonySubtitleBackground?: boolean;
     isPlayerChromeHidden?: boolean;
@@ -83,6 +90,8 @@ export interface VisualizerSharedProps {
     onPendoloTuningChange?: (patch: Partial<PendoloTuning>) => void;
     sonnetTuning?: SonnetTuning;
     onSonnetTuningChange?: (patch: Partial<SonnetTuning>) => void;
+    temperaTuning?: TemperaTuning;
+    onTemperaTuningChange?: (patch: Partial<TemperaTuning>) => void;
 }
 
 export interface VisualizerSettingsPanelProps {
@@ -126,6 +135,8 @@ export interface VisualizerSettingsPanelProps {
     onPendoloTuningChange?: (patch: Partial<PendoloTuning>) => void;
     sonnetTuning?: SonnetTuning;
     onSonnetTuningChange?: (patch: Partial<SonnetTuning>) => void;
+    temperaTuning?: TemperaTuning;
+    onTemperaTuningChange?: (patch: Partial<TemperaTuning>) => void;
     /** Mark slider drag start so onChange only updates draft. */
     onSliderPointerDown?: () => void;
     /** Commit draft values to persistent store on slider release. */
@@ -143,10 +154,12 @@ export interface VisualizerSettingsResetProps {
     resetMonetTuning?: () => void;
     resetPendoloTuning?: () => void;
     resetSonnetTuning?: () => void;
+    resetTemperaTuning?: () => void;
     setDraftFumeTuning?: (tuning: FumeTuning) => void;
     setDraftCladdaghTuning?: (tuning: CladdaghTuning) => void;
     setDraftPendoloTuning?: (tuning: PendoloTuning) => void;
     setDraftSonnetTuning?: (tuning: SonnetTuning) => void;
+    setDraftTemperaTuning?: (tuning: TemperaTuning) => void;
 }
 
 export interface VisualizerRegistryEntry {
@@ -157,6 +170,12 @@ export interface VisualizerRegistryEntry {
     previewSeed: string;
     previewStartOffset: number;
     tuningKind: VisualizerTuningKind;
+    /**
+     * Mode draws per-word (segmented) lyrics rather than whole lines. Upstream gates its
+     * appearance controls and the segmentation command on this; Echora reads the record it
+     * bakes into `Line.wordSegments`, so the flag is documentation for now.
+     */
+    usesWordSegmentation?: boolean;
     render: (props: VisualizerSharedProps) => React.ReactElement;
     renderSettingsPanel?: (props: VisualizerSettingsPanelProps) => React.ReactNode;
     resetSettings?: (props: VisualizerSettingsResetProps) => void;

@@ -1,4 +1,3 @@
-import React from 'react';
 import { colorWithAlpha } from './colorMix';
 import { type VisualizerSettingsPanelProps } from './definition';
 

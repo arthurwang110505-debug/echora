@@ -16,7 +16,9 @@ export default defineVisualizer({
     previewSeed: 'sonnet',
     previewStartOffset: 0,
     tuningKind: 'sonnet',
-    render: props => <VisualizerSonnet key={props.seed} {...props} />,
+    // No `key={props.seed}`: a remount throws the WebGL context away, which is exactly what the
+    // mount-once host in VisualizerSonnet exists to avoid. A song change is handed to the live
+    // runtime instead (see pixiRuntimeHost.ts).
     renderSettingsPanel: props => <SonnetSettingsPanel {...props} />,
     resetSettings: ({ resetSonnetTuning, setDraftSonnetTuning }) => {
         setDraftSonnetTuning?.(DEFAULT_SONNET_TUNING);

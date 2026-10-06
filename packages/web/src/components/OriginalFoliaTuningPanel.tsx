@@ -19,11 +19,15 @@ const backgrounds = [
   ['monet', 'Monet'], ['nomand', 'Nomand'], ['sora', 'Sora'], ['url', 'Image URL'],
 ];
 
-const modes = [['classic', 'Classic'], ['cadenza', 'Cadenza'], ['partita', 'Partita'], ['fume', 'Fume'], ['monet', 'Monet'], ['cappella', 'Cappella'], ['pendolo', 'Pendolo'], ['sonnet', 'Sonnet'], ['claddagh', 'Claddagh'], ['diorama', 'Diorama'], ['tilt', 'Tilt']];
+const modes = [['classic', 'Classic'], ['cadenza', 'Cadenza'], ['tempera', 'Tempera'], ['partita', 'Partita'], ['fume', 'Fume'], ['monet', 'Monet'], ['cappella', 'Cappella'], ['pendolo', 'Pendolo'], ['sonnet', 'Sonnet'], ['claddagh', 'Claddagh'], ['diorama', 'Diorama'], ['tilt', 'Tilt']];
 
 export default function OriginalFoliaTuningPanel({ mode, autoMode, onAutoModeChange, onModeChange, onClose, backgroundMode, onBackgroundModeChange, tunings, onTuningsChange }: Props) {
   const { t } = useTranslation();
-  const key = `${mode}Tuning`;
+  // The bundle `applyVisualizerTuning` reads is keyed by the bare mode name
+  // (`visualizerTunings.tempera`), not by the settings-store field the adapters also declare
+  // (`temperaTuning`). This panel used to write `${mode}Tuning`, so every slider here was
+  // silently dropped for every mode; the stage renderer never saw the value.
+  const key = mode;
   const current = tunings[key] ?? {};
   const [draft, setDraft] = useState(current);
 

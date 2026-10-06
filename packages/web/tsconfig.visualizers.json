@@ -1,0 +1,33 @@
+{
+  // Type gate for the ported visualizer tree.
+  //
+  // `src/original-folia-visualizers` is excluded from the main tsconfig (and the exclusion is
+  // transitive: a file that is only reached *through* the excluded folder is not checked either).
+  // Layer A put the shared Pixi modules under `tsconfig.pixi.json`; this project covers the
+  // Tempera port and everything it pulls in, so a ported mode is not a type-checking blind spot.
+  //
+  // Known pre-existing debt, filtered by scripts/check-visualizer-types.mjs rather than hidden:
+  // `src/types.ts` imports three type modules that do not exist in this repository
+  // (`./types/onlineMusic`, `./types/localLibrary`, `./types/localCover`). Those types are used by
+  // `src/utils/**`, which is dead code left over from an earlier port - see
+  // docs/tempera-port.zh-TW.md (§ 尚未處理的問題). Nothing in the Tempera port touches it.
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/vite-env.d.ts",
+    "src/original-folia-visualizers/loadPixi.ts",
+    "src/original-folia-visualizers/pixiFilterPoolCompat.ts",
+    "src/original-folia-visualizers/pixiRuntimeHost.ts",
+    "src/original-folia-visualizers/pixiDisplayResources.ts",
+    "src/original-folia-visualizers/subtitleFontSizes.ts",
+    "src/original-folia-visualizers/songHandover.ts",
+    "src/original-folia-visualizers/definition.ts",
+    "src/original-folia-visualizers/tuningAdapter.ts",
+    "src/original-folia-visualizers/tuningRegistry.ts",
+    "src/original-folia-visualizers/*/tuning.ts",
+    "src/original-folia-visualizers/*.test.ts",
+    "src/original-folia-visualizers/*.test.tsx",
+    "src/original-folia-visualizers/tempera/**/*.ts",
+    "src/original-folia-visualizers/tempera/**/*.tsx"
+  ],
+  "exclude": []
+}
