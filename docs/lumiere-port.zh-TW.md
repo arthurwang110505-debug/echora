@@ -226,7 +226,8 @@ Echora 這邊集中成一個 resolver，讓 `iconPaths.ts` / `themeIcons.ts` 不
 
 ## 8. 尚未處理 / 刻意延後
 
-1. **`tempera` 的畫布圖片池還沒搬**（下一步）。缺的是四個編輯器／對話框
+1. ~~**`tempera` 的畫布圖片池還沒搬**（下一步）。~~ **已於 `69dfb22` 完成**，見
+   `docs/tempera-image-pool.zh-TW.md`。原本缺的是四個編輯器／對話框
    （`TemperaImageImportMenu` / `ImageLayerControls` / `ImageLayerDialog` / `ImagePlacementEditor`）、
    `useTemperaLayerImageThumbnails`、`temperaDialogTokens`、`shared/ThemedDialog`、
    `services/temperaLayerImages` / `temperaImageArchive` 與 `fflate` 依賴，以及 IDB 存放。

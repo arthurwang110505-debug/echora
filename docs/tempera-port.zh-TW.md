@@ -149,9 +149,13 @@ B（架構 + 鏡頭族）與 C（構圖資料）一次到底，44 檔進到
 | `sonnet/entry.tsx` | 移除 `key={props.seed}`。它讓每次換歌都 remount，等於把 mount-once host 存在的理由（保住 WebGL context）拆掉 |
 | `VisualizerSubtitleOverlay.tsx` | 新增 `subtitleUpcomingLyricsBlur`（預設 true，行為與舊版一致）：上游 shell 會把這個開關傳進 overlay，tempera 的面板有它，Echora 端以前是寫死 `blur-[1px]` |
 
-### 2.3 刻意延後：畫布圖片池
+### 2.3 畫布圖片池（本輪已完成，見 `docs/tempera-image-pool.zh-TW.md`）
 
-**沒搬**（全部屬於「使用者的圖放在歌詞後方」這一組功能）：
+> 補記：這一塊在後續一輪已經搬完並接上線（commit `69dfb22`）。當時延後的理由、
+> 以及補完時多做的兩件事（`services/imageAssetCache.ts` 轉接層、`src/types.ts` 的型別債）
+> 都寫在 `docs/tempera-image-pool.zh-TW.md`。下面保留當初的判斷與狀態，供對照。
+
+**當時沒搬**（全部屬於「使用者的圖放在歌詞後方」這一組功能）：
 `TemperaImageImportMenu`／`TemperaImageLayerControls`／`TemperaImageLayerDialog`／
 `TemperaImagePlacementEditor.tsx`、`useTemperaLayerImageThumbnails.ts`、
 `temperaDialogTokens.ts`、`services/tempera{LayerImages,ImageArchive}`（+ 新依賴 `fflate`）、
@@ -163,7 +167,7 @@ B（架構 + 鏡頭族）與 C（構圖資料）一次到底，44 檔進到
 - runtime 對「沒有圖片」是一等公民：`applyPool`（`createTemperaPixiRuntime.ts`）在
   `layerImages: []` 時只是沒有東西可放，其餘 12 族構圖完全照跑；
 - **排版數學已經搬進來了**：`temperaImageLayer.ts`（對齊／縮放／不透明度 → 實際 rect）是獨立模組，
-  所以補完這塊剩下的是「儲存 + UI」，不是重寫；
+  所以補完這塊剩下的是「儲存 + UI」，不是重寫（**事實證明如此**：補完時沒有動到任何排版程式）；
 - 要恢復時把 `imageBlobs` 換回真的 loader、把 `imagePoolKey` 換回 id 集合即可；
   `makeTemperaSceneBuilder` 那條 API 從頭到尾都還認得 `layerImages`。
 

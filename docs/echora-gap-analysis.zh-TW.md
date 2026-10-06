@@ -175,5 +175,8 @@ Echora 缺的不是功能數量，而是三件事：**（a）把渲染器當引�
 舞台現在**可以被外部工具用**、它的效能有數字可以查，而且**CJK 的排版切分可以由使用者或模型決定**。
 第 4 項的兩個大模式也都進來了：`tempera`（13 族 / 121 種 shot kind，`f1f7f8b`）與
 `lumiere`（100 個燈位 / 10 族，見 `docs/lumiere-port.zh-TW.md`）。
-下一步是 `tempera` 刻意延後的那一塊：**畫布圖片池**（4 個編輯器／對話框 + `services/temperaLayerImages` + IDB + `fflate`）——
-渲染端 `temperaImageLayer.ts` 已經在，缺的只有儲存與 UI。
+`tempera` 延後的那一塊（**畫布圖片池**：4 個編輯器／對話框 + `services/temperaLayerImages` + IDB + `fflate`）
+也已在 `69dfb22` 補完並接上快速調校面板，同時還掉了 `src/types.ts` 的 7 條 `TS2307` 型別債
+（見 `docs/tempera-image-pool.zh-TW.md`）。
+下一步回到「明確放棄」清單之外、投報率最高的一項：**全站 toast host**（目前圖片池的訊息只在面板裡顯示），
+以及把 12 個模式的死設定面板做個了斷（補齊 `options.*` 並開 dev-only 路線，或整條砍掉）。
