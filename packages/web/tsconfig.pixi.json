@@ -1,0 +1,19 @@
+{
+  // `src/original-folia-visualizers` is excluded from the main tsconfig (see the type-coverage
+  // note in docs/tempera-port.zh-TW.md), so anything ported into it would otherwise never be
+  // type-checked. This project covers the shared Pixi layer, whose import closure is clean
+  // (react + pixi.js only) - widening it to the ported modes is the next step, and it needs the
+  // main exclusion fixed first because `src/types.ts` does not compile on its own.
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/original-folia-visualizers/loadPixi.ts",
+    "src/original-folia-visualizers/pixiFilterPoolCompat.ts",
+    "src/original-folia-visualizers/pixiRuntimeHost.ts",
+    "src/original-folia-visualizers/pixiDisplayResources.ts",
+    "src/original-folia-visualizers/subtitleFontSizes.ts",
+    "src/original-folia-visualizers/pixiRuntimeHost.test.tsx",
+    "src/original-folia-visualizers/loadPixi.test.ts",
+    "src/original-folia-visualizers/pixiDisplayResources.test.ts"
+  ],
+  "exclude": []
+}

@@ -39,10 +39,12 @@ Folia 有 14 個模式，Echora 移植 11 個。缺的是：
 
 上游三個大模式（sonnet／tempera／lumiere）共用同一套體質：
 
-1. **compile-then-render**：先把整首編譯成 shot program（段落／鏡頭／時間軸），渲染只讀絕對播放時間；
-2. **scene cache ±1**：只保留當前與相鄰段落；
-3. **就地換歌**（`songHandover` + `pixiRuntimeHost`）：換歌不重建 WebGL；
-4. **一幀最多做一件貴的事**。
+1. **compile-then-render**：先把整首編譯成 shot program（段落／鏡頭／時間軸），渲染只讀絕對播放時間；— Echora **已有**（sonnet program）
+2. **scene cache ±1**：只保留當前與相鄰段落；— Echora **已有**（sonnet scene cache）
+3. **就地換歌**（`songHandover` + `pixiRuntimeHost`）：換歌不重建 WebGL；— **A 層已完成** ✅
+   （`pixiRuntimeHost` / `loadPixi` / `pixiDisplayResources` / `subtitleFontSizes` 已搬入，sonnet 已改用；
+   見 [`docs/tempera-port.zh-TW.md`](./tempera-port.zh-TW.md)）
+4. **一幀最多做一件貴的事**；— Echora **已有**
 
 Echora 缺的正是這一層 —— 而這正是本次卡頓的根因（見 `docs/sonnet-diorama-stall-diagnosis.md`）。
 **只搬模式、不搬架構，搬過來的模式一樣會卡。**

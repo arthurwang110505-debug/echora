@@ -42,6 +42,7 @@ import { sonnetDebugState } from './sonnetDebug';
 import { resolveSonnetSegmentCameraFocus } from './sonnetCameraTracking';
 import { SONNET_SONG_SWAP_MS, resolveSonnetHandoverFrame } from './songHandover';
 import { probeCount, probeSpan, stageNow } from '../../utils/stageProbe';
+import { loadPixi } from '../loadPixi';
 
 // src/components/visualizer/sonnet/createSonnetPixiRuntime.ts
 // Owns Pixi lifecycle and mutates bounded scene views directly from absolute playback time.
@@ -113,7 +114,11 @@ export class SonnetPixiRuntime {
     ) { }
 
     static async create(options: SonnetRuntimeOptions) {
-        const pixi = await import('pixi.js');
+        // Through `loadPixi`, not `import('pixi.js')`: it raises the fragment precision default to
+        // highp before the first program compiles (fp16 mediump overflows inside Pixi's own
+        // NoiseFilter on NVIDIA/Linux, which paints a black wedge across the frame - the header of
+        // loadPixi.ts has the full derivation).
+        const pixi = await loadPixi();
         const app = new pixi.Application();
         const width = Math.max(options.host.clientWidth, 320);
         const height = Math.max(options.host.clientHeight, 240);
