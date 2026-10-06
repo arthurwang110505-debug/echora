@@ -523,6 +523,92 @@ export const DEFAULT_PENDOLO_TUNING: PendoloTuning = {
 
 export type SonnetOuterFrameMode = 'none' | 'frame' | 'full';
 
+export type LumiereRenderQuality = 'full' | 'balanced' | 'low';
+
+export interface LumiereTuning {
+    /** 光強倍率, 0.3..2. */
+    lightIntensity: number;
+    /** 隨音樂變亮, 0..2 (0 = 不隨音樂變). */
+    audioResponse: number;
+    /** 煙霧濃度, 0..2. */
+    fogDensity: number;
+    /**
+     * 暗場強度, 0..1：光後面鋪一層主題背景色壓暗的底，壓住 folia 的共享背景（0 = 共享背景原樣透出）。
+     * 淺色主題保底 0.94（繪光始終在暗場裡）。
+     */
+    darkField: number;
+    /** 浮塵數量, 0..2. */
+    moteAmount: number;
+    /** 圖形輝光, 0..2. */
+    bloom: number;
+    /** 文字輝光, 0..2. */
+    textBloom: number;
+    /** 未唱字透明度, 0.05..0.6. */
+    unlitOpacity: number;
+    /** 鄰行：1 = 上一行 + 當前行，2 = 上一行 + 當前行 + 下一行. */
+    windowNeighbors: 1 | 2;
+    /** 崩解強度, 0..2. */
+    decay: number;
+    /** 背景歌詞亮度, 0..2 (0 = 關). */
+    echo: number;
+    /** 煙霧細節（倍頻數）, integer 2..6. */
+    fogOctaves: number;
+    /** 線稿. */
+    lineArt: boolean;
+    /** 前景散景. */
+    frontBokeh: boolean;
+    /** 所有換位都走軌跡線. */
+    trails: boolean;
+    /** 隱藏所有歌詞換位的軌跡線，保留字的飛行與軌跡過渡. */
+    hideTrails: boolean;
+    /**
+    * 軌跡過渡：段落之間也和段內換鏡頭一樣在同一個光場裡交接（整首歌編成一個場景單元），
+    * 沒有熄燈 / 閃白 / 拉焦 / 交叉漸變。改它會重新編譯程序.
+    */
+    seamlessTransitions: boolean;
+    /** 畫框. */
+    overlayFrame: boolean;
+    /**
+    * 僅顯示歌詞文字：只畫歌詞與字上的效果（點亮、光暈、閃點、十字爆閃、徑跡、追字光斑），
+    * 光場、煙霧、星空、線稿、浮塵、背景歌詞、主題圖標、畫框與片尾卡的光都不畫。字的明暗仍按光束算.
+    */
+    textOnly: boolean;
+    /** 關鍵字著色（主題 wordColors）. */
+    keywordColors: boolean;
+    /** 主題圖標（主題 lyricsIcons 畫成線稿）. */
+    themeIcons: boolean;
+    /** 主題色佔比, 0..1：0 = 香檳金光；越高光色越接近強調色、點亮 / 未唱的字越接近主色 / 次色. */
+    themeColorMix: number;
+    /** 畫質. */
+    renderQuality: LumiereRenderQuality;
+}
+
+export const DEFAULT_LUMIERE_TUNING: LumiereTuning = {
+    lightIntensity: 1,
+    audioResponse: 1,
+    fogDensity: 1,
+    darkField: 0.75,
+    moteAmount: 1,
+    bloom: 1,
+    textBloom: 1,
+    unlitOpacity: 0.22,
+    windowNeighbors: 2,
+    decay: 1,
+    echo: 1,
+    fogOctaves: 5,
+    lineArt: true,
+    frontBokeh: true,
+    trails: true,
+    hideTrails: false,
+    seamlessTransitions: true,
+    overlayFrame: true,
+    textOnly: false,
+    keywordColors: true,
+    themeIcons: true,
+    themeColorMix: 0.3,
+    renderQuality: 'full',
+};
+
 export type TemperaColorMode = 'duo' | 'mono' | 'gradient';
 
 /** Where an image tends to sit; the exact spot is picked per shot from the seed. */

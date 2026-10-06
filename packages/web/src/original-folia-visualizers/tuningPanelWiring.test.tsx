@@ -72,7 +72,7 @@ describe('OriginalFoliaTuningPanel', () => {
     return onTuningsChange;
   };
 
-  it('offers Tempera in its mode list, in stage-picker order', () => {
+  it('offers every registered mode, in stage-picker order', () => {
     render('tempera');
 
     const options = [...container.querySelectorAll('select')][0].querySelectorAll('option');
@@ -80,6 +80,7 @@ describe('OriginalFoliaTuningPanel', () => {
       'classic',
       'cadenza',
       'tempera',
+      'lumiere',
       'partita',
       'fume',
       'monet',

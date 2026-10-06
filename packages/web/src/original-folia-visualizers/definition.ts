@@ -10,6 +10,7 @@ import {
     type CladdaghTuning,
     type DioramaTuning,
     type FumeTuning,
+    type LumiereTuning,
     type Line,
     type MonetPortraitImage,
     type MonetTuning,
@@ -27,7 +28,7 @@ import type { VisualizerBackgroundConfig } from './backgrounds/definition';
 
 // src/components/visualizer/definition.ts
 // Shared contracts for discoverable visualizer modes.
-export type VisualizerTuningKind = 'none' | 'classic' | 'cadenza' | 'partita' | 'fume' | 'claddagh' | 'cappella' | 'tilt' | 'monet' | 'diorama' | 'pendolo' | 'sonnet' | 'tempera';
+export type VisualizerTuningKind = 'none' | 'classic' | 'cadenza' | 'partita' | 'fume' | 'claddagh' | 'cappella' | 'tilt' | 'monet' | 'diorama' | 'pendolo' | 'sonnet' | 'tempera' | 'lumiere';
 
 export interface VisualizerSharedProps {
     currentTime: MotionValue<number>;
@@ -92,6 +93,8 @@ export interface VisualizerSharedProps {
     onSonnetTuningChange?: (patch: Partial<SonnetTuning>) => void;
     temperaTuning?: TemperaTuning;
     onTemperaTuningChange?: (patch: Partial<TemperaTuning>) => void;
+    lumiereTuning?: LumiereTuning;
+    onLumiereTuningChange?: (patch: Partial<LumiereTuning>) => void;
 }
 
 export interface VisualizerSettingsPanelProps {
@@ -137,6 +140,8 @@ export interface VisualizerSettingsPanelProps {
     onSonnetTuningChange?: (patch: Partial<SonnetTuning>) => void;
     temperaTuning?: TemperaTuning;
     onTemperaTuningChange?: (patch: Partial<TemperaTuning>) => void;
+    lumiereTuning?: LumiereTuning;
+    onLumiereTuningChange?: (patch: Partial<LumiereTuning>) => void;
     /** Mark slider drag start so onChange only updates draft. */
     onSliderPointerDown?: () => void;
     /** Commit draft values to persistent store on slider release. */
@@ -155,11 +160,13 @@ export interface VisualizerSettingsResetProps {
     resetPendoloTuning?: () => void;
     resetSonnetTuning?: () => void;
     resetTemperaTuning?: () => void;
+    resetLumiereTuning?: () => void;
     setDraftFumeTuning?: (tuning: FumeTuning) => void;
     setDraftCladdaghTuning?: (tuning: CladdaghTuning) => void;
     setDraftPendoloTuning?: (tuning: PendoloTuning) => void;
     setDraftSonnetTuning?: (tuning: SonnetTuning) => void;
     setDraftTemperaTuning?: (tuning: TemperaTuning) => void;
+    setDraftLumiereTuning?: (tuning: LumiereTuning) => void;
 }
 
 export interface VisualizerRegistryEntry {

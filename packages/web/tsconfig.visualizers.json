@@ -27,7 +27,9 @@
     "src/original-folia-visualizers/*.test.ts",
     "src/original-folia-visualizers/*.test.tsx",
     "src/original-folia-visualizers/tempera/**/*.ts",
-    "src/original-folia-visualizers/tempera/**/*.tsx"
+    "src/original-folia-visualizers/tempera/**/*.tsx",
+    "src/original-folia-visualizers/lumiere/**/*.ts",
+    "src/original-folia-visualizers/lumiere/**/*.tsx"
   ],
   "exclude": []
 }

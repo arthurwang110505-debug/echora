@@ -9,6 +9,7 @@ export const VISUALIZER_OPTIONS: readonly StageOption[] = [
   { value: 'classic', label: 'Classic' },
   { value: 'cadenza', label: 'Cadenza' },
   { value: 'tempera', label: 'Tempera' },
+  { value: 'lumiere', label: 'Lumiere' },
   { value: 'partita', label: 'Partita' },
   { value: 'fume', label: 'Fume' },
   { value: 'monet', label: 'Monet' },

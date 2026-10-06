@@ -18,6 +18,7 @@ type OriginalMode =
   | "classic"
   | "cadenza"
   | "tempera"
+  | "lumiere"
   | "partita"
   | "fume"
   | "monet"
@@ -65,6 +66,7 @@ const MODES: OriginalMode[] = [
   "classic",
   "cadenza",
   "tempera",
+  "lumiere",
   "partita",
   "fume",
   "monet",
@@ -90,6 +92,7 @@ const STAGE_MODE_CHUNK_LOADERS = import.meta.glob<Promise<unknown>>(
 const STAGE_RUNTIME_CHUNK_LOADERS = import.meta.glob<Promise<unknown>>([
   "../original-folia-visualizers/sonnet/createSonnetPixiRuntime.ts",
   "../original-folia-visualizers/tempera/createTemperaPixiRuntime.ts",
+  "../original-folia-visualizers/lumiere/createLumierePixiRuntime.ts",
 ]);
 
 const scheduleStagePrefetch = () => {

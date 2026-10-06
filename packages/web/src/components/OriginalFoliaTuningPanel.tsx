@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
+import { BACKGROUND_OPTIONS, VISUALIZER_OPTIONS } from './player/panel/stageOptions';
 
 type Props = {
   mode: string;
@@ -14,12 +15,13 @@ type Props = {
   onTuningsChange: (next: Record<string, any>) => void;
 };
 
-const backgrounds = [
-  ['latent', 'Latent'], ['common', 'Geometric'], ['fluid', 'Fluid'],
-  ['monet', 'Monet'], ['nomand', 'Nomand'], ['sora', 'Sora'], ['url', 'Image URL'],
-];
+// Both lists come from `stageOptions`, which the player chrome, the side panel and the landing
+// page already share. They used to be spelled out again here, which meant adding a mode to the
+// stage picker left this panel listing the old set - the quick-tuning row is exactly where a user
+// notices that, because it steps through the list it renders.
+const backgrounds = BACKGROUND_OPTIONS.map(option => [option.value, option.label] as const);
 
-const modes = [['classic', 'Classic'], ['cadenza', 'Cadenza'], ['tempera', 'Tempera'], ['partita', 'Partita'], ['fume', 'Fume'], ['monet', 'Monet'], ['cappella', 'Cappella'], ['pendolo', 'Pendolo'], ['sonnet', 'Sonnet'], ['claddagh', 'Claddagh'], ['diorama', 'Diorama'], ['tilt', 'Tilt']];
+const modes = VISUALIZER_OPTIONS.map(option => [option.value, option.label] as const);
 
 export default function OriginalFoliaTuningPanel({ mode, autoMode, onAutoModeChange, onModeChange, onClose, backgroundMode, onBackgroundModeChange, tunings, onTuningsChange }: Props) {
   const { t } = useTranslation();
