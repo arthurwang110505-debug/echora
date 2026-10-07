@@ -88,6 +88,7 @@ const ObsStage: React.FC = () => {
                     coverUrl={config.song?.coverUrl ?? undefined}
                     songTitle={config.song?.title}
                     songArtist={config.song?.artist}
+                    songAlbum={config.song?.album}
                     onSeekLine={noopSeek}
                     backgroundMode={config.backgroundMode}
                     visualizerTunings={config.visualizerTunings}

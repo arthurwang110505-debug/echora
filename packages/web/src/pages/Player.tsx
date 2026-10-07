@@ -561,6 +561,11 @@ export default function Player() {
                   coverUrl={currentSong.coverUrl}
                   songTitle={currentSong.title}
                   songArtist={activeArtist}
+                  songAlbum={currentSong.album?.name}
+                  // The stage extrapolates a per-frame clock from this coarse one, and the
+                  // visualizers need the track id to tell "new song" from "same song, new words".
+                  songId={currentSong.id}
+                  durationSec={duration}
                   onSeekLine={seek}
                   backgroundMode={backgroundMode}
                   visualizerTunings={visualizerTunings}

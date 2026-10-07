@@ -8,7 +8,9 @@ import type { LandingAudioEngine } from './landingAudio';
  *
  * It is heavy (Pixi / Three scenes per mode), so it only mounts once the act
  * is about to scroll into view, and it is fed by the landing audio engine's
- * clock at a modest 10 Hz — the stage interpolates between frames itself.
+ * clock at a modest 10 Hz — the stage extrapolates that into a per-frame
+ * position itself (playback/stageClock.ts), which is what keeps a 10 Hz feed
+ * from stepping.
  */
 
 const OriginalFoliaVisualizerStage = lazy(() => import('../OriginalFoliaVisualizerStage'));

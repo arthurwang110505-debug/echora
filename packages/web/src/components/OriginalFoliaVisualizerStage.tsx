@@ -11,8 +11,19 @@ import type { Line, ThemeConfig } from "@echora/core";
 import i18n from "../i18n";
 import { resolveStageAudioBands } from "../playback/audioBands";
 import { sampleLocalAudioBands } from "../playback/localAudioAnalyser";
+import { createStageClock } from "../playback/stageClock";
 import { beginStageProbe, endStageProbe, installStageProbeGlobals } from "../utils/stageProbe";
 import OriginalVisualizerRenderer from "./OriginalVisualizerRendererProxy";
+
+/**
+ * The monotonic clock the stage extrapolates against. `requestAnimationFrame` hands its callback a
+ * timestamp from the same origin, so reading it here and in the frame loop stays consistent.
+ */
+const nowMs = (): number => (
+  typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now()
+);
 
 type OriginalMode =
   | "classic"
@@ -39,6 +50,18 @@ interface Props {
   coverUrl?: string;
   songTitle?: string;
   songArtist?: string;
+  songAlbum?: string;
+  /**
+   * Track identity, handed to the visualizers as their `seed`.
+   *
+   * Without it every song looks like the same song to `songHandover`'s commit gate, so a track
+   * change is decided from the lyric text alone and the Pixi runtimes take their straight-through
+   * `swapSong` branch (`next.seed === this.options.songSeed`): the scene cache is cleared and
+   * rebuilt with no handover. Passing the id is what buys the dissolve the runtimes implement.
+   */
+  songId?: string | number;
+  /** Track length in seconds; lets the extrapolated clock clamp instead of running past the end. */
+  durationSec?: number;
   onSeekLine: (timeSec: number) => void;
   audioBands?: {
     bass: number;
@@ -54,10 +77,17 @@ interface Props {
   /**
    * Overrides the clock the stage animates from, sampled once per frame while playing.
    *
-   * `displayedTime` is a prop, so it only moves the stage when React re-renders it - fine for local
-   * playback where the value updates continuously, useless for a remote source that pushes a clock
-   * anchor a few times a second. A provider lets the overlay's existing rAF loop read an
-   * extrapolated position at 60 fps with no React churn (see src/pages/ObsStage.tsx).
+   * `displayedTime` is a prop backed by the player store, and the store is only written when the
+   * media source reports in: `timeupdate` (~4x/second) for local audio, a 100 ms poll for YouTube
+   * Music, a 100 ms interval for the landing preview. A stage renderer reads its position once per
+   * frame and derives the whole composition from it, so forwarding that value as-is makes the
+   * picture hold still between reports and then jump - which reads as a stuck stage exactly in the
+   * modes whose every frame is a function of the timeline (tempera, lumiere, sonnet).
+   *
+   * The stage therefore extrapolates between reports itself (see playback/stageClock.ts). A
+   * provider replaces that for a host that already has a better clock: the OBS overlay receives a
+   * 5 Hz anchor over the wire and extrapolates it with the playback rate and lyric offset the
+   * publisher sent (see src/pages/ObsStage.tsx).
    */
   timeProvider?: () => number;
 }
@@ -229,6 +259,9 @@ export default function OriginalFoliaVisualizerStage({
   coverUrl,
   songTitle,
   songArtist,
+  songAlbum,
+  songId,
+  durationSec,
   onSeekLine,
   audioBands,
   backgroundMode = "latent",
@@ -280,6 +313,13 @@ export default function OriginalFoliaVisualizerStage({
     [lines],
   );
   const originalTheme = useMemo(() => toOriginalTheme(theme), [theme]);
+  // Memoised, not an inline literal: the shell background and every mode read this object, and a
+  // fresh identity per render defeats their memos for a value that only changes when the user picks
+  // a different background.
+  const background = useMemo(
+    () => ({ mode: backgroundMode as any }),
+    [backgroundMode],
+  );
   const bands = useMemo(
     () => ({ bass, lowMid, mid, vocal, treble }),
     [bass, lowMid, mid, vocal, treble],
@@ -298,13 +338,30 @@ export default function OriginalFoliaVisualizerStage({
   }, [mode]);
 
   const playingRef = useRef(isPlaying);
-  const timeRef = useRef(safeDisplayedTime);
   const fallbackBandsRef = useRef(audioBands);
   const timeProviderRef = useRef(timeProvider);
   playingRef.current = isPlaying;
-  timeRef.current = safeDisplayedTime;
   timeProviderRef.current = timeProvider;
   fallbackBandsRef.current = audioBands;
+
+  // `displayedTime` arrives at the rate the media source reports (see the prop's note), while the
+  // stage renders at display rate. The clock turns the former into the latter; feeding it here
+  // rather than in an effect keeps a report from costing a frame of latency, and `update` is a
+  // handful of comparisons so calling it on every render is free.
+  const stageClockRef = useRef<ReturnType<typeof createStageClock> | null>(null);
+  stageClockRef.current ??= createStageClock();
+  stageClockRef.current.update(
+    { timeSec: safeDisplayedTime, playing: isPlaying, durationSec },
+    nowMs(),
+  );
+
+  // A paused stage's rAF loop is not running (see below), so nothing else would publish a seek:
+  // dragging the progress bar while paused has to move the held picture. The runtimes re-render on
+  // a `currentTime` change while paused, which is what makes the new position appear.
+  useEffect(() => {
+    if (isPlaying) return;
+    currentTime.set(safeDisplayedTime);
+  }, [currentTime, isPlaying, safeDisplayedTime]);
 
   useEffect(() => {
     const toMotionBandValue = (value: number) => {
@@ -323,8 +380,11 @@ export default function OriginalFoliaVisualizerStage({
       }
 
       const playing = playingRef.current;
-      // A provider is sampled per frame; otherwise the prop is the clock, as before.
-      const time = timeProviderRef.current ? timeProviderRef.current() : timeRef.current;
+      // A provider is sampled per frame when the host has a better clock than the store does;
+      // otherwise the store's position is extrapolated forward to this frame (playback/stageClock).
+      const time = timeProviderRef.current
+        ? timeProviderRef.current()
+        : stageClockRef.current!.read(nowMs());
       const levels = resolveStageAudioBands({
         isPlaying: playing,
         displayedTime: time,
@@ -387,11 +447,13 @@ export default function OriginalFoliaVisualizerStage({
           subtitleTheme={originalTheme}
           audioPower={audioPower}
           audioBands={bands}
-          background={{ mode: backgroundMode as any }}
+          background={background}
           visualizerTunings={visualizerTunings as any}
           showText
+          seed={songId}
           songTitle={songTitle}
           songArtist={songArtist}
+          songAlbum={songAlbum}
           coverUrl={coverUrl}
           paused={!isPlaying}
           isPlayerChromeHidden={isPlayerChromeHidden}
