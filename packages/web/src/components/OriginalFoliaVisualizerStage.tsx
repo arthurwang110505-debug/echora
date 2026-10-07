@@ -11,11 +11,14 @@ import type { Line, ThemeConfig } from "@echora/core";
 import i18n from "../i18n";
 import { resolveStageAudioBands } from "../playback/audioBands";
 import { sampleLocalAudioBands } from "../playback/localAudioAnalyser";
+import { beginStageProbe, endStageProbe, installStageProbeGlobals } from "../utils/stageProbe";
 import OriginalVisualizerRenderer from "./OriginalVisualizerRendererProxy";
 
 type OriginalMode =
   | "classic"
   | "cadenza"
+  | "tempera"
+  | "lumiere"
   | "partita"
   | "fume"
   | "monet"
@@ -48,11 +51,22 @@ interface Props {
   visualizerTunings?: Record<string, unknown>;
   isPlayerChromeHidden?: boolean;
   settingsOpen?: boolean;
+  /**
+   * Overrides the clock the stage animates from, sampled once per frame while playing.
+   *
+   * `displayedTime` is a prop, so it only moves the stage when React re-renders it - fine for local
+   * playback where the value updates continuously, useless for a remote source that pushes a clock
+   * anchor a few times a second. A provider lets the overlay's existing rAF loop read an
+   * extrapolated position at 60 fps with no React churn (see src/pages/ObsStage.tsx).
+   */
+  timeProvider?: () => number;
 }
 
 const MODES: OriginalMode[] = [
   "classic",
   "cadenza",
+  "tempera",
+  "lumiere",
   "partita",
   "fume",
   "monet",
@@ -65,8 +79,8 @@ const MODES: OriginalMode[] = [
 ];
 
 // Each mode's scene ships in its own chunk (see lazyVisualizer). After the player
-// has mounted and the browser goes idle, walk the remaining mode chunks plus
-// Sonnet's Pixi runtime one at a time. import.meta.glob keeps these as dynamic
+// has mounted and the browser goes idle, walk the remaining mode chunks plus the
+// Pixi runtime each of the two WebGL modes loads on demand, one at a time. import.meta.glob keeps these as dynamic
 // loaders, so nothing here changes the module graph for the type checker and the
 // chunks are exactly the ones the lazy entries load. Switching modes later simply
 // never waits on a download or a main-thread parse spike.
@@ -75,9 +89,11 @@ let hasScheduledStagePrefetch = false;
 const STAGE_MODE_CHUNK_LOADERS = import.meta.glob<Promise<unknown>>(
   "../original-folia-visualizers/*/Visualizer*.tsx",
 );
-const STAGE_RUNTIME_CHUNK_LOADERS = import.meta.glob<Promise<unknown>>(
+const STAGE_RUNTIME_CHUNK_LOADERS = import.meta.glob<Promise<unknown>>([
   "../original-folia-visualizers/sonnet/createSonnetPixiRuntime.ts",
-);
+  "../original-folia-visualizers/tempera/createTemperaPixiRuntime.ts",
+  "../original-folia-visualizers/lumiere/createLumierePixiRuntime.ts",
+]);
 
 const scheduleStagePrefetch = () => {
   if (hasScheduledStagePrefetch || typeof window === "undefined") return;
@@ -219,6 +235,7 @@ export default function OriginalFoliaVisualizerStage({
   visualizerTunings,
   isPlayerChromeHidden = false,
   settingsOpen = false,
+  timeProvider,
 }: Props) {
   useEffect(() => {
     // Do not make the active player compete with downloads, module parsing, and
@@ -267,11 +284,26 @@ export default function OriginalFoliaVisualizerStage({
     () => ({ bass, lowMid, mid, vocal, treble }),
     [bass, lowMid, mid, vocal, treble],
   );
+  useEffect(() => {
+    installStageProbeGlobals();
+  }, []);
+
+  // The stage's instrument cluster: it samples the main thread while a stage is mounted and labels
+  // the session with the mode, so "which stage stutters, and on which device" is a measurement
+  // rather than an impression. Everything here is a no-op unless the probe is switched on
+  // (see utils/stageProbe.ts).
+  useEffect(() => {
+    beginStageProbe(mode);
+    return () => endStageProbe();
+  }, [mode]);
+
   const playingRef = useRef(isPlaying);
   const timeRef = useRef(safeDisplayedTime);
   const fallbackBandsRef = useRef(audioBands);
+  const timeProviderRef = useRef(timeProvider);
   playingRef.current = isPlaying;
   timeRef.current = safeDisplayedTime;
+  timeProviderRef.current = timeProvider;
   fallbackBandsRef.current = audioBands;
 
   useEffect(() => {
@@ -291,7 +323,8 @@ export default function OriginalFoliaVisualizerStage({
       }
 
       const playing = playingRef.current;
-      const time = timeRef.current;
+      // A provider is sampled per frame; otherwise the prop is the clock, as before.
+      const time = timeProviderRef.current ? timeProviderRef.current() : timeRef.current;
       const levels = resolveStageAudioBands({
         isPlaying: playing,
         displayedTime: time,

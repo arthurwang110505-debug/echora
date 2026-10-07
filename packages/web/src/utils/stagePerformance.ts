@@ -78,6 +78,12 @@ export const useStagePerformanceProfile = (paused = false): StagePerformanceProf
     const [tier, setTier] = useState<StagePerformanceTier>(readInitialStageTier);
     const tierRef = useRef(tier);
     tierRef.current = tier;
+    // How many times this mount has already been demoted. A device that has proven it cannot hold a
+    // tier twice does not get it back: without this cap the observer oscillates forever (8 slow
+    // frames demote, 3s of good frames promote, the promotion itself - a canvas/shader/scene rebuild -
+    // supplies the next 8 slow frames). Every one of those flips used to tear down and re-create the
+    // Sonnet Pixi runtime and re-configure the Diorama canvas.
+    const demotionsRef = useRef(0);
 
     useEffect(() => {
         if (paused) return undefined;
@@ -102,9 +108,10 @@ export const useStagePerformanceProfile = (paused = false): StagePerformanceProf
 
             const current = tierRef.current;
             if (slowFrames >= 8 && current !== 'compact') {
+                demotionsRef.current += 1;
                 setTier(current === 'full' ? 'balanced' : 'compact');
                 slowFrames = 0;
-            } else if (goodFrames >= 180 && current !== 'full') {
+            } else if (goodFrames >= 180 && current !== 'full' && demotionsRef.current < 2) {
                 setTier(current === 'compact' ? 'balanced' : 'full');
                 goodFrames = 0;
             }
@@ -116,6 +123,22 @@ export const useStagePerformanceProfile = (paused = false): StagePerformanceProf
     }, [paused]);
 
     return getStagePerformanceProfile(tier);
+};
+
+const TIER_RANK: Record<StagePerformanceTier, number> = { compact: 0, balanced: 1, full: 2 };
+
+/**
+ * The lowest tier a mount has settled on. Structural consumers - canvas dpr/antialias, shader pixel
+ * budgets, resident point-cloud windows, Sonnet's renderer resolution - must read this instead of the
+ * live tier, because changing them re-creates GPU resources (and used to re-create the whole stage).
+ * The profile only ever tightens through the life of a mount; it never loosens.
+ */
+export const useLatchedStageTier = (tier: StagePerformanceTier): StagePerformanceTier => {
+    const latchedRef = useRef(tier);
+    if (TIER_RANK[tier] < TIER_RANK[latchedRef.current]) {
+        latchedRef.current = tier;
+    }
+    return latchedRef.current;
 };
 
 const readCompactStageProfile = (): boolean => {

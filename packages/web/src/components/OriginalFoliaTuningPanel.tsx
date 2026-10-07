@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
+import { BACKGROUND_OPTIONS, VISUALIZER_OPTIONS } from './player/panel/stageOptions';
+import TemperaImageLayerControls from '../original-folia-visualizers/tempera/TemperaImageLayerControls';
+import { setStatusMessage, useStatusMessage } from '../store/useStatusMessageStore';
+import { DEFAULT_TEMPERA_TUNING } from '../types';
 
 type Props = {
   mode: string;
@@ -14,20 +18,35 @@ type Props = {
   onTuningsChange: (next: Record<string, any>) => void;
 };
 
-const backgrounds = [
-  ['latent', 'Latent'], ['common', 'Geometric'], ['fluid', 'Fluid'],
-  ['monet', 'Monet'], ['nomand', 'Nomand'], ['sora', 'Sora'], ['url', 'Image URL'],
-];
+// Both lists come from `stageOptions`, which the player chrome, the side panel and the landing
+// page already share. They used to be spelled out again here, which meant adding a mode to the
+// stage picker left this panel listing the old set - the quick-tuning row is exactly where a user
+// notices that, because it steps through the list it renders.
+const backgrounds = BACKGROUND_OPTIONS.map(option => [option.value, option.label] as const);
 
-const modes = [['classic', 'Classic'], ['cadenza', 'Cadenza'], ['partita', 'Partita'], ['fume', 'Fume'], ['monet', 'Monet'], ['cappella', 'Cappella'], ['pendolo', 'Pendolo'], ['sonnet', 'Sonnet'], ['claddagh', 'Claddagh'], ['diorama', 'Diorama'], ['tilt', 'Tilt']];
+const modes = VISUALIZER_OPTIONS.map(option => [option.value, option.label] as const);
 
 export default function OriginalFoliaTuningPanel({ mode, autoMode, onAutoModeChange, onModeChange, onClose, backgroundMode, onBackgroundModeChange, tunings, onTuningsChange }: Props) {
   const { t } = useTranslation();
-  const key = `${mode}Tuning`;
+  // The bundle `applyVisualizerTuning` reads is keyed by the bare mode name
+  // (`visualizerTunings.tempera`), not by the settings-store field the adapters also declare
+  // (`temperaTuning`). This panel used to write `${mode}Tuning`, so every slider here was
+  // silently dropped for every mode; the stage renderer never saw the value.
+  const key = mode;
   const current = tunings[key] ?? {};
   const [draft, setDraft] = useState(current);
+  // The status channel is where both the pool and its import/export path report results
+  // (`setStatusMessage`). Upstream renders it as an app-wide toast; Echora has no toast host, and
+  // this panel is the only surface that emits into it, so the message is shown here.
+  const status = useStatusMessage();
 
   useEffect(() => setDraft(current), [mode]);
+
+  useEffect(() => {
+    if (!status || status.persistent) return;
+    const timer = window.setTimeout(() => setStatusMessage(null), status.durationMs ?? 4000);
+    return () => window.clearTimeout(timer);
+  }, [status]);
 
   const update = (patch: Record<string, unknown>) => {
     const next = { ...draft, ...patch };
@@ -60,6 +79,35 @@ export default function OriginalFoliaTuningPanel({ mode, autoMode, onAutoModeCha
       <label className="mb-4 block text-xs text-slate-300">{t('player.textScale')} <span className="float-right font-mono">{Number(current.fontScale ?? 1).toFixed(2)}</span>
         <input type="range" min="0.6" max="1.6" step="0.05" value={Number(draft.fontScale ?? 1)} onChange={e => update({ fontScale: Number(e.target.value) })} className="mt-2 w-full" />
       </label>
+      {mode === 'tempera' && (
+        <section className="mb-4 border-t border-white/10 pt-3">
+          <p className="mb-2 text-xs font-semibold text-slate-300">{t('options.temperaImageSection')}</p>
+          {/* The pool: artwork kept in IndexedDB, with only the placements written back into the
+              tuning. Committing once on dialog close is upstream's design (a pointermove on a
+              slider used to trigger a store write per frame), so the commit goes straight into the
+              same `update()` the sliders above use. */}
+          <TemperaImageLayerControls
+            images={current.layerImages ?? DEFAULT_TEMPERA_TUNING.layerImages}
+            depth={current.layerImageDepth ?? DEFAULT_TEMPERA_TUNING.layerImageDepth}
+            frequency={Number(current.layerImageFrequency ?? DEFAULT_TEMPERA_TUNING.layerImageFrequency)}
+            rangeInputClass="w-full"
+            isDaylight={false}
+            onCommit={({ layerImages, layerImageDepth, layerImageFrequency }) => (
+              // Written key by key rather than spread: the bundle for a mode is what the renderer
+              // reads, and the pool's commit shape (an interface of its own) should not decide it.
+              update({ layerImages, layerImageDepth, layerImageFrequency })
+            )}
+          />
+          {status && (
+            <p
+              role="status"
+              className={`mt-2 text-[11px] leading-4 ${status.type === 'error' ? 'text-rose-300' : status.type === 'success' ? 'text-emerald-300' : 'text-slate-300'}`}
+            >
+              {status.text}
+            </p>
+          )}
+        </section>
+      )}
       <p className="text-[10px] leading-4 text-slate-500">{t('player.tuningFooterNote')}</p>
     </aside>
   );

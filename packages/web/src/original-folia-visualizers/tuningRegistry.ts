@@ -1,51 +1,25 @@
-import type {
-    CappellaTuning,
-    CadenzaTuning,
-    ClassicTuning,
-    CladdaghTuning,
-    DioramaTuning,
-    FumeTuning,
-    MonetTuning,
-    PartitaTuning,
-    PendoloTuning,
-    SonnetTuning,
-    TiltTuning,
-    VisualizerMode,
-} from '../types';
+import type { VisualizerMode } from '../types';
 import type { VisualizerSharedProps } from './definition';
+import type {
+    VisualizerTuningAdapter,
+    VisualizerTuningBundle,
+    VisualizerTuningMode,
+} from './tuningAdapter';
+
+export type {
+    VisualizerTuningAdapter,
+    VisualizerTuningBundle,
+    VisualizerTuningMap,
+    VisualizerTuningMode,
+} from './tuningAdapter';
 
 // src/components/visualizer/tuningRegistry.ts
 // Pure-data registry for transporting heterogeneous visualizer tuning without importing renderers.
-export interface VisualizerTuningMap {
-    classic: ClassicTuning;
-    cadenza: CadenzaTuning;
-    partita: PartitaTuning;
-    fume: FumeTuning;
-    claddagh: CladdaghTuning;
-    cappella: CappellaTuning;
-    tilt: TiltTuning;
-    diorama: DioramaTuning;
-    monet: MonetTuning;
-    pendolo: PendoloTuning;
-    sonnet: SonnetTuning;
-}
-
-export type VisualizerTuningMode = keyof VisualizerTuningMap;
-export type VisualizerTuningBundle = Partial<VisualizerTuningMap>;
-
-export interface VisualizerTuningAdapter<M extends VisualizerTuningMode = VisualizerTuningMode> {
-    mode: M;
-    settingsKey: string;
-    settingsSetterKey: string;
-    apply: (props: VisualizerSharedProps, tuning: VisualizerTuningMap[M]) => VisualizerSharedProps;
-}
+// The adapter types and `defineVisualizerTuning` live in `./tuningAdapter` - see the note there for
+// why they are not declared in this file the way upstream declares them.
 
 interface VisualizerTuningModule {
     default: VisualizerTuningAdapter;
-}
-
-export function defineVisualizerTuning<M extends VisualizerTuningMode>(adapter: VisualizerTuningAdapter<M>) {
-    return adapter;
 }
 
 const tuningModules = import.meta.glob<VisualizerTuningModule>('./*/tuning.ts', { eager: true });
@@ -66,7 +40,10 @@ export const applyVisualizerTuning = (
 ): VisualizerSharedProps => {
     const adapter = adaptersByMode.get(mode as VisualizerTuningMode);
     const tuning = bundle?.[mode as VisualizerTuningMode];
-    return adapter && tuning ? adapter.apply(props, tuning as never) : props;
+    if (!adapter || tuning === undefined) return props;
+
+    const resolved = adapter.defaults ? { ...adapter.defaults, ...(tuning as object) } : tuning;
+    return adapter.apply(props, resolved as never);
 };
 
 export const getVisualizerTuningModes = (): VisualizerTuningMode[] => [...adaptersByMode.keys()];

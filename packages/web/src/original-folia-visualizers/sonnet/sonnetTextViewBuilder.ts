@@ -1,4 +1,3 @@
-import { layoutWithLines, prepareWithSegments } from '@chenglou/pretext';
 import 'pixi.js/advanced-blend-modes';
 import type { Theme } from '../../types';
 import { buildSonnetGlyphLayout } from './sonnetGlyphLayout';
@@ -91,14 +90,11 @@ interface SonnetTextViewOptions {
     caLayer: import('pixi.js').Container;
 }
 
-export const measureText = (text: string, fontSpec: string, fontSize: number) => {
-    try {
-        const layout = layoutWithLines(prepareWithSegments(text || ' ', fontSpec), 99999, fontSize * 1.2);
-        return layout.lines[0]?.width ?? text.length * fontSize * 0.6;
-    } catch {
-        return text.length * fontSize * 0.6;
-    }
-};
+// Measured through the shared memo in sonnetTypographyLayout. The typography pass and the glyph
+// builder measure the exact same (text, fontSpec, size) triples - the layout measures each hero/
+// support box, then `buildSonnetGlyphLayout` measures every glyph of it again - so a second,
+// private, uncached pretext loop here was pure duplicate work on every scene build.
+export { measureText } from './sonnetTypographyLayout';
 
 export const buildSonnetTextView = (
     pixi: PixiModule,

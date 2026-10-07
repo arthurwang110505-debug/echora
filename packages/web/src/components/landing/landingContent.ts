@@ -30,6 +30,11 @@ const theme = (name: string, accentColor: string, primaryColor: string, secondar
 const MODE_PALETTES: Record<string, [accent: string, primary: string, secondary: string]> = {
   classic: ['#62f5c4', '#6366f1', '#22d3ee'],
   cadenza: ['#a5b4fc', '#22d3ee', '#f0abfc'],
+  // Tempera paints with two inks on paper, so the landing relights to a print palette:
+  // vermillion accent, cream paper, Prussian blue.
+  tempera: ['#e2634a', '#f0e2c8', '#2f6f8f'],
+  // Lumiere is a dark stage lit by champagne-gold beams on near-black, not a coloured field.
+  lumiere: ['#e8c88a', '#101014', '#f3ddb0'],
   partita: ['#fde68a', '#818cf8', '#62f5c4'],
   fume: ['#cbd5e1', '#64748b', '#a5b4fc'],
   monet: ['#c4b5fd', '#62f5c4', '#fda4af'],

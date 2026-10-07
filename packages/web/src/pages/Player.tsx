@@ -13,6 +13,8 @@ import { CoverImage, PanelSkeleton, PlayerSkeleton, StageSkeleton } from '../com
 import { adjustLyricsOffset, getActiveLyricIndex, LYRICS_OFFSET_STEP_SECONDS } from '../utils/lyrics/activeLine';
 import { lazyWithRetry } from '../utils/recovery';
 import { pickAutoVisualizerMode, resolveStageAudioBands, visualizerEnergy } from '../playback/audioBands';
+import { useObsStagePublisher } from '../obs/useObsStagePublisher';
+import { useLineSplitPreview, useLyricSegmentation, useSegmentedLyrics } from '../hooks/useLyricSegmentation';
 import { sampleLocalAudioBands } from '../playback/localAudioAnalyser';
 import { VOLUME_STEP } from '../playback/volumeState';
 import { isYouTubeVideo } from '../utils/youtubePlayback';
@@ -315,16 +317,26 @@ export default function Player() {
   }, [displayMode, showPlaylistDrawer]);
 
 
+  // Word segmentation: the saved split (AI or hand-edited) baked onto the lines it still matches.
+  // One memo here feeds every visualizer and the overlay, which is why the override is applied at
+  // this level rather than inside each mode.
+  const segmentedLyrics = useSegmentedLyrics();
+  const stageLines = segmentedLyrics?.lines || [];
+  const segmentation = useLyricSegmentation();
+
   // Use the same offset-aware clock for the player chrome and every visualizer mode.
   const activeLineIndex = useMemo(() => {
     const playbackTime = (isSeeking && seekPreviewTime !== null) ? seekPreviewTime : currentTime;
     return getActiveLyricIndex({
-      lines: currentLyrics?.lines || [],
+      lines: stageLines,
       currentTimeSeconds: playbackTime,
       durationSeconds: duration,
       offsetSeconds: lyricsOffsetSeconds,
     });
-  }, [currentLyrics, currentTime, isSeeking, seekPreviewTime, duration, lyricsOffsetSeconds]);
+  }, [stageLines, currentTime, isSeeking, seekPreviewTime, duration, lyricsOffsetSeconds]);
+
+  const activeStageLine = activeLineIndex >= 0 ? stageLines[activeLineIndex] ?? null : null;
+  const activeLineSplit = useLineSplitPreview(activeStageLine);
 
   if (!currentSong && !hasHydrated) {
     return <PlayerSkeleton />;
@@ -375,6 +387,26 @@ export default function Player() {
 
   const displayedTime = (isSeeking && seekPreviewTime !== null) ? seekPreviewTime : currentTime;
   const displayedLyricsTime = Math.max(0, displayedTime + lyricsOffsetSeconds);
+
+  // Publish the live stage for an OBS overlay / captured window. Off unless enabled in Settings;
+  // `displayedLyricsTime` already has the lyrics offset applied, so the overlay is told offset 0.
+  const { publishing: obsStagePublishing } = useObsStagePublisher({
+    visualizerMode: activeVisualizer,
+    backgroundMode,
+    visualizerTunings,
+    theme: currentTheme,
+    lyrics: stageLines,
+    song: currentSong ? {
+      title: currentSong.title,
+      artist: activeArtist,
+      album: currentSong.album?.name,
+      coverUrl: currentSong.coverUrl,
+      duration,
+    } : null,
+    currentTime: displayedLyricsTime,
+    playing: isPlaying,
+    duration,
+  });
   const queueSources = Array.from(new Set(playlist.map(song => song.source)));
   const queueLabel = queueSources.length > 1 ? t('player.queueMixed') : queueSources[0] === 'ytmusic' ? t('player.queueYt') : queueSources[0] === 'spotify' ? t('player.queueSpotify') : queueSources[0] === 'local' ? t('player.queueLocal') : t('player.queueCurrent');
   const showLyriclessSoundscape = !isLoadingLyrics && !currentLyrics?.lines?.length;
@@ -483,6 +515,12 @@ export default function Player() {
                 {activeArtist} {currentSong.album?.name ? `• ${currentSong.album.name}` : ''}
               </p>
               {demoMode && <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b8ffe2]">{currentSong.source === 'local' ? t('player.localDemoBadge') : t('player.demoBadge')}</p>}
+              {obsStagePublishing && (
+                <p className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-[#62f5c4]/30 bg-[#62f5c4]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#b8ffe2]" role="status">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#62f5c4]" aria-hidden="true" />
+                  {t('player.obsPublishing')}
+                </p>
+              )}
             </div>
           </div>}
 
@@ -514,7 +552,7 @@ export default function Player() {
             ) : (
               <Suspense fallback={<StageSkeleton />}>
                 <OriginalFoliaVisualizerStage
-                  lines={currentLyrics?.lines || []}
+                  lines={stageLines}
                   activeLineIndex={activeLineIndex}
                   displayedTime={displayedLyricsTime}
                   isPlaying={isPlaying}
@@ -657,6 +695,9 @@ export default function Player() {
               onImportLyrics: importLyricsText,
               onAdjustOffset: adjustStageLyricsOffset,
               onResetOffset: resetStageLyricsOffset,
+              segmentation,
+              activeLineSplit,
+              activeLineText: activeStageLine?.fullText ?? null,
             }}
             controls={{
               // Volume is chrome-only furniture; the stage keeps it keyboard-only (↑ / ↓ / M).

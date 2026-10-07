@@ -1,4 +1,5 @@
 import type { Line, Word } from '../../types';
+import { isValidWordSegmentation, segmentTextWords } from '../../lyrics/wordSegmentation';
 
 // src/utils/lyrics/cjkSemanticLayout.ts
 // Builds parser-preserving lyric layout units for visualizer display planning.
@@ -62,6 +63,8 @@ const TRAILING_WORD_CHAR_REGEX = /[\p{L}\p{N}]$/u;
 const INLINE_CONTRACTION_REGEX = /[\p{L}\p{N}]+['’](s|t|m|d|ll|re|ve|em)/iu;
 const STICKY_TRAILING_PUNCTUATION_REGEX = /^[,.;:!?，。！？、：；）】》」』〉〕］)}\]"'’”’]+$/u;
 
+const PUNCTUATION_ONLY_REGEX = /^[\s\p{P}\p{S}]+$/u;
+
 const hasCjkText = (text: string) => CJK_REGEX.test(text);
 
 export const createSingleWordLayoutUnits = (words: Word[]): LyricLayoutUnit[] => words.map(word => ({
@@ -72,14 +75,39 @@ export const createSingleWordLayoutUnits = (words: Word[]): LyricLayoutUnit[] =>
     isSemantic: false,
 }));
 
-const getWordSegments = (text: string): WordSegment[] | null => {
-    const Segmenter = Intl?.Segmenter;
-    if (!Segmenter) {
+// The split comes from the shared segmenter so a user's saved segmentation (AI or hand-edited) is
+// honoured here too. It used to be a third local Intl.Segmenter call, which is exactly how a feature
+// ends up working in one visualizer and not another.
+//
+// A boundaries array that does not rebuild the line is a stale record and is ignored: applying it
+// would shift every layout unit against the parser words below.
+const splitSavedBoundary = (boundary: string): WordSegment[] => {
+    const core = boundary.trim();
+    const lead = boundary.slice(0, boundary.length - boundary.trimStart().length);
+    const trail = boundary.slice(boundary.trimEnd().length);
+    const parts: WordSegment[] = [];
+    // Whitespace becomes its own segment, which is the shape Intl.Segmenter produces and the shape
+    // the skip-and-attach loop below is written against. Punctuation stays inside the boundary, as
+    // the saved format has it, and is marked not word-like so the sticky passes still see it.
+    if (lead) parts.push({ segment: lead, isWordLike: false });
+    if (core) parts.push({ segment: core, isWordLike: !PUNCTUATION_ONLY_REGEX.test(core) });
+    if (trail) parts.push({ segment: trail, isWordLike: false });
+    return parts;
+};
+
+// Returns null when the runtime has no Segmenter *and* the line has no saved split, which is what
+// makes the caller fall back to one unit per parser word instead of guessing.
+const getWordSegments = (line: Pick<Line, 'fullText' | 'wordSegments'>): WordSegment[] | null => {
+    if (isValidWordSegmentation(line.fullText, line.wordSegments)) {
+        return line.wordSegments!.flatMap(splitSavedBoundary);
+    }
+
+    if (!Intl?.Segmenter) {
         return null;
     }
 
     try {
-        return Array.from(new Segmenter(undefined, { granularity: 'word' }).segment(text), segment => ({
+        return segmentTextWords(line.fullText).map(segment => ({
             segment: segment.segment,
             isWordLike: segment.isWordLike,
         }));
@@ -209,7 +237,7 @@ export const buildCjkSemanticLayoutUnits = (
         return fallbackUnits;
     }
 
-    const segments = getWordSegments(line.fullText);
+    const segments = getWordSegments(line);
     if (!segments) {
         return fallbackUnits;
     }

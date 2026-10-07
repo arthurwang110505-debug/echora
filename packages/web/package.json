@@ -7,8 +7,10 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint src",
-    "test": "vitest run"
+    "lint": "eslint src bench",
+    "test": "vitest run",
+    "bench": "vitest run --config vitest.bench.config.ts",
+    "stage:server": "node stage-server/cli.mjs"
   },
   "dependencies": {
     "@applemusic-like-lyrics/ttml": "^1.0.1",
@@ -21,6 +23,7 @@
     "@react-three/postprocessing": "^3.0.4",
     "@xmldom/xmldom": "^0.8.10",
     "blueimp-md5": "^2.19.0",
+    "fflate": "^0.8.3",
     "framer-motion": "^11.18.2",
     "gsap": "^3.15.0",
     "i18next": "^26.3.6",

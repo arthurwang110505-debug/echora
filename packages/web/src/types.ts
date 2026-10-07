@@ -56,6 +56,8 @@ export interface Line {
   endTime: number;
   fullText: string;
   translation?: string;
+  /** See the same field on the core Line: the user's saved word boundaries for this line. */
+  wordSegments?: string[];
   id?: string;
   agentId?: string;
   songPart?: string;
@@ -520,6 +522,203 @@ export const DEFAULT_PENDOLO_TUNING: PendoloTuning = {
 };
 
 export type SonnetOuterFrameMode = 'none' | 'frame' | 'full';
+
+export type LumiereRenderQuality = 'full' | 'balanced' | 'low';
+
+export interface LumiereTuning {
+    /** 光強倍率, 0.3..2. */
+    lightIntensity: number;
+    /** 隨音樂變亮, 0..2 (0 = 不隨音樂變). */
+    audioResponse: number;
+    /** 煙霧濃度, 0..2. */
+    fogDensity: number;
+    /**
+     * 暗場強度, 0..1：光後面鋪一層主題背景色壓暗的底，壓住 folia 的共享背景（0 = 共享背景原樣透出）。
+     * 淺色主題保底 0.94（繪光始終在暗場裡）。
+     */
+    darkField: number;
+    /** 浮塵數量, 0..2. */
+    moteAmount: number;
+    /** 圖形輝光, 0..2. */
+    bloom: number;
+    /** 文字輝光, 0..2. */
+    textBloom: number;
+    /** 未唱字透明度, 0.05..0.6. */
+    unlitOpacity: number;
+    /** 鄰行：1 = 上一行 + 當前行，2 = 上一行 + 當前行 + 下一行. */
+    windowNeighbors: 1 | 2;
+    /** 崩解強度, 0..2. */
+    decay: number;
+    /** 背景歌詞亮度, 0..2 (0 = 關). */
+    echo: number;
+    /** 煙霧細節（倍頻數）, integer 2..6. */
+    fogOctaves: number;
+    /** 線稿. */
+    lineArt: boolean;
+    /** 前景散景. */
+    frontBokeh: boolean;
+    /** 所有換位都走軌跡線. */
+    trails: boolean;
+    /** 隱藏所有歌詞換位的軌跡線，保留字的飛行與軌跡過渡. */
+    hideTrails: boolean;
+    /**
+    * 軌跡過渡：段落之間也和段內換鏡頭一樣在同一個光場裡交接（整首歌編成一個場景單元），
+    * 沒有熄燈 / 閃白 / 拉焦 / 交叉漸變。改它會重新編譯程序.
+    */
+    seamlessTransitions: boolean;
+    /** 畫框. */
+    overlayFrame: boolean;
+    /**
+    * 僅顯示歌詞文字：只畫歌詞與字上的效果（點亮、光暈、閃點、十字爆閃、徑跡、追字光斑），
+    * 光場、煙霧、星空、線稿、浮塵、背景歌詞、主題圖標、畫框與片尾卡的光都不畫。字的明暗仍按光束算.
+    */
+    textOnly: boolean;
+    /** 關鍵字著色（主題 wordColors）. */
+    keywordColors: boolean;
+    /** 主題圖標（主題 lyricsIcons 畫成線稿）. */
+    themeIcons: boolean;
+    /** 主題色佔比, 0..1：0 = 香檳金光；越高光色越接近強調色、點亮 / 未唱的字越接近主色 / 次色. */
+    themeColorMix: number;
+    /** 畫質. */
+    renderQuality: LumiereRenderQuality;
+}
+
+export const DEFAULT_LUMIERE_TUNING: LumiereTuning = {
+    lightIntensity: 1,
+    audioResponse: 1,
+    fogDensity: 1,
+    darkField: 0.75,
+    moteAmount: 1,
+    bloom: 1,
+    textBloom: 1,
+    unlitOpacity: 0.22,
+    windowNeighbors: 2,
+    decay: 1,
+    echo: 1,
+    fogOctaves: 5,
+    lineArt: true,
+    frontBokeh: true,
+    trails: true,
+    hideTrails: false,
+    seamlessTransitions: true,
+    overlayFrame: true,
+    textOnly: false,
+    keywordColors: true,
+    themeIcons: true,
+    themeColorMix: 0.3,
+    renderQuality: 'full',
+};
+
+export type TemperaColorMode = 'duo' | 'mono' | 'gradient';
+
+/** Where an image tends to sit; the exact spot is picked per shot from the seed. */
+export type TemperaLayerImageAlign = 'left' | 'center' | 'right' | 'free';
+
+/** Vertical counterpart to `TemperaLayerImageAlign`; `free` lets each shot choose a band. */
+export type TemperaLayerImageVerticalAlign = 'top' | 'center' | 'bottom' | 'free';
+
+/**
+  * One image in the user's Tempera pool - character art, a logo, a texture. Each shot picks one
+  * of them and places it itself, so an image carries a *tendency* rather than coordinates:
+  * hand-placing every picture would defeat the point of a pool. The file itself sits in
+  * IndexedDB under the same `id`, keeping the tuning small enough to sync.
+  */
+export interface TemperaLayerImage {
+    id: string;
+    name: string;
+    align: TemperaLayerImageAlign;
+    verticalAlign: TemperaLayerImageVerticalAlign;
+    /** Height as a fraction of the viewport height; width follows the source aspect. */
+    scale: number;
+    opacity: number;
+}
+
+export const TEMPERA_MAX_LAYER_IMAGES = 16;
+
+export const DEFAULT_TEMPERA_LAYER_IMAGE: Omit<TemperaLayerImage, 'id' | 'name'> = {
+    align: 'free',
+    // Preserve the original character-art composition, which placed images low in the frame.
+    verticalAlign: 'bottom',
+    scale: 0.7,
+    opacity: 1,
+};
+
+export interface TemperaTuning {
+    cameraIntensity: number;
+    /** Per-glyph entrance motion strength, 0..2. */
+    glyphMotion: number;
+    /** Keep each source lyric line in one shot instead of slicing it into half-phrases. */
+    wholeLineLyrics: boolean;
+    /**
+      * 逐字入场时序, 0..1. How much of the way to the shot's lyric end each glyph's entrance
+      * stretches, past its 0.34s floor. 0 gives every glyph the same short window - percussive,
+      * and the shot is fully at rest well before it cuts. 1 lands the whole shot exactly on its
+      * lyric end - continuous, but nothing is ever still. See temperaLayout for the measurements.
+      */
+    glyphSettleStretch: number;
+    /** duo derives blocks from theme hues; mono collapses to a grayscale ink/paper ladder. */
+    colorMode: TemperaColorMode;
+    showBlocks: boolean;
+    showDecor: boolean;
+    /** 边角线框: the two registration marks in the top-left and bottom-right corners. */
+    showCornerMarks: boolean;
+    /**
+      * 文字动态反色: the lyric samples the artwork under it and picks whichever of ink/paper
+      * contrasts more, per pixel. This is how the mode colours type, not a post-process, so it
+      * has its own switch rather than riding `postProcessEnabled`.
+      */
+    textInversion: boolean;
+    /** Pool of user images; each shot picks one. The files themselves live in IndexedDB. */
+    layerImages: TemperaLayerImage[];
+    /** `back` lets the lyric invert against the picture; `front` puts it over the lyric. */
+    layerImageDepth: 'back' | 'front';
+    /** 0..1 chance that a given shot shows an image at all. */
+    layerImageFrequency: number;
+    enableTransitions: boolean;
+    textureResolution: number;
+    /** Master switch for the scene-wide post-process stack (grain + contrast + print passes). */
+    postProcessEnabled: boolean;
+    /**
+      * 后处理纹理压缩: renders the post-process pass at 1x and stretches it onto the canvas
+      * instead of running it at `textureResolution`. Costs sharpness on hatch, screentone and
+      * type; buys back the fill rate a full-resolution full-screen pass costs.
+      */
+    postProcessTextureCompression: boolean;
+    /** Film grain amount, 0..1. */
+    postProcessGrain: number;
+    /** Contrast boost, 0..1. */
+    postProcessContrast: number;
+    /** RGB shift pass strength, 0..1 (0 disables the pass). */
+    postProcessRgbShift: number;
+    /** Vignette strength, 0..2 (2 = double the base darkening). */
+    postProcessVignette: number;
+    /** Radial lens curvature amount, 0..2. */
+    postProcessLensDistortion: number;
+}
+
+export const DEFAULT_TEMPERA_TUNING: TemperaTuning = {
+    cameraIntensity: 1,
+    glyphMotion: 1,
+    wholeLineLyrics: false,
+    glyphSettleStretch: 0.5,
+    colorMode: 'duo',
+    showBlocks: true,
+    showDecor: true,
+    showCornerMarks: true,
+    textInversion: true,
+    layerImages: [],
+    layerImageDepth: 'back',
+    layerImageFrequency: 0.6,
+    enableTransitions: true,
+    textureResolution: 1.5,
+    postProcessEnabled: true,
+    postProcessTextureCompression: false,
+    postProcessGrain: 0.2,
+    postProcessContrast: 0,
+    postProcessRgbShift: 0,
+    postProcessVignette: 0.85,
+    postProcessLensDistortion: 0.3,
+};
 
 export interface SonnetTuning {
   cameraIntensity: number;

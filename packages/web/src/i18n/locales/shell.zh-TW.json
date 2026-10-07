@@ -1,0 +1,49 @@
+{
+  "appHome": {
+    "errorBoundaryTitle": "舞台沒有順利載入",
+    "errorBoundaryCopy": "這通常是更新中的舊快取或暫時載入失敗所致。你可以安全地重新載入最新版本。",
+    "errorBoundaryReload": "重新載入最新版",
+    "loadingStage": "正在載入 Echora 舞台內容…",
+    "loadingHome": "正在準備 Echora 首頁與 3D 音樂輪播…",
+    "loadingPlayer": "正在恢復播放佇列與 Echora 舞台…",
+    "loadingPanel": "正在載入舞台設定…",
+    "pageLoadError": "頁面暫時無法載入",
+    "pageLoadErrorCopyStale": "這通常是更新中的舊快取或暫時載入失敗所致。重新載入會保留目前網址與播放選擇。",
+    "pageLoadErrorCopyGeneric": "這個頁面遇到暫時性錯誤。你可以重新載入目前頁面，或先回到首頁。",
+    "clearCacheReload": "清除快取並重新載入",
+    "backToPlayerHome": "回到播放器首頁"
+  },
+  "player": {
+    "ytConnectFailed": "YouTube Music 連線未完成",
+    "ytConnectFailedCopy": "無法驗證授權或讀取帳號資料，將返回原本頁面顯示修正方式。",
+    "ytVerifying": "正在驗證 YouTube Music 授權…",
+    "ytVerifyingCopy": "授權完成後會驗證帳號與歌單存取權。",
+    "lyricsOriginUpload": "你上傳的歌詞檔",
+    "lyricsOriginDemoTranscript": "展示轉錄（非官方）",
+    "lyricsOriginBundled": "內建展示歌詞",
+    "lyricsOriginLrclib": "來自 LRCLib",
+    "volume": "音量",
+    "mute": "靜音",
+    "unmute": "取消靜音",
+    "muteOn": "目前已靜音",
+    "muteOff": "目前音量 {{percent}}",
+    "nowPlaying": "目前播放",
+    "openPlayerAria": "開啟 {{title}} 的播放器",
+    "removeFavoriteAria": "取消收藏 {{title}}",
+    "addFavoriteAria": "收藏 {{title}}",
+    "pausePlayback": "暫停播放",
+    "resumePlayback": "繼續播放",
+    "localLoadFailed": "本機音檔載入失敗，請稍後重試或選擇其他展示曲目。",
+    "localPlayUnavailable": "本機音檔無法播放，請確認瀏覽器允許播放或稍後再試。",
+    "localNoAudioFile": "這首展示曲目沒有可用的音檔。",
+    "sceneLoadFailed": "{{mode}} 舞台暫時無法載入",
+    "sceneFallbackCopy": "已保留目前舞台選擇，不會未經同意切回 Classic。你可以重試，或手動選擇 Classic。",
+    "retryScene": "重試 {{mode}}",
+    "switchToClassic": "切換到 Classic"
+  },
+  "footer": {
+    "privacy": "隱私權政策",
+    "terms": "服務條款",
+    "backToApp": "回到播放器"
+  }
+}

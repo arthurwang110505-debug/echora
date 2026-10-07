@@ -4,10 +4,10 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import Welcome, { WELCOME_APP_TARGET, WELCOME_DEMO_TARGET } from './Welcome';
 import KaraokeLine from '../components/landing/KaraokeLine';
-import zhTW from '../i18n/locales/zh-TW.json';
+import zhTW from '../i18n/locales/home.zh-TW.json';
 import { LANDING_FEATURES, MODE_SCENES } from '../components/landing/landingContent';
 import { VISUALIZER_OPTIONS } from '../components/player/panel/stageOptions';
-import en from '../i18n/locales/en.json';
+import en from '../i18n/locales/home.en.json';
 import { LANDING_HANDOFF_KEY } from '../utils/landingHandoff';
 
 vi.mock('react-router-dom', () => ({
