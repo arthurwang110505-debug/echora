@@ -1,5 +1,11 @@
 # Echora 相對上游 Folia 缺什麼（繁中分析）
 
+> ⚠️ **本文件的數字已過期，僅供歷史參考。最新量測與改善計畫見
+> [`docs/echora-vs-folia-gap-and-plan.md`](./echora-vs-folia-gap-and-plan.md)（基準 v0.7.15）。**
+> 三處已被修正（見該文件 §8）：模式數是 **13 / 14** 而非 11 / 14；凝彩畫布圖片池的**儲存層**
+> 已完成但**渲染端從未收到**（`VisualizerTempera.tsx:150` 仍寫死 `EMPTY_TEMPERA_IMAGE_BLOBS`）；
+> 且上游在 2026-09-26 修掉的字形快取 fd 洩漏（classic／partita／claddagh／cadenza）在 Echora 仍然存在。
+>
 > 對照基準：`chthollyphile/folia-major` @ `master`（v0.7.13，2026-10-05）。
 > Echora 現況：430 個檔案 / 約 77,000 行 TS·TSX；Folia：1,313 檔 / 256,765 行 → **Echora 約是上游的 30%**。
 > 這份文件只談「缺口與優先順序」，上游本身的特色見 `docs/folia-upstream-specialities.md`。
@@ -10,7 +16,7 @@
 
 避免把「缺」講得太誇張，以下是已經完成、而且品質不錯的部分：
 
-- **11 / 14 個歌詞模式**：classic、cadenza、partita、fume、monet、cappella、pendolo、sonnet、claddagh、diorama、tilt。
+- **13 / 14 個歌詞模式**：classic、cadenza、partita、fume、monet、cappella、pendolo、sonnet、claddagh、diorama、tilt、**tempera、lumiere**（後兩者已於本文之後完成移植）。
 - **6 / 6 種背景**：common、latent、monet、nomand、sora、url —— 與上游一致。
 - **完整的共享層**：`VisualizerShell`、`runtime.ts`、`registry.tsx`、`settingsPanels`、`VisualizerHarmonyOverlay`、`VisualizerSubtitleOverlay`、`wordColoring`、`tuningRegistry`。
 - **量測紀律的一部分**：`pixiTextureBudget.ts`（含測試）已移植。
@@ -24,9 +30,13 @@
 
 ---
 
-## 1. 導演級模式：缺 3 個模式 + 1 個圖層（約 23,000 行）
+## 1. 導演級模式：~~缺 3 個模式 + 1 個圖層（約 23,000 行）~~ → 現況只缺 1 個模式 + 1 個圖層
 
-Folia 有 14 個模式，Echora 移植 11 個。缺的是：
+> **2026-10-08 更新：** `tempera`（11,799 行）與 `lumiere`（12,032 行）**已完成移植**，下表前兩列作廢。
+> 目前只缺 `still`（115 行）與 `videoLayer`。視覺化樹總計 **70,609 行 vs 上游 70,594 行 = 100% 持平**。
+> 但凝彩的**畫布圖片池仍未接到渲染端**（見 [`echora-vs-folia-gap-and-plan.md`](./echora-vs-folia-gap-and-plan.md) §5）。
+
+Folia 有 14 個模式，Echora 移植 ~~11~~ **13** 個。缺的是：
 
 | 缺的模式 | 規模 | 它是什麼 |
 |---|---:|---|
@@ -178,5 +188,25 @@ Echora 缺的不是功能數量，而是三件事：**（a）把渲染器當引�
 `tempera` 延後的那一塊（**畫布圖片池**：4 個編輯器／對話框 + `services/temperaLayerImages` + IDB + `fflate`）
 也已在 `69dfb22` 補完並接上快速調校面板，同時還掉了 `src/types.ts` 的 7 條 `TS2307` 型別債
 （見 `docs/tempera-image-pool.zh-TW.md`）。
-下一步回到「明確放棄」清單之外、投報率最高的一項：**全站 toast host**（目前圖片池的訊息只在面板裡顯示），
-以及把 12 個模式的死設定面板做個了斷（補齊 `options.*` 並開 dev-only 路線，或整條砍掉）。
+
+> ⚠️ **2026-10-08 更正：這段不成立。** 儲存層（`services/temperaLayerImages.ts`）確實完成了，
+> 但 `loadTemperaLayerImageBlobs`（`:112`）**全庫沒有任何呼叫者**，而
+> `original-folia-visualizers/tempera/VisualizerTempera.tsx:150` 寫死
+> `const imageBlobs = EMPTY_TEMPERA_IMAGE_BLOBS` —— 使用者的圖片存進 IndexedDB 後**永遠不會被畫出來**。
+> 該檔 `:141-149` 的註解自己也寫明這是「deliberately NOT part of this port yet」。
+> 另外那 4 個編輯器／對話框現在存在於 `components/visualizer/tempera/`（1,361 行），
+> **與 `original-folia-visualizers/tempera/` 重複且無人 import**（已用可達性分析確認）。
+> 修法見 [`echora-vs-folia-gap-and-plan.md`](./echora-vs-folia-gap-and-plan.md) §5 與 WP4：刪掉重複樹、
+> 把 blob 接回渲染端，rebuild key 要鍵在 **id 集合**而不是陣列（拖曳滑桿每次 pointer move 都會給新陣列）。
+
+下一步~~回到「明確放棄」清單之外、投報率最高的一項：**全站 toast host**（目前圖片池的訊息只在面板裡顯示），
+以及把 12 個模式的死設定面板做個了斷（補齊 `options.*` 並開 dev-only 路線，或整條砍掉）。~~
+
+> **2026-10-08 更正：** 「死設定面板做個了斷」這個判斷是對的，而且規模比想像中大 —— 可達性分析量到
+> **95 檔 / 13,995 行（佔 `packages/web/src` 13.0%）無法從 app entry 到達**，其中 VisPlayground 開發工具群
+> 佔 2,835 行、凝彩重複樹 1,361 行、舊 OBS + 外觀編解碼 1,892 行、第二套歌詞比對堆疊 3,685 行。
+> 已做成可重跑的工具：`node scripts/check-dead-code.mjs`（`--list` 列出全部路徑）。
+> 但優先順序要改：**toast host 排最後**。目前排第一的是上游 2026-09-26 修掉的
+> **字形快取 fd 洩漏**（classic／partita／claddagh／cadenza 仍然存在，fume 已由你自己修好），
+> 排第二的是「65% 的原始碼沒有被型別檢查」。完整計畫見
+> [`echora-vs-folia-gap-and-plan.md`](./echora-vs-folia-gap-and-plan.md) §7。
