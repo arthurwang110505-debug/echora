@@ -16,7 +16,8 @@ import { resolveWordColor } from '../wordColoring';
 import { resolveFumeCameraScaleForViewport, resolveFumeCameraSafetyCorrection, resolveFumeCameraXForViewport, resolveFumeCameraYForViewport, resolveFumeCanvasDpr, resolveFumeContentFrameBounds, resolveStageFrameInterval, useStagePerformanceProfile } from '../../utils/stagePerformance';
 import type { StagePerformanceTier } from '../../utils/stagePerformance';
 import { FumeLiveRaster } from './fumeLiveRaster';
-import { clearFumeCanvasTextGlow, fillFumeGlowText, getFumeGlowClipPadding, isLinuxFumeRenderer, quantizeFumeCanvasBlur, setFumeCanvasTextGlow } from './fumeCanvasGlow';
+import { clearFumeCanvasTextGlow, fillFumeGlowText, getFumeGlowClipPadding, quantizeFumeCanvasBlur, setFumeCanvasTextGlow } from './fumeCanvasGlow';
+import { isGlowBlurQuantized } from '../../utils/glowBlurQuantize';
 
 // This mode is basically "turn the whole lyric into an article, then move a camera through it".
 // So the pipeline is much bigger than the others: prebuild the article layout, split it into blocks/render lines/graphemes,
@@ -2167,7 +2168,9 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
 
         // Folia enables this workaround on Linux, where continuously changing glyph
         // size and canvas shadowBlur exhaust Chromium's renderer glyph-cache handles.
-        const useLinuxFumeWorkaround = isLinuxFumeRenderer();
+        // Shared with classic / partita / claddagh / cadenza: one switch, persisted under
+        // `visualizer_glow_blur_quantize`, on by default on Linux. See utils/glowBlurQuantize.ts.
+        const useGlowBlurWorkaround = isGlowBlurQuantized();
         const liveRaster = new FumeLiveRaster();
         let context = stageContext;
 
@@ -2649,7 +2652,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
             }
 
             const screenScale = cameraRef.current.scale;
-            const liveRasterFrame = useLinuxFumeWorkaround ? {
+            const liveRasterFrame = useGlowBlurWorkaround ? {
                 deviceScale: screenScale * currentDpr,
                 visible: {
                     left: cameraRef.current.x - (viewportCenterX + 32) / screenScale,
@@ -2861,10 +2864,10 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                     }
                 }
 
-                const liveRasterTarget = useLinuxFumeWorkaround && liveRasterFrame
+                const liveRasterTarget = useGlowBlurWorkaround && liveRasterFrame
                     ? liveRaster.begin(block, liveRasterFrame, now)
                     : null;
-                if (useLinuxFumeWorkaround && !liveRasterTarget) {
+                if (useGlowBlurWorkaround && !liveRasterTarget) {
                     continue;
                 }
                 if (liveRasterTarget) {
@@ -2910,7 +2913,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                             context,
                             lineGlowBlur,
                             lineGlowShadowColor,
-                            useLinuxFumeWorkaround,
+                            useGlowBlurWorkaround,
                         );
 
                         for (const renderLine of block.renderLines) {
@@ -2965,7 +2968,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                                 context,
                                 runShadowBlur,
                                 runShadowColor,
-                                useLinuxFumeWorkaround,
+                                useGlowBlurWorkaround,
                             );
                             drawRenderTextRun(
                                 context,
@@ -3111,7 +3114,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                                             - mix(dropDistance, 0, dropProgress);
                                         const activationBlockBlur = quantizeFumeCanvasBlur(
                                             (8 + block.fontPx * 0.24) * blockPulse * activeGlowBoost,
-                                            useLinuxFumeWorkaround,
+                                            useGlowBlurWorkaround,
                                         );
 
                                         if (activationBlockWidth > 0) {
@@ -3137,7 +3140,7 @@ const VisualizerFume: React.FC<VisualizerProps> = (props) => {
                                 continue;
                             }
 
-                            const renderedShadowBlur = quantizeFumeCanvasBlur(shadowBlur, useLinuxFumeWorkaround);
+                            const renderedShadowBlur = quantizeFumeCanvasBlur(shadowBlur, useGlowBlurWorkaround);
                             const styleKey = buildTextStyleKey(fillStyle, renderedShadowBlur, shadowColor);
                             if (runStart < 0) {
                                 runStart = globalOffset;

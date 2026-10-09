@@ -14,6 +14,11 @@ import { getCorrespondingSourceUrl } from '../lib/sourceAvailability';
 import { getLanguage, setLanguage, type AppLanguage } from '../i18n';
 import { useObsStageStore } from '../store/obsStageStore';
 import { buildObsStageOverlayUrl } from '../obs/protocol';
+import {
+  GLOW_BLUR_QUANTIZE_STORAGE_KEY,
+  readStoredGlowBlurQuantize,
+  setGlowBlurQuantized,
+} from '../utils/glowBlurQuantize';
 
 export default function Settings() {
   const { t } = useTranslation();
@@ -32,6 +37,20 @@ export default function Settings() {
   const [generatedTheme, setGeneratedTheme] = useState<ThemeConfig | null>(null);
   const [systemReducedMotion, setSystemReducedMotion] = useState(false);
   const [generationError, setGenerationError] = useState('');
+  // Chromium leaks a glyph-cache fd for every new text-shadow radius, and on Linux the renderer's
+  // 1024 fd soft limit runs out after ~35 minutes: the picture freezes while the audio keeps playing.
+  // The renderers read the switch straight out of utils/glowBlurQuantize every frame, so this local
+  // state only drives the toggle - there is nothing to subscribe to and nothing to propagate.
+  const [glowBlurQuantize, setGlowBlurQuantizeUi] = useState(() => readStoredGlowBlurQuantize());
+  const toggleGlowBlurQuantize = (enabled: boolean) => {
+    try {
+      localStorage.setItem(GLOW_BLUR_QUANTIZE_STORAGE_KEY, String(enabled));
+    } catch {
+      // Storage blocked: the switch still applies for this session, it just will not be remembered.
+    }
+    setGlowBlurQuantized(enabled);
+    setGlowBlurQuantizeUi(enabled);
+  };
   // Stage overlay (OBS): the store owns the settings, the copied flag is local UI state.
   const obsStage = useObsStageStore();
   const [overlayCopied, setOverlayCopied] = useState(false);
@@ -190,6 +209,22 @@ export default function Settings() {
               </select>
               <span className="sr-only">{t('settings.currentSelection', { value: motionLabel[motionPreference] })}</span>
             </label>
+          </div>
+          <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <div className="max-w-md">
+              <p className="text-sm font-bold text-white">{t('settings.glowBlurQuantize')}</p>
+              <p className="mt-0.5 text-xs leading-5 text-slate-400">{t('settings.glowBlurQuantizeHint')}</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={glowBlurQuantize}
+              aria-label={t('settings.glowBlurQuantize')}
+              onClick={() => toggleGlowBlurQuantize(!glowBlurQuantize)}
+              className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors ${glowBlurQuantize ? 'border-[#62f5c4]/40 bg-[#62f5c4]/30' : 'border-white/15 bg-white/[0.08]'}`}
+            >
+              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${glowBlurQuantize ? 'left-[22px]' : 'left-0.5'}`} />
+            </button>
           </div>
         </section>
 

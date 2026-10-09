@@ -1,20 +1,18 @@
-// Folia's Linux workaround for Chromium's animated canvas glyph-cache leak.
+// Folia's workaround for Chromium's animated canvas glyph-cache leak.
 // The drop-shadow filter is applied outside the text strike cache, while the optional
 // blur quantization keeps the fallback path's cache keys bounded.
+//
+// The on/off decision is NOT made here: `VisualizerFume.tsx` reads the shared switch
+// `isGlowBlurQuantized()` from utils/glowBlurQuantize.ts and passes it in as `enabled` /
+// `useFilter`. This module used to carry its own private `isLinuxFumeRenderer()` copy of the
+// same platform rule, which meant fume was the one mode that did not leak but also the one mode
+// a user could not turn the fix on for. One switch, one storage key, one platform default now.
+//
+// The helpers below stay fume-local on purpose: unlike upstream's `fillGlowText`, `fillFumeGlowText`
+// guards every `actualBoundingBox*` metric against NaN/0 before it builds the clip rect, which is
+// what keeps it working under jsdom and on canvases whose metrics are not populated yet.
 
 const DROP_SHADOW_SIGMA = /^drop-shadow\(0 0 ([\d.]+)px /;
-
-export const isLinuxFumeRenderer = (): boolean => {
-  if (typeof window === "undefined") return false;
-
-  const electronPlatform = (
-    window as Window & { electron?: { platform?: string } }
-  ).electron?.platform;
-  if (electronPlatform) return electronPlatform === "linux";
-
-  const userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent;
-  return /Linux/.test(userAgent) && !/Android/.test(userAgent);
-};
 
 export const quantizeFumeCanvasBlur = (
   blur: number,

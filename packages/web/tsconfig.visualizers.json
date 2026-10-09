@@ -6,6 +6,11 @@
   // Layer A put the shared Pixi modules under `tsconfig.pixi.json`; this project covers the
   // Tempera port and everything it pulls in, so a ported mode is not a type-checking blind spot.
   //
+  // `wordGlow.ts` and `utils/glowBlurQuantize.ts` are listed explicitly because the glyph-cache leak
+  // fix spans both trees: the shared switch lives under the (excluded) `src/utils`, and classic,
+  // partita, claddagh and cadenza all read it. Without these two entries the fix itself would be a
+  // type-checking blind spot.
+  //
   // Known pre-existing debt, filtered by scripts/check-visualizer-types.mjs rather than hidden:
   // `src/types.ts` imports three type modules that do not exist in this repository
   // (`./types/onlineMusic`, `./types/localLibrary`, `./types/localCover`). Those types are used by
@@ -23,6 +28,9 @@
     "src/original-folia-visualizers/definition.ts",
     "src/original-folia-visualizers/tuningAdapter.ts",
     "src/original-folia-visualizers/tuningRegistry.ts",
+    "src/original-folia-visualizers/wordGlow.ts",
+    "src/utils/glowBlurQuantize.ts",
+    "src/utils/glowBlurQuantize.test.ts",
     "src/original-folia-visualizers/*/tuning.ts",
     "src/original-folia-visualizers/*.test.ts",
     "src/original-folia-visualizers/*.test.tsx",

@@ -27,6 +27,8 @@
     "currentSelection": "Current selection: {{value}}",
     "motionReduced": "Motion reduced",
     "motionKept": "Motion kept",
+    "glowBlurQuantize": "Fix lyric animation freeze (Linux)",
+    "glowBlurQuantizeHint": "Draws the per-word glow as a compositor filter instead of an animated text shadow. Chromium sets aside a little shared memory for every new shadow radius and never gives it back, so on Linux the renderer runs out after roughly 35 minutes and the picture freezes while the audio keeps playing. On by default on Linux; the glow looks nearly, but not exactly, the same.",
     "generateEyebrow": "Generate a stage for this song",
     "generateHeading": "Let Echora design a stage for the current song",
     "designing": "Designing",

@@ -6,6 +6,7 @@ import { AudioBands, DEFAULT_CADENZA_TUNING, Line, Theme, Word as WordType, type
 import { buildWordGraphemeTimings, type GraphemeTiming } from '../../utils/lyrics/graphemeTiming';
 import { getLineRenderEndTime, getLineTransitionTiming, type LineTransitionTiming } from '../../utils/lyrics/renderHints';
 import { resolveThemeFontStack, resolveThemeFontWeight } from '../../utils/fontStacks';
+import { isGlowBlurQuantized, quantizeShadowBlur } from '../../utils/glowBlurQuantize';
 import { colorWithAlpha, mixColors } from '../colorMix';
 import { prepareActiveAndUpcoming, useVisualizerRuntime } from '../runtime';
 import { type VisualizerSharedProps } from '../definition';
@@ -1173,8 +1174,11 @@ const drawShadowGlowText = (
 
     const glowStrength = clamp(intensity, 0, 2.6);
     const blurScale = Math.max(blur / 20, 0.85);
-    const innerBlur = 20 * blurScale;
-    const outerBlur = 40 * blurScale;
+    // Whole pixels while the glow-blur-quantize switch is on: `blur` follows audio energy, and a
+    // radius that changes every frame leaks shared memory in Chromium's glyph cache.
+    // See utils/glowBlurQuantize.ts.
+    const innerBlur = quantizeShadowBlur(20 * blurScale);
+    const outerBlur = quantizeShadowBlur(40 * blurScale);
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
@@ -1192,7 +1196,7 @@ const drawShadowGlowText = (
 
     // A faint outer air layer so the 40px glow does not end abruptly.
     ctx.shadowColor = colorWithAlpha(color, Math.min(0.42, 0.18 + glowStrength * 0.06));
-    ctx.shadowBlur = outerBlur * 1.45;
+    ctx.shadowBlur = quantizeShadowBlur(outerBlur * 1.45);
     ctx.fillStyle = colorWithAlpha(color, 0.018 * glowStrength);
     ctx.fillText(text, x, y);
     ctx.restore();
@@ -1600,6 +1604,11 @@ const VisualizerCadenza: React.FC<VisualizerProps> = (props) => {
                 }
 
                 overlayWord.outer.style.transform = `translate3d(${overlayAnchorX}px, ${overlayAnchorY}px, 0) rotate(${animatedState.rotation}deg) scale(${animatedState.scale})`;
+                // Own compositing layer while the glow-blur-quantize switch is on: otherwise every
+                // new scale re-rasterizes the word and its 40px text-shadow at a new device size, and
+                // Chromium's glyph cache leaks shared memory for each one. See utils/glowBlurQuantize.ts.
+                const willChange = isGlowBlurQuantized() ? 'transform' : '';
+                if (overlayWord.outer.style.willChange !== willChange) overlayWord.outer.style.willChange = willChange;
                 overlayWord.outer.style.transformOrigin = '0 0';
                 overlayWord.inner.style.font = preparedState.font;
                 overlayWord.inner.style.transform = `translate3d(${overlayOffsetX}px, ${overlayOffsetY}px, 0)`;

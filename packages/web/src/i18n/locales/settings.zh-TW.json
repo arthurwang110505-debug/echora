@@ -27,6 +27,8 @@
     "currentSelection": "目前選擇：{{value}}",
     "motionReduced": "已降低動態",
     "motionKept": "保留動態",
+    "glowBlurQuantize": "修復歌詞動畫卡死（Linux）",
+    "glowBlurQuantizeHint": "把逐字光暈改用合成器濾鏡繪製，而不是動畫化的文字陰影。Chromium 每產生一個新的陰影半徑就會保留一小塊共用記憶體而且不會歸還，因此在 Linux 上 renderer 大約 35 分鐘後就會用盡，畫面凍結但聲音繼續播放。Linux 預設開啟；光暈外觀幾乎相同，但不完全一樣。",
     "generateEyebrow": "為這首歌生成舞台",
     "generateHeading": "讓 Echora 為正在播放的歌設計舞台",
     "designing": "正在設計",
