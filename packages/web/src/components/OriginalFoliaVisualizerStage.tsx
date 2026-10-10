@@ -12,7 +12,7 @@ import i18n from "../i18n";
 import { resolveStageAudioBands } from "../playback/audioBands";
 import { sampleLocalAudioBands } from "../playback/localAudioAnalyser";
 import { createStageClock } from "../playback/stageClock";
-import { beginStageProbe, endStageProbe, installStageProbeGlobals } from "../utils/stageProbe";
+import { beginStageProbe, endStageProbe, installStageProbeGlobals, probeClock } from "../utils/stageProbe";
 import OriginalVisualizerRenderer from "./OriginalVisualizerRendererProxy";
 
 /**
@@ -397,6 +397,10 @@ export default function OriginalFoliaVisualizerStage({
       vocal.set(toMotionBandValue(levels.vocal));
       treble.set(toMotionBandValue(levels.treble));
       currentTime.set(time);
+      // The position the renderer was just handed, sampled once per published frame. This is what
+      // distinguishes a slow stage from a stuck one: frame cadence looks healthy either way, because
+      // a frozen timeline renders cheaply (see utils/stageProbe.ts).
+      probeClock(time, playing);
       audioPower.set(playing ? 70 + levels.bass * 150 + levels.mid * 40 : 0);
       frame = window.requestAnimationFrame(tick);
     };

@@ -224,3 +224,132 @@ describe('stage probe frame sampling', () => {
         expect(report.counters).toEqual({});
     });
 });
+
+describe('stage probe clock advance', () => {
+    /**
+     * The negative control from docs/tempera-lumiere-stall-diagnosis.md, as a permanent test rather
+     * than a throwaway one. A stage that forwarded the store's `currentTime` prop published ~5
+     * distinct positions across 61 frames, because the media element writes the store about four
+     * times a second. Frame cadence was perfectly healthy throughout - which is exactly why this
+     * took weeks to find: every frame-time metric said the stage was fine, because a frozen
+     * timeline renders cheaply.
+     */
+    const FRAME_MS = 1000 / 60;
+    const HOST_UPDATE_MS = 250;
+
+    /** Drives `frames` frames, publishing the position a store-backed clock would have held. */
+    const runStoreClockFrames = async (harness: Harness, frames: number) => {
+        for (let index = 0; index < frames; index += 1) {
+            const atMs = index * FRAME_MS;
+            harness.advance(atMs);
+            // The store only changes every HOST_UPDATE_MS, so consecutive frames repeat a position.
+            const positionSec = Math.floor(atMs / HOST_UPDATE_MS) * (HOST_UPDATE_MS / 1000);
+            harness.probe.probeClock(positionSec, true);
+        }
+    };
+
+    it('flags the 4 Hz store clock as stalled while every frame-time metric reads healthy', async () => {
+        const harness = await installHarness('?stageProbe=1');
+        harness.probe.beginStageProbe('tempera');
+        await runStoreClockFrames(harness, 61);
+
+        const report = harness.probe.buildStageProbeReport();
+
+        // The numbers from the original diagnosis: 61 frames, 5 distinct positions.
+        expect(report.frames).toBe(60);
+        expect(report.clockSamples).toBe(61);
+        expect(report.clockAdvances).toBe(4);
+        expect(report.clockAdvanceRatio).toBeCloseTo(4 / 61, 5);
+        expect(report.clockStalled, 'a 4 Hz clock must read as stalled').toBe(true);
+
+        // And the reason this class of bug hid for so long: nothing about the frames looks wrong.
+        expect(report.fps, 'the stage really was rendering at 60fps').toBeGreaterThan(50);
+        expect(report.longFrames, 'no frame exceeded the 20ms budget').toBe(0);
+        expect(report.stalls, 'no frame exceeded 100ms').toBe(0);
+        expect(report.worstMs).toBeLessThan(20);
+    });
+
+    it('reads a per-frame clock as healthy, which is what the extrapolating stage now does', async () => {
+        const harness = await installHarness('?stageProbe=1');
+        harness.probe.beginStageProbe('tempera');
+
+        for (let index = 0; index < 61; index += 1) {
+            const atMs = index * FRAME_MS;
+            harness.advance(atMs);
+            // playback/stageClock.ts extrapolates between store reports, so every frame differs.
+            harness.probe.probeClock(atMs / 1000, true);
+        }
+
+        const report = harness.probe.buildStageProbeReport();
+        expect(report.clockAdvances).toBe(60);
+        expect(report.clockAdvanceRatio).toBeCloseTo(60 / 61, 5);
+        expect(report.clockStalled).toBe(false);
+    });
+
+    it('does not accuse a paused stage of stalling, because a frozen clock is correct there', async () => {
+        const harness = await installHarness('?stageProbe=1');
+        harness.probe.beginStageProbe('tempera');
+
+        for (let index = 0; index < 61; index += 1) {
+            harness.advance(index * FRAME_MS);
+            harness.probe.probeClock(12.5, false);
+        }
+
+        const report = harness.probe.buildStageProbeReport();
+        expect(report.clockSamples, 'paused frames are not sampled at all').toBe(0);
+        expect(report.clockAdvanceRatio).toBe(0);
+        expect(report.clockStalled).toBe(false);
+    });
+
+    it('withholds a verdict until half a second of playing frames has been sampled', async () => {
+        const harness = await installHarness('?stageProbe=1');
+        harness.probe.beginStageProbe('tempera');
+        // A seek or a song change holds a position for a few frames legitimately.
+        await runStoreClockFrames(harness, 10);
+
+        const report = harness.probe.buildStageProbeReport();
+        expect(report.clockSamples).toBe(10);
+        expect(report.clockAdvanceRatio).toBeLessThan(0.5);
+        expect(report.clockStalled, 'too few samples to judge').toBe(false);
+    });
+
+    it('treats rounding noise as the same position rather than an advance', async () => {
+        const harness = await installHarness('?stageProbe=1');
+        harness.probe.beginStageProbe('tempera');
+
+        for (let index = 0; index < 40; index += 1) {
+            harness.advance(index * FRAME_MS);
+            // Republished stored prop with float dust on it: not a real advance.
+            harness.probe.probeClock(3 + index * 1e-9, true);
+        }
+
+        const report = harness.probe.buildStageProbeReport();
+        expect(report.clockSamples).toBe(40);
+        expect(report.clockAdvances).toBe(0);
+        expect(report.clockStalled).toBe(true);
+    });
+
+    it('clears the clock samples on reset and on a mode switch, with the frame samples', async () => {
+        const harness = await installHarness('?stageProbe=1');
+        harness.probe.beginStageProbe('tempera');
+        await runStoreClockFrames(harness, 40);
+        expect(harness.probe.buildStageProbeReport().clockSamples).toBe(40);
+
+        harness.probe.resetStageProbe();
+        expect(harness.probe.buildStageProbeReport().clockSamples).toBe(0);
+
+        await runStoreClockFrames(harness, 20);
+        harness.probe.beginStageProbe('lumiere');
+        const report = harness.probe.buildStageProbeReport();
+        expect(report.mode).toBe('lumiere');
+        expect(report.clockSamples, 'a mode switch starts a new session').toBe(0);
+    });
+
+    it('is a no-op when the probe is off, like every other entry point', async () => {
+        const harness = await installHarness('?stageProbe=0');
+        harness.probe.beginStageProbe('tempera');
+        await runStoreClockFrames(harness, 61);
+
+        expect(harness.probe.buildStageProbeReport().clockSamples).toBe(0);
+    });
+});

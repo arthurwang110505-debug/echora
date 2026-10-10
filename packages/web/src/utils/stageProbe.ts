@@ -9,7 +9,15 @@
 //
 // What it measures (mode-agnostic, so every stage is covered without per-mode work):
 //   - main-thread frame cadence: p50/p95/p99 frame time, frames over 20 ms, stalls over 100 ms
+//   - timeline advance: how often the position the stage publishes actually moves (see below)
 //   - named counters and durations that the engines report (scene builds, handovers, resizes, ...)
+//
+// Frame cadence alone cannot see the failure this repository has actually hit twice. rAF keeps
+// firing at 60 fps while the stage is frozen, so a timeline-driven mode reading a 4 Hz clock
+// reports a healthy p95 and zero stalls - every frame was cheap, because every frame drew the same
+// thing. `probeClock` closes that gap: the stage hands it the position it published, and the report
+// says what fraction of frames moved that position on. ~1.0 is a per-frame clock; ~0.07 is the 4 Hz
+// bug from docs/tempera-lumiere-stall-diagnosis.md, which is what `clockStalled` flags.
 //
 // Enable it with `?stageProbe=1` in the URL, or `localStorage.setItem('echora.stageProbe', '1')`.
 // It is also on in dev builds. Read the result with `__echoraStageReport()` in the console.
@@ -43,6 +51,24 @@ export interface StageProbeReport {
     /** Frames slower than 100 ms: the ones that read as a freeze. */
     stalls: number;
     worstStalls: StageProbeStall[];
+    /**
+     * Frames where the stage published a timeline position while playing. Paused frames are not
+     * counted: a frozen clock is correct behaviour when nothing is playing, and including them
+     * would make every pause look like a stall.
+     */
+    clockSamples: number;
+    /** Of those samples, how many moved the position on from the previous one. */
+    clockAdvances: number;
+    /**
+     * `clockAdvances / clockSamples`, or 0 when there are no playing samples. ~1 for a clock read
+     * per frame; ~0.07 for the 4 Hz store clock that made the timeline-driven modes read as stuck.
+     */
+    clockAdvanceRatio: number;
+    /**
+     * True when enough playing frames were sampled to judge and the ratio is still below
+     * `STAGE_PROBE_MIN_CLOCK_ADVANCE_RATIO`: frames are arriving but the timeline is not moving.
+     */
+    clockStalled: boolean;
     counters: Record<string, StageProbeCounter & { perFrame: number }>;
 }
 
@@ -55,6 +81,30 @@ export const STAGE_PROBE_STALL_MS = 100;
 const FRAME_RING_SIZE = 3600;
 const MAX_REPORTED_STALLS = 8;
 const STORAGE_KEY = 'echora.stageProbe';
+
+/**
+ * Below this fraction of playing frames advancing the timeline, the stage is stalled. Set halfway
+ * between the two behaviours it has to tell apart: a clock read once per frame sits at ~1.0, and a
+ * stage deliberately capped to 30 fps still sits at ~1.0 because the sampler counts published
+ * positions rather than rAF ticks. The 4 Hz store clock that caused the original stall sits at
+ * ~0.07. Halfway is 0.5 - generous enough that a legitimately coarse clock is not accused, and an
+ * order of magnitude above the real failure.
+ */
+export const STAGE_PROBE_MIN_CLOCK_ADVANCE_RATIO = 0.5;
+
+/**
+ * Do not judge a stall on a handful of frames: a seek, a song change or the first frames after a
+ * mount all hold a position briefly and legitimately. Half a second at 60 fps is enough to tell a
+ * transient from a stuck clock.
+ */
+export const STAGE_PROBE_CLOCK_STALL_MIN_SAMPLES = 30;
+
+/**
+ * Two published positions closer than this are the same position. Playback clocks are floats
+ * derived from `performance.now()`, so an advancing clock never repeats a value exactly, but a
+ * stage that republishes a stored prop does - and rounding noise should not read as an advance.
+ */
+const CLOCK_ADVANCE_EPSILON_SEC = 1e-4;
 
 export const stageNow = (): number => (
     typeof performance !== 'undefined' ? performance.now() : Date.now()
@@ -122,6 +172,11 @@ interface ProbeState {
     longFrames: number;
     stalls: number;
     worstStalls: StageProbeStall[];
+    clockSamples: number;
+    clockAdvances: number;
+    /** Whether `lastClockPosition` holds a real sample; `0` is a valid position, not a sentinel. */
+    hasLastClock: boolean;
+    lastClockPosition: number;
     counters: Map<string, StageProbeCounter>;
 }
 
@@ -139,6 +194,10 @@ const createState = (): ProbeState => ({
     longFrames: 0,
     stalls: 0,
     worstStalls: [],
+    clockSamples: 0,
+    clockAdvances: 0,
+    hasLastClock: false,
+    lastClockPosition: 0,
     counters: new Map(),
 });
 
@@ -249,6 +308,32 @@ export const probeCount = (name: string, amount = 1): void => {
     state.counters.set(name, entry);
 };
 
+/**
+ * Records the timeline position a stage published for this frame.
+ *
+ * This is the metric that separates "the stage is slow" from "the stage is stuck", and the two look
+ * identical to a frame-time sampler: a frozen timeline renders cheaply, so it reports a good p95 and
+ * no stalls while the picture never changes. Call it once per published frame with the position the
+ * renderer was actually handed, and with whether playback is running - paused frames are skipped,
+ * because a clock that does not move while nothing is playing is correct, not stalled.
+ *
+ * Costs one comparison and two increments per frame when enabled, and nothing when disabled.
+ */
+export const probeClock = (positionSec: number, playing: boolean): void => {
+    if (!isStageProbeEnabled() || !playing || !Number.isFinite(positionSec)) return;
+    state.clockSamples += 1;
+    if (!state.hasLastClock) {
+        // The first sample establishes the baseline; it cannot have advanced from nothing.
+        state.hasLastClock = true;
+        state.lastClockPosition = positionSec;
+        return;
+    }
+    if (Math.abs(positionSec - state.lastClockPosition) >= CLOCK_ADVANCE_EPSILON_SEC) {
+        state.clockAdvances += 1;
+        state.lastClockPosition = positionSec;
+    }
+};
+
 const percentile = (sorted: Float64Array, length: number, fraction: number): number => {
     if (length === 0) return 0;
     const index = Math.min(length - 1, Math.max(0, Math.round(fraction * (length - 1))));
@@ -269,6 +354,13 @@ export const buildStageProbeReport = (): StageProbeReport => {
         };
     });
 
+    const clockSamples = state.clockSamples;
+    const clockAdvanceRatio = clockSamples > 0 ? state.clockAdvances / clockSamples : 0;
+    const clockStalled = (
+        clockSamples >= STAGE_PROBE_CLOCK_STALL_MIN_SAMPLES
+        && clockAdvanceRatio < STAGE_PROBE_MIN_CLOCK_ADVANCE_RATIO
+    );
+
     return {
         mode: state.mode,
         running: state.running,
@@ -282,6 +374,10 @@ export const buildStageProbeReport = (): StageProbeReport => {
         longFrames: state.longFrames,
         stalls: state.stalls,
         worstStalls: state.worstStalls.slice(),
+        clockSamples: state.clockSamples,
+        clockAdvances: state.clockAdvances,
+        clockAdvanceRatio: clockAdvanceRatio,
+        clockStalled: clockStalled,
         counters,
     };
 };
@@ -313,10 +409,25 @@ export const reportStageProbe = (): StageProbeReport | null => {
         worst: formatMs(report.worstMs),
         'frames >20ms': report.longFrames,
         'stalls >100ms': report.stalls,
+        // The verdict that a frame-time summary cannot give: frames are arriving, but is the
+        // timeline moving? Reported as a ratio and as a count so "5 advances across 61 frames" reads
+        // the way it did when this bug was first diagnosed by hand.
+        'clock advanced': report.clockSamples > 0
+            ? `${report.clockAdvances}/${report.clockSamples} (${(report.clockAdvanceRatio * 100).toFixed(0)}%)`
+            : 'no playing frames sampled',
     };
 
     // The probe is a developer tool: the console is its output surface.
     console.log('[echora stage probe]', summary);
+    if (report.clockStalled) {
+        console.warn(
+            `[echora stage probe] STALLED: ${report.mode ?? 'stage'} advanced the timeline on only `
+            + `${report.clockAdvances} of ${report.clockSamples} playing frames `
+            + `(${(report.clockAdvanceRatio * 100).toFixed(0)}%, expected ~100%) while rendering `
+            + `${report.frames} frames at ${report.fps.toFixed(1)} fps. The stage is drawing, but the `
+            + 'clock it reads is not moving per frame - see docs/tempera-lumiere-stall-diagnosis.md.',
+        );
+    }
     if (counterRows.length > 0) console.table(counterRows);
     if (report.worstStalls.length > 0) {
         console.log('[echora stage probe] worst stalls', report.worstStalls.map(
