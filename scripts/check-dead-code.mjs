@@ -12,13 +12,21 @@
  * tracked deliberately in docs/echora-vs-folia-gap-and-plan.md §4. Use `--fail` only after that
  * backlog is cleared, or with `--budget` to ratchet the number down.
  *
- * Two known false positives, both worth checking by hand before deleting anything:
- *   - `components/OriginalVisualizerRendererProxy.d.ts` — an ambient declaration for the `.js`
- *     proxy that IS rooted. Nothing imports the `.d.ts` by path; TypeScript picks it up by
- *     adjacency. Do not delete it.
- *   - `src/main.tsx` and `src/i18n/testSetup.ts` are rooted explicitly because they are referenced
- *     from `index.html` and `vitest.config.ts` respectively, not from any module. If you add a new
- *     non-module entry point, add it to the roots list below.
+ * Everything the tool cannot see from an import edge is rooted explicitly below, because otherwise
+ * it reports live files as dead:
+ *   - `src/main.tsx` and `src/i18n/testSetup.ts`, referenced from `index.html` and `vitest.config.ts`
+ *     rather than from any module;
+ *   - `components/OriginalVisualizerRendererProxy.js` and the ambient `.d.ts` beside it, which
+ *     TypeScript resolves by adjacency rather than by an import path.
+ * If you add a new non-module entry point, add it to the roots list. A reported file is still worth
+ * one grep before you delete it: this walks import edges only, so anything referenced by a *string*
+ * is invisible to it. Two real cases in this repo:
+ *   - `new Worker(new URL('../workers/x.worker.ts', import.meta.url))` and Vite `?raw` / `?url`
+ *     imports;
+ *   - guard tests that `readFileSync` a source path to assert on its text, e.g.
+ *     `components/player/stageVolumeGuard.test.ts`, which listed `components/FoliaLyricStage.tsx`
+ *     and broke with a bare ENOENT when that file was deleted as unreachable.
+ * Deleting what this reports is safe for the bundle; it is not automatically safe for those.
  *
  * Why a reachability walk instead of "who imports this file": a plain inbound-edge check misses
  * transitively dead clusters. `utils/appearanceCodec.ts` has two importers, but both are themselves
@@ -91,6 +99,9 @@ addRoot(resolve(ROOT, 'main.tsx'));
 addRoot(resolve(ROOT, 'vite-env.d.ts'));
 addRoot(resolve(ROOT, 'i18n/testSetup.ts'));                 // vitest.config.ts `setupFiles`
 addRoot(resolve(ROOT, 'components/OriginalVisualizerRendererProxy.js'));
+// ...and the ambient declaration beside it: nothing imports the `.d.ts` by path, TypeScript picks
+// it up by adjacency, so without this line the tool reports a file that must not be deleted.
+addRoot(resolve(ROOT, 'components/OriginalVisualizerRendererProxy.d.ts'));
 
 // Tests are a legitimate consumer: anything a test reaches is not dead. This makes the reported
 // number conservative — a file listed below has no importer in the app *or* in the test suite.

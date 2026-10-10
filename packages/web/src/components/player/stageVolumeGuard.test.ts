@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -25,11 +25,18 @@ describe('stage volume guard', () => {
   });
 
   it('keeps volume out of the stage-only visual surfaces', () => {
-    for (const file of [
+    // This guard enumerates surfaces by path rather than importing them, so it is the one test that
+    // a rename or a deletion breaks without any compile error to point at the cause. Assert the paths
+    // resolve first and say which guard needs updating, instead of failing with a bare ENOENT.
+    //
+    // `components/FoliaLyricStage.tsx` used to be listed here; it was removed as unreachable code
+    // (nothing in the app imported it - the live lyric stage is OriginalFoliaVisualizerStage).
+    const stageSurfaces = [
       'components/OriginalFoliaVisualizerStage.tsx',
       'components/LyriclessSoundscapeStage.tsx',
-      'components/FoliaLyricStage.tsx',
-    ]) {
+    ];
+    for (const file of stageSurfaces) {
+      expect(existsSync(resolve(SRC_ROOT, file)), `stage volume guard: ${file} no longer exists - update this list`).toBe(true);
       const source = readSource(file);
       for (const marker of VOLUME_MARKERS.filter(item => item !== 'volume')) {
         expect(source, `${file} must not reference ${marker}`).not.toContain(marker);
