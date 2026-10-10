@@ -9,6 +9,18 @@ attribution requirements.
 
 以 Web 為核心的沉浸式歌詞播放器，能安裝到手機、iPad 與電腦主畫面。
 
+## 開發須知
+
+要改程式碼請先讀 [`CONTRIBUTING.md`](./CONTRIBUTING.md)。裡面有兩件事很容易不小心踩到：
+
+- **移植過來的檔案要跟上游保持 token 一致**（含 `@note Version Control` 標記，原樣保留）。
+  這也是 `tsconfig.json` 不開 `noUnusedLocals` 的原因 —— 上游自己也沒開。
+- **動畫的幾條硬規則**：不要逐幀改文字陰影的模糊半徑、不要在連續變化的縮放下重新柵格化帶陰影的
+  文字。踩到的症狀很特定：Linux 上播放 30–40 分鐘後歌詞動畫整個凍住，聲音還在。
+
+量測舞台效能的方法（`?stageProbe=1`）在
+[`docs/stage-measurement.zh-TW.md`](./docs/stage-measurement.zh-TW.md)。
+
 ## 架構
 
 - **Single Web app**: Vite + React + PWA

@@ -81,9 +81,19 @@ __echoraStageReport()
 [echora stage probe] {
   mode: 'sonnet', running: true, frames: 3600, fps: 59.4,
   p50: '16.7ms', p95: '17.9ms', p99: '21.4ms', worst: '147.2ms',
-  'frames >20ms': 41, 'stalls >100ms': 3
+  'frames >20ms': 41, 'stalls >100ms': 3,
+  'clock advanced': '3586/3600 (99%)'
 }
 [echora stage probe] worst stalls [ '147ms at t+12.4s', '112ms at t+48.1s' ]
+```
+
+畫面整個不動、但影格數字都很漂亮的時候，會多印一行警告：
+
+```
+[echora stage probe] STALLED: tempera advanced the timeline on only 4 of 61 playing
+frames (7%, expected ~100%) while rendering 60 frames at 59.8 fps. The stage is
+drawing, but the clock it reads is not moving per frame - see
+docs/tempera-lumiere-stall-diagnosis.md.
 ```
 
 另外：
@@ -102,7 +112,23 @@ __echoraStageProbe.end()
 | `p95` | < 20 ms | 只有極少數影格超出預算 |
 | `frames >20ms` | 少於總影格的 1 % | 掉格比例 |
 | `stalls >100ms` | 0（或只在換歌那一瞬間） | 讀起來會是「卡一下」的凍結 |
+| `clock advanced` | 接近 100 % | **時間軸有沒有跟著每一格動**。這是「慢」跟「整個凍住」的分水嶺 |
 | 計數表的 `max (ms)` | `sonnet.sceneBuild` 應該 < 50 ms | 一個段落的排版＋建 Pixi Text 的成本 |
+
+`clock advanced` 這一項是後來才加的，因為前面幾項**看不到本repo實際踩過兩次的那種故障**。
+影格節奏量的是 rAF 有沒有準時回來；可是時間軸凍住的時候，每一格都畫得很便宜（因為每格畫的都
+是同一張圖），於是 `p95` 漂亮、`longFrames` 是 0、`stalls` 也是 0 —— 所有數字都說舞台很健康，
+畫面卻完全靜止。當年 tempera／lumiere 讀到的是 store 那個約 4 Hz 的時鐘，61 格只有 5 個不同
+位置，比例約 7 %；修好之後（`playback/stageClock.ts` 自己往外 extrapolate）是 99 %。
+
+判讀方式：
+
+- **接近 100 %** → 時鐘是每格讀的，正常。
+- **明顯偏低但不是 0** → 舞台讀到的時鐘更新頻率低於影格頻率。這就是「看起來卡住」的那個 bug。
+- **`no playing frames sampled`** → 這段時間沒有在播放。暫停時計鐘不動是正確的，所以暫停的影格
+  根本不計入，否則每次暫停都會被誤報成 stall。
+
+樣本太少（不到半秒、30 格）時不會下判斷，因為拖進度軸、換歌、剛 mount 都會合理地停個幾格。
 
 如果 `stalls` 的發生時間點對得上「換歌」「拖滑桿」「切模式」，那問題就在那條路徑上 ——
 把 `at+t` 跟操作對起來看，比記「哪一段好像卡卡的」精確得多。
@@ -148,8 +174,10 @@ pnpm bench
 
 ## 四、還沒做（同一條路線上的後續）
 
-1. **畫面級探針**：目前只有主執行緒節奏 + 引擎回報的計數。上游還有在瀏覽器裡量 render count 的
-   probes；Echora 之後可以把 `probeSpan` 加進更多模式（canvas 2D 系的排版、diorama 的轉場）。
+1. **畫面級探針**：~~目前只有主執行緒節奏 + 引擎回報的計數~~ → 時間軸推進比例（`clock advanced`）
+   已加上，這正是「影格很漂亮但畫面靜止」那類故障唯一量得到的東西。剩下的是把 `probeSpan` 加進
+   更多模式（canvas 2D 系的排版、diorama 的轉場）：目前只有 sonnet 回報計數（7 個呼叫點），其他
+   12 個模式的計數表是空的，只有共用的影格與時鐘數字。上游還有在瀏覽器裡量 render count 的 probes。
 2. **`songHandover` 的溢位保護**：上游在溶解之外還有一層 wall-clock 保護，處理「新場景建置比
    溶解還久」的情況；目前溶解結束就是結束。
 3. **`mod()` / `setModulation`**（Folium 模組的可調參數）與 `transparentBackground`。
