@@ -11,6 +11,7 @@ import { buildSonnetFrameDecor, resolveSonnetFrameDecorSpec, type SonnetFrameDec
 import type { SonnetSemanticSegment } from './types';
 import {
     isSonnetEmphasisRole,
+    measureText,
     type SonnetSegmentRole,
     type SonnetTypographyPlacement,
 } from './sonnetTypographyLayout';
@@ -94,7 +95,14 @@ interface SonnetTextViewOptions {
 // builder measure the exact same (text, fontSpec, size) triples - the layout measures each hero/
 // support box, then `buildSonnetGlyphLayout` measures every glyph of it again - so a second,
 // private, uncached pretext loop here was pure duplicate work on every scene build.
-export { measureText } from './sonnetTypographyLayout';
+//
+// Exported as a local binding, not `export { measureText } from './sonnetTypographyLayout'`: a
+// re-export does not put the name in scope in this module, and `buildSonnetTextView` calls
+// `measureText` itself when it hands the glyph layout a measuring callback. As a bare re-export
+// that call was an unresolved identifier - a ReferenceError on the main (non-staff) path of every
+// sonnet scene build, which `SceneErrorBoundary` then swallowed. TypeScript only reported it once
+// this file was type-checked; it lives under an excluded path in tsconfig.json.
+export { measureText };
 
 export const buildSonnetTextView = (
     pixi: PixiModule,
