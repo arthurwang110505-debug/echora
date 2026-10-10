@@ -14,9 +14,34 @@
 
 1. **You do not have "30% of Folia".** Measured: your visualizer tree is **70,609 lines vs upstream's 70,594 — 100.0% parity, 13 of 14 modes**. What you have 18.3% of is the *product wrapped around* the stage (37,295 lines vs 203,697). The gap is services, sources, library, and engineering discipline — not rendering.
 2. **"Really stuck" has two independent causes, and only one is fixed.** Commit `9d236d5` fixed the 4 Hz clock (Tempera / Lumiere / Sonnet). The second is a **Chromium glyph-cache fd leak** that upstream measured and fixed on 2026-09-26. It is still live in your **classic, partita, claddagh and cadenza**. Upstream's own measurement: 0.56–0.93 fd/s, renderer fd soft limit 1024, compositor stops producing frames. **You already ported this fix for `fume` — it was just never generalised.**
-3. **Your largest asset is not type-checked.** `tsconfig.json` excludes `src/original-folia-visualizers`, `src/utils` and `src/types.ts`. Lifting the exclusions gives **175 errors across 74 files** — but the arithmetic is encouraging: 89 of them disappear when dead code is deleted, 7 when you install `@types/three` (upstream has it, you don't), and 72 are unused-import noise. **~6 are real bugs.**
-4. **13,995 lines (13.0% of `packages/web/src`) are unreachable** from the app entry — 95 files, verified by import-graph reachability including `import.meta.glob` roots and counting tests as consumers. Now a script in the repo: `node scripts/check-dead-code.mjs`.
+3. **Your largest asset is not type-checked.** `tsconfig.json` excludes `src/original-folia-visualizers`, `src/utils` and `src/types.ts`. Lifting the exclusions gave **175 errors across 74 files** at measurement time — but the arithmetic was encouraging: 89 disappeared with the dead-code deletion, 9 with `@types/three`, and 77 are unused-import noise. **One was a real, live bug** (a `ReferenceError` on sonnet's main scene-build path — found and fixed, see [§3.3](#33-what-wp1-actually-found)).
+4. **13,995 lines (13.0% of `packages/web/src`) were unreachable** from the app entry — 95 files, verified by import-graph reachability including `import.meta.glob` roots and counting tests as consumers. Now a script in the repo: `node scripts/check-dead-code.mjs`. **77 of those files are now deleted**; 17 are deliberately kept.
 5. **The plan is 6 work packages.** WP0 (the leak) and WP1 (delete dead code → lift type exclusions → put the existing gate in CI) are both small, both measurable, and together they remove the two things most likely to bite you next.
+
+---
+
+## Status — what has actually been done
+
+This document started as a measurement. WP0 and most of WP1 have since been implemented, so the
+numbers in §3 and §4 are **baselines**, not the current state. The section text is left as measured
+so the reasoning is still auditable; this table is the live scoreboard.
+
+| | Commit | Result |
+|---|---|---|
+| **WP0** — glyph-cache fd leak | `6f40c8d` | Fixed in classic / partita / claddagh / cadenza. One shared switch (`visualizer_glow_blur_quantize`, on by default on Linux, user-toggleable in Settings), one shared `wordGlowVariants`, fume now delegates to it instead of keeping the rule private. 33 new tests. **Not yet confirmed on a real device** — the sandbox has no browser, so this rests on source parity with upstream's published measurements. |
+| **WP1a** — delete unreachable code | `aafd5c5` | **77 files / 10,182 lines deleted.** Dead code 94 files / 13,993 L (12.9% of src) → **17 files / 3,811 L (3.9%)**. Product files 509 → 432, reachable 415. |
+| **WP1b** — the bug it uncovered | `c5bfdef` | `sonnetTextViewBuilder.ts` re-exported `measureText` instead of importing it, so the call site 140 lines later was an unresolved identifier. A `ReferenceError` on the **main, non-staff path of every sonnet scene build**, swallowed by `SceneErrorBoundary`. Only visible because the file sat under an excluded path. |
+| **WP1c** — type packages | `d030656` | `@types/three@^0.185.4` + `@types/react-window@^1.8.8`. Type debt with exclusions lifted: **175 → 97 → 89 errors**. The diorama tree (6,742 lines of Three.js) is no longer `any`. |
+| **WP1d** — burn down the rest | *not started* | 89 errors remain: 77 `TS6133` (mechanical), 12 across 5 files. Then lift the `tsconfig.json` exclusions and put `scripts/check-visualizer-types.mjs` in CI. |
+| **WP2–WP4** | *not started* | Observability, stage prop contract, shipping the already-written features. |
+| **WP5** | **out of scope** | Dropped at the author's request — not part of the intended feature set. |
+
+Two clusters were **deliberately not touched**, by decision rather than oversight:
+
+- **The VisPlayground dev-tool cluster** (6 files / 2,835 lines) — left in place and still covered by
+  the `tsconfig` exclude. It has its own problem, recorded in [§3.3](#33-what-wp1-actually-found).
+- **11 never-wired feature modules** (~930 lines) plus `utils/appPlaybackGuards.ts`, which two of
+  them import. These are the raw material for WP4.
 
 ---
 
@@ -131,6 +156,8 @@ Live errors by code:
 
 ### 3.2 The arithmetic is the good news
 
+As predicted at measurement time:
+
 ```
 175 errors
  −89   delete the 95 unreachable files (§4)
@@ -140,7 +167,91 @@ Live errors by code:
   ~7   genuine issues, of which 2 are one diorama camera cast and 1 is the sonnet registry contract
 ```
 
-You are **not** sitting on 175 errors of debt. You are sitting on ~7, hidden behind 168 lines of noise that two mechanical operations remove. That is why [WP1](#wp1--make-the-type-gate-real-12-weeks) is worth doing before any feature work: it converts "we can't type-check the stage" into "the stage is type-checked and CI enforces it", for about a day of work.
+What actually happened, measured after each step rather than predicted:
+
+```
+175 errors / 74 files   baseline
+ −77  →  98 / 50        WP1a: deleted 77 of the 95 (17 kept by decision; 1 was a false positive)
+  -1  →  97 / 50        WP1b: the sonnet measureText ReferenceError, fixed
+  -8  →  89 / 45        WP1c: @types/three (7 TS7016 + 2 TS2339) and @types/react-window (1 TS7016,
+                            replaced by 2 more precise TS2305 — see §3.3)
+─────
+  89 errors remain, and not one of them is in dead code any more.
+```
+
+The prediction was close but optimistic in one place: `@types/three` cleared **9**, not 7, because
+the two `DioramaScene.tsx:946,947` `TS2339` errors were the untyped import widening
+`PerspectiveCamera` to `Camera` rather than separate defects. It was pessimistic in another: the
+remaining `TS6133` count is **77**, not 72, because deleting the dead files exposed unused
+declarations in the live files that had been importing them.
+
+The conclusion holds. You were never sitting on 175 errors of debt — you were sitting on a handful,
+hidden behind noise that mechanical operations remove. That is why
+[WP1](#wp1--make-the-type-gate-real-12-weeks) was worth doing before any feature work: it converts
+"we can't type-check the stage" into "the stage is type-checked and CI enforces it".
+
+### 3.3 What WP1 actually found
+
+The point of lifting the exclusions was never the error count. It was that **two of the errors were
+live defects that no test, no lint pass and no build had ever reported**, because every gate in the
+repo skips these paths.
+
+**1. `sonnetTextViewBuilder.ts` — a `ReferenceError` on sonnet's main path** (fixed in `c5bfdef`).
+
+The file re-exported the shared measuring memo:
+
+```ts
+export { measureText } from './sonnetTypographyLayout';
+```
+
+A re-export does **not** put the name in scope in its own module. Eight lines of comment above it
+explain that the glyph builder measures "through the shared memo" — and then `buildSonnetTextView`
+calls it:
+
+```ts
+char => measureText(char, fontSpec, fontSize),
+```
+
+That identifier was unresolved. `buildSonnetTextView` is called from `sonnetSceneBuilder.ts:230`, on
+the main non-staff path, so the callback threw the first time the glyph layout measured a character.
+`SceneErrorBoundary` swallowed it, which is why the symptom was a sonnet stage that quietly fell back
+rather than an error anyone saw. TypeScript had been reporting it all along as
+`TS2304: Cannot find name 'measureText'`.
+
+**2. `VisPlayground.tsx` — written against a dependency version the repo does not have** (recorded,
+not fixed: the cluster is deliberately being left alone).
+
+Installing `@types/react-window@^1.8.8` to match the pinned `react-window@^1.8.11` traded one vague
+error for two precise ones:
+
+```
+VisPlayground.tsx(5,10): Module '"react-window"' has no exported member 'List'.
+VisPlayground.tsx(5,16): Module '"react-window"' has no exported member 'useListRef'.
+```
+
+`List` and `useListRef` are the react-window **v2** API. Verified at runtime rather than from the
+types — `require('react-window').List === undefined`; v1.8.11 exports exactly `FixedSizeGrid`,
+`FixedSizeList`, `VariableSizeGrid`, `VariableSizeList`, `areEqual`, `shouldComponentUpdate`.
+`VisPlayground.tsx` is the only consumer of the package in the entire tree, so the fix is one of two
+one-line changes: pin `react-window@^2`, or import `FixedSizeList`. It is unreachable dev tooling, so
+nobody is hitting this today — but it is the strongest argument yet for resolving that cluster's
+delete-vs-wire question rather than leaving it indefinitely.
+
+**What remains, all in live code:**
+
+| Code | Count | Where | Verdict |
+|---|---:|---|---|
+| `TS6133` unused declaration | 77 | spread across ~45 files, incl. `'React' unused` in 17 `entry.tsx` | Mechanical. This is the whole of WP1d. |
+| `TS2339` / `TS2307` | 4 / 2 | `utils/appPlaybackGuards.ts`, `utils/lyrics/types.ts` | Both `TS2307` are an import of `../../types/navidrome`, **a module that has never existed in this repo** — it belongs to WP5, which is out of scope. The 4 `TS2339` are downstream of it (the type resolves to `never`). Pre-existing, not caused by the deletion. |
+| `TS2352` | 2 | `stageProbe.test.ts:99,105` | A `globalThis` cast style. Local. |
+| `TS2345` registry contract | 1 | `sonnet/entry.tsx:11` | Still open — see the table in §3.1. The registry's own type demands a `render` field sonnet does not supply. |
+| `TS2322` | 1 | `VisPlaygroundSettingsPanel.tsx` | Inside the cluster being left alone. |
+| `TS2305` | 2 | `VisPlayground.tsx` | The react-window v1/v2 mismatch above. |
+
+One structural note worth acting on separately: **`three` is declared as a `devDependency`** while
+being bundled into a runtime chunk (`vite.config.ts:133` carves out `three-runtime`, budgeted at
+950 kB and currently 875.6 kB). It builds today because CI installs dev dependencies, but any
+`--prod` install would produce a broken bundle. That is a one-line move to `dependencies`.
 
 ---
 
@@ -169,6 +280,52 @@ Method: build the import graph over `packages/web/src` (static `import`, `export
 | **Total** | **13,995** | **95** | |
 
 Verified clusters (each checked by direct grep, not just by the graph). Line counts are `wc -l`.
+
+### 4.1 What was deleted, and what was not
+
+Commit `aafd5c5` removed **77 files / 10,182 lines**. Re-running the script afterwards: **432 product
+files, 415 reachable, 17 unreachable / 3,811 lines — 3.9% of src, down from 12.9%.**
+`components/visualizer/` no longer exists; `utils/lyrics/` retains only its 10 live modules
+(`activeLine`, `alternateText`, `cjkSemanticLayout`, `formatDetection`, `graphemeTiming`,
+`parserCore`, `renderHints`, `sentenceLayout`, `ttmlConversion`, `types`).
+
+Two corrections were made to this section's list during execution, and both matter more than the
+line count:
+
+1. **`components/OriginalVisualizerRendererProxy.d.ts` was a false positive** — the "stale `.d.ts`" in
+   the `components/` row above. Nothing imports it by path, so the reachability walk could not see
+   it, but TypeScript resolves it by adjacency to the rooted `.js` proxy that the live
+   `OriginalFoliaVisualizerStage.tsx:16` imports, and `originalFoliaStageClock.test.tsx:30` mocks.
+   Deleting it would have broken the build. The script now roots it explicitly rather than carrying a
+   "do not delete" warning in a header comment — the warning was on the delete list anyway. **The
+   true dead count is 94, not 95.**
+2. **`utils/appPlaybackGuards.ts` had to be added as a keeper.** Taking the transitive closure of the
+   keepers over the dead set showed that `utils/queueAddBehavior.ts` and
+   `utils/songThemeAutoGeneration.ts` — both kept for WP4 — import it. A reachability walk reports
+   individual files; deleting them needs the closure.
+
+The 17 survivors are all deliberate:
+
+| Group | Files | Why kept |
+|---|---:|---|
+| VisPlayground dev-tool cluster | 6 | Decision still open — delete vs. wire behind a dev route. Untouched this round. |
+| Never-wired WP4 features | 10 | `frameRateLimiter`, `audioEqualizer`, `replayGain`, `lyricOffsetMemory`, `queueAddBehavior`, `songThemeAutoGeneration`, `chorusDetector`, `chorusEffects`, `chorusResolver`, `fontAvailability`. Already written; WP4 connects them. |
+| Transitive dependency | 1 | `appPlaybackGuards.ts`, imported by two of the above. |
+
+**A limitation of the method, learned the hard way.** An import-graph walk cannot see
+**string-path references**. `components/player/stageVolumeGuard.test.ts` reads the source of each
+stage surface with `readFileSync` to assert no volume widget leaked in, and it listed
+`components/FoliaLyricStage.tsx` — so deleting that file broke the test with a bare `ENOENT`, which
+no amount of graph analysis would have predicted. The same blind spot covers
+`new Worker(new URL('../workers/x.worker.ts', import.meta.url))` and Vite's `?raw` / `?url` imports.
+Before deleting, grep the basenames against the config files and against any test using
+`readFileSync` / `readdirSync` / `globSync`. In this repo that check found exactly one coupling, and
+also confirmed that no `*.worker.ts` file exists at all — the single `new Worker(new URL(...))` in
+the tree pointed at a path that was already dangling inside dead code.
+
+Gates after the deletion: main `tsc` clean, visualizer type gate passed, tests **75 files / 502
+all passing**, lint 0 errors / 24 warnings, build ok, and all four bundle budgets unchanged. Type
+debt with the exclusions lifted went 175 → 98, and the errors sitting in dead code went **89 → 0**.
 
 - **VisPlayground — 2,835 lines.** `VisPlayground.tsx` (1,440), `VisPlaygroundSettingsPanel.tsx` (932), `PreviewPlaceholder.ts` (205), `VisPlaygroundPreviewHotspots.tsx` (107), `useVisPlaygroundPreviewPlayback.ts` (88), `FontFallbackStackControl.tsx` (63). No route, no import — the only hits for the name are inside *comments* in Lumiere/Tempera. This is a dev tool that was ported and then bypassed by `OriginalFoliaTuningPanel`. **Decide: wire it behind a dev flag, or delete it.** Note your own stale gap-analysis already flagged "把 12 個模式的死設定面板做個了斷" — this is that item, and it is bigger than it looked.
 - **`components/visualizer/tempera/` — 1,361 lines.** A duplicate of the canonical `original-folia-visualizers/tempera/` tree. The tuning panel imports the canonical one; nothing imports this copy. Pure deletion — *but see §5 first*: this is also the pool UI the Tempera image feature needs, so decide whether to wire it or rewrite it before you delete it.
@@ -358,7 +515,7 @@ WP1 must come *after* WP0 only because WP0 adds `@types/three` (7 of the errors)
 | `docs/echora-gap-analysis.zh-TW.md` | Tempera image pool complete (`69dfb22`) | The **storage** is complete; the **renderer never receives it** (`VisualizerTempera.tsx:150` → `EMPTY_TEMPERA_IMAGE_BLOBS`; `loadTemperaLayerImageBlobs` has no caller). `docs/tempera-image-pool.zh-TW.md` reads as shipped. See §5. |
 | `docs/echora-gap-analysis.zh-TW.md` | Next steps: site-wide toast host + dead settings panels | Superseded by the priorities in §7 — a live fd leak and a 65% type-checking blind spot outrank both. |
 | `docs/folia-upstream-specialities.md` | 1,313 files / 256,765 lines, 479 test files, **42 probes** | v0.7.13 numbers. At v0.7.15: 2,190 files / 388,469 lines, **547** test files + 53 e2e specs. The "42 probes" figure does not survive checking — `find . -name '*.probe.ts'` in upstream returns **1**. Do not re-quote it. |
-| `tsconfig.visualizers.json` header comment | "`src/utils/**` … is dead code left over from an earlier port" | Correct, and now quantified: 95 files / 13,995 lines (§4). The comment also says `src/types.ts` imports three nonexistent modules — after WP1 that whole caveat should be deletable. |
+| `tsconfig.visualizers.json` header comment | "`src/types.ts` imports three type modules that do not exist"; "`src/utils/**` … is dead code left over from an earlier port" | **Both claims were wrong, and the comment has been corrected.** All three modules exist (`src/types/onlineMusic.ts` 404 lines, `localLibrary.ts` 66, `localCover.ts` 26) and resolve cleanly under the main `tsc`. And `src/utils/**` is not dead code — it is *excluded from type checking*, which is a different thing; after WP1a deleted the 77 genuinely unreachable files, `src/utils` is overwhelmingly live code that simply is not checked. Reading "excluded" as "unused" is precisely what let the sonnet `measureText` `ReferenceError` (§3.3) sit unnoticed on a live path. `KNOWN_DEBT` in the gate script is already empty. |
 
 ---
 
@@ -392,14 +549,18 @@ cat > packages/web/tsconfig.allcheck.json <<'JSON'
 { "extends": "./tsconfig.json", "include": ["src"], "exclude": [] }
 JSON
 corepack pnpm --filter @echora/web exec tsc -p tsconfig.allcheck.json --noEmit 2>&1 \
-  | tee /tmp/allcheck.txt | grep -cE '^[^ ].*error TS'                              # 175
+  | tee /tmp/allcheck.txt | grep -cE '^[^ ].*error TS'                              # 89 today
+grep -oE 'error TS[0-9]+' /tmp/allcheck.txt | sort | uniq -c | sort -rn             # by code
 rm packages/web/tsconfig.allcheck.json          # scratch only — never commit this
 node scripts/check-visualizer-types.mjs          # from the REPO ROOT, not packages/web
 
 # Dead code (§4) — reachability walk; roots listed in the section itself
-node scripts/check-dead-code.mjs                 # 95 files / 13,995 lines (13.0%)
+node scripts/check-dead-code.mjs                 # 17 files / 3,811 lines (3.9%) after WP1a
 node scripts/check-dead-code.mjs --list          # every path
-node scripts/check-dead-code.mjs --budget 13000  # exit 1 until WP1 lands
+node scripts/check-dead-code.mjs --budget 4000   # ratchet: exit 1 if unreachable code grows back
+
+# History: 175 errors / 95 dead files was the pre-WP1 baseline. Reproduce it with
+#   git stash && git checkout 9cea1d3 -- . && node scripts/check-dead-code.mjs
 
 # Leak evidence (§2)
 grep -n 'textShadow: "none"' packages/web/src/original-folia-visualizers/classic/Visualizer.tsx

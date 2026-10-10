@@ -11,11 +11,26 @@
   // partita, claddagh and cadenza all read it. Without these two entries the fix itself would be a
   // type-checking blind spot.
   //
-  // Known pre-existing debt, filtered by scripts/check-visualizer-types.mjs rather than hidden:
-  // `src/types.ts` imports three type modules that do not exist in this repository
-  // (`./types/onlineMusic`, `./types/localLibrary`, `./types/localCover`). Those types are used by
-  // `src/utils/**`, which is dead code left over from an earlier port - see
-  // docs/tempera-port.zh-TW.md (§ 尚未處理的問題). Nothing in the Tempera port touches it.
+  // Known pre-existing debt: none. `KNOWN_DEBT` in scripts/check-visualizer-types.mjs is empty and
+  // this project reports 0 errors.
+  //
+  // An earlier revision of this comment claimed `src/types.ts` imported three type modules that do
+  // not exist (`./types/onlineMusic`, `./types/localLibrary`, `./types/localCover`), and that the
+  // types were only used by "`src/utils/**`, which is dead code left over from an earlier port".
+  // Both claims are now wrong, and the second one was misleading in a way worth spelling out:
+  //
+  //   - All three modules exist: `src/types/onlineMusic.ts` (404 lines),
+  //     `src/types/localLibrary.ts` (66), `src/types/localCover.ts` (26). `src/types.ts` imports
+  //     them at lines 2, 1219-1227 and 1321-1327, and the main `tsc` run resolves them cleanly.
+  //   - `src/utils/**` is not dead code. It is excluded from *type checking* by `tsconfig.json`,
+  //     which is a different thing. After WP1a deleted the 77 genuinely unreachable files
+  //     (commit `aafd5c5`), 415 of 432 product files are reachable and `src/utils` is overwhelmingly
+  //     live code that simply is not checked. Read "excluded" as "unchecked", never as "unused" -
+  //     conflating the two is what let the sonnet `measureText` ReferenceError (§3.3 of
+  //     docs/echora-vs-folia-gap-and-plan.md) sit unnoticed on a live code path.
+  //
+  // WP1d should shrink this file's `include` list to nothing by lifting the exclusions in
+  // `tsconfig.json` instead, once the remaining 89 errors are cleared.
   "extends": "./tsconfig.json",
   "include": [
     "src/vite-env.d.ts",
