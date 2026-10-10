@@ -34,7 +34,8 @@ so the reasoning is still auditable; this table is the live scoreboard.
 | **WP1c** — type packages | `d030656` | `@types/three@^0.185.4` + `@types/react-window@^1.8.8`. Type debt with exclusions lifted: **175 → 97 → 89 errors**. The diorama tree (6,742 lines of Three.js) is no longer `any`. |
 | **WP1d** — lift the exclusions, gate it | `37385ca` | **The whole tree is now type-checked: 0 errors, both configs.** `exclude` went from 3 directory trees (~70,600 lines blind) to **5 named files**, each with a documented removal condition. `pnpm typecheck` added. The 77 `TS6133` were *not* cleaned up — they are upstream's own code, and upstream does not enable those flags, so they are off in the main config and kept on for Echora-authored code in a new `tsconfig.unused-checks.json`. |
 | **WP1e** — the CI steps | **blocked** | Written and staged, but this session's GitHub App lacks the `workflows` permission, so pushes touching `.github/workflows/ci.yml` are rejected. The exact YAML is in [WP1](#wp1--make-the-type-gate-real-12-weeks--done-except-the-ci-push). `pnpm build` already runs the whole-tree `tsc`, so the gate is enforced on builds meanwhile. |
-| **WP2–WP4** | *not started* | Observability, stage prop contract, shipping the already-written features. |
+| **WP2** — observability | `b8138a1`, `1b6f648`, `3af2d4b` | The probe now measures **whether the timeline advances**, not just whether frames arrive — the metric that was missing when both stalls were diagnosed by hand. Plus a headless regression guard for the WP0 leak fix, and the animation guardrails in a new `CONTRIBUTING.md`. See [WP2](#wp2--observability-so-the-next-stall-takes-minutes-not-weeks-1-week--mostly-done). |
+| **WP3–WP4** | *not started* | Stage prop contract, shipping the already-written features. |
 | **WP5** | **out of scope** | Dropped at the author's request — not part of the intended feature set. |
 
 Two clusters were **deliberately not touched**, by decision rather than oversight:
@@ -188,7 +189,7 @@ declarations in the live files that had been importing them.
 
 The conclusion holds. You were never sitting on 175 errors of debt — you were sitting on a handful,
 hidden behind noise that mechanical operations remove. That is why
-[WP1](#wp1--make-the-type-gate-real-12-weeks) was worth doing before any feature work: it converts
+[WP1](#wp1--make-the-type-gate-real-12-weeks--done-except-the-ci-push) was worth doing before any feature work: it converts
 "we can't type-check the stage" into "the stage is type-checked and CI enforces it".
 
 ### 3.3 What WP1 actually found
@@ -375,7 +376,7 @@ Echora has **15 files / 1,557 lines**, and **11 of the 15 are unreachable** (§4
 Two structural observations, not just a count:
 
 - **Upstream separates tests from source** (`test/` with `helpers/` and `fixtures/`), which is how it sustains 547 files. You co-locate, which is fine at 76 and gets expensive at 500. If you intend to grow coverage, decide the layout *before* you grow it.
-- **The observability gap is why the leak survived.** Upstream found a 0.9 fd/s leak because they had a screen that plotted fd counts. You have no equivalent, so the same class of bug is only discoverable by a user complaining "it's stuck" — which is exactly what happened. `utils/stageProbe.ts` exists and is live, but there is no probe harness, no on-screen readout, and nothing in CI. This is [WP2](#wp2--observability-so-the-next-stall-takes-minutes-not-weeks-1-week), and it is the cheapest insurance in this document.
+- **The observability gap is why the leak survived.** Upstream found a 0.9 fd/s leak because they had a screen that plotted fd counts. You have no equivalent, so the same class of bug is only discoverable by a user complaining "it's stuck" — which is exactly what happened. `utils/stageProbe.ts` exists and is live and now measures whether the timeline advances, not just whether frames arrive (`b8138a1`), and the leak itself has a headless regression guard (`1b6f648`) — but there is still no on-screen readout, per-mode counters exist for sonnet only, and the CI steps are unwired. This is [WP2](#wp2--observability-so-the-next-stall-takes-minutes-not-weeks-1-week--mostly-done), and it is the cheapest insurance in this document.
 
 ---
 
@@ -469,14 +470,24 @@ Three steps go into the `verify` job. `Typecheck` before `Lint`:
         run: node scripts/check-visualizer-types.mjs
 ```
 
-and `Dead-code ratchet` after `Bundle-size budget`:
+and `Perf budget` + `Dead-code ratchet` after `Bundle-size budget`:
 
 ```yaml
+      # Regression budget for the sonnet program compile (bench/sonnetCompile.bench.ts asserts a
+      # 90 ms median; the reference machine records 33 ms). ~2s, one worker, idle machine - which is
+      # why it is separate from `pnpm test` rather than part of it.
+      - name: Perf budget
+        run: pnpm bench
+
       # Ratchet on unreachable lines. The 17 files / 3,811 lines still reported are all deliberate
       # and tracked in §4.1. Lower this as the backlog clears; do not raise it to silence a failure.
       - name: Dead-code ratchet
         run: node scripts/check-dead-code.mjs --budget 3900
 ```
+
+`pnpm bench` is the notable one: `bench/sonnetCompile.bench.ts` has asserted a 90 ms median compile
+budget since it was written, and nothing ever ran it, so nothing enforced it. It passes today at
+33.27 ms and takes ~2 s.
 
 Note that `pnpm build` already runs the whole-tree `tsc` (its script is `tsc && vite build`), so the
 type gate is enforced on every build regardless — the explicit `Typecheck` step exists to name it, to
@@ -495,18 +506,104 @@ pushed.
 
 ---
 
-### WP2 — Observability, so the next stall takes minutes not weeks (1 week)
+### WP2 — Observability, so the next stall takes minutes not weeks (1 week) — **mostly done**
 
-**What**
+Landed as `b8138a1` (the clock metric), `1b6f648` (the leak's regression guard), `3af2d4b` (the
+guardrails). Part 1 could not be ported as written, and part 3 is blocked on the same CI permission as
+WP1e. Both are explained below rather than quietly dropped.
+
+**What was planned**
 
 1. Port upstream's **memory monitor** (`components/app/overlays/*`): renderer/GPU fd count, JS heap, and a per-mode frame-time sparkline, behind a Debug menu.
 2. Generalise the live `utils/stageProbe.ts` into a small **probe harness**: N frames, distinct clock positions, create/destroy/swap/compile counts, frame-time percentiles. The turn-1 investigation had to hand-roll this as a throwaway test (`originalFoliaStageClock.test.tsx`); make it a first-class tool.
 3. Add a **CI perf job** running the harness headlessly with a regression budget, alongside the existing bundle budget and `bench` (22.62 ms today).
 4. Write the **animation guardrails** from upstream's `linux-glyph-cache-fd-leak.md` §5 into `CONTRIBUTING.md`: never animate a text-shadow or canvas `shadowBlur` radius per frame; use `filter: drop-shadow()` or a bounded radius set; any per-frame-`scale()` text is either a compositing layer or shadow-free; canvas text under a moving camera is rasterised at bounded scales first.
 
-**Why** — you have 100% of a 70k-line rendering engine and zero instrumentation on it. Both stalls you have hit were found by hand-building measurement. Upstream found theirs by looking at a graph.
+**↪ Part 1 was mis-scoped, and the fd half is not portable at all.** The plan cited
+`components/app/overlays/*`, but that directory holds `NowPlayingToast` and the automix transition —
+the monitor is elsewhere, and its data comes from `electron/debug/memoryMonitor.cjs` reading
+`/proc/<pid>/fd` for the renderer and GPU processes. **Echora is a PWA.** A browser cannot read
+another process's fd table and there is no Electron main process to ask, so `rendererFdCount` and
+`gpuFdCount` in upstream's `MemoryPoint` have no web source, and neither does `rendererPrivateMB`
+(from `app.getAppMetrics()`). Of the monitor's four curves, exactly one is portable —
+`rendererHeapUsedMB`, from `performance.memory.usedJSHeapSize`, which upstream's own `reportSelf()`
+already reads in-renderer.
 
-**How to verify** — the monitor reproduces the WP0 fd curves; the probe harness flags a reverted `stageClock` read as "only 5 distinct positions across 61 frames" (the negative control from turn 1) without anyone editing test code.
+So rather than port a monitor that would arrive with three of its four curves permanently `null`, the
+web-feasible substitute measures **the cause instead of the symptom**. Chromium keys a cached glyph
+strike on the blur sigma in device space, and each new strike costs a 4 KiB shared-memory chunk that
+is never returned — so the count of *distinct blur radii* an animated sweep asks for is what mints the
+fds. That is a number a browser can produce, on any platform, headlessly, in about a second. See part
+2's regression guard below. The frame-time sparkline the plan also wanted already exists as
+`stageProbe`'s 3,600-entry ring buffer with p50/p95/p99; what it lacked was a surface, and
+`__echoraStageReport()` is that surface. An in-app Debug overlay would be a nicer one and is still
+worth building, but it is presentation over data that is now collected.
+
+**Part 2 — done, and it found the real gap.** `stageProbe.ts` was already good: frame cadence,
+percentiles, stalls, named spans and counters, a console API, and it was wired into the stage. What it
+could not see is the failure this repository has actually hit twice, because **frame cadence is the
+wrong instrument for it**. A frozen timeline renders cheaply — every frame draws the same picture — so
+a stage reading a 4 Hz clock reports fps 59.8, zero frames over 20 ms and zero stalls while the
+picture never moves. Both stalls were diagnosed by hand-building a measurement, and in both cases the
+number that settled it was not a frame time.
+
+`probeClock(positionSec, playing)` adds it, called once per published frame from the stage's rAF loop
+at the point where `currentTime.set(time)` happens. The report gains `clockSamples`, `clockAdvances`,
+`clockAdvanceRatio` and a `clockStalled` verdict; the console prints `clock advanced: "4/61 (7%)"`
+and warns explicitly when stalled. Paused frames are not sampled, because a clock that does not move
+while nothing is playing is correct, and counting those would make every pause a reported stall —
+which would teach whoever reads the report to ignore it.
+
+The turn-1 negative control is now a permanent test: 61 frames at 60 fps against a store updated
+every 250 ms gives **4 advances, ratio 0.066, `clockStalled` true — alongside fps above 50, zero long
+frames, zero stalls and a worst frame under 20 ms**. Asserting both halves together is the point; it
+pins the fact that frame cadence alone cannot detect this.
+
+Still open from part 2: the counter table is empty for 12 of 13 modes. Only sonnet reports spans and
+counts (7 call sites in `createSonnetPixiRuntime.ts`), so "which operation made that frame slow" is
+answerable for sonnet and not for the others.
+
+**↪ Part 3 — the budget already existed and nothing ran it.** `bench/sonnetCompile.bench.ts` has
+asserted a 90 ms median compile budget since it was written, with sound reasoning about CI noise and
+an instruction to move the budget when the median moves. It passes at **33.27 ms** and takes ~2 s.
+`ci.yml` has never had a `pnpm bench` step, so the gate was never enforced. The step is written and
+recorded in [WP1](#wp1--make-the-type-gate-real-12-weeks--done-except-the-ci-push) alongside the other
+three, blocked on the same missing `workflows` permission. The 22.62 ms figure in the plan was a
+different measurement from turn 1 and is not what this bench reports.
+
+The harness the plan wanted for CI now runs in the ordinary suite rather than needing a job of its
+own: the clock negative control is in `stageProbe.test.ts`, and the leak's regression guard is in
+`glowBlurQuantize.test.ts`, which sweeps an animated radius through `quantizeShadowBlur` and counts
+distinct glyph-cache keys — **1200 draws collapse to 48 and stay at 48 with ten times the duration,
+versus 1200 growing linearly to 12,000 with the switch off**. Linear growth against a fixed budget of
+1024 handles *is* the leak, stated as a counting argument a CI runner can check in milliseconds on
+any OS. The sweep uses two incommensurate sines (a fast breath plus a slow drift) because a single
+symmetric sine revisits its own values and understates the leak by ~40% — which is also a fair model
+of why upstream measured ~0.8 fd/s rather than 60.
+
+Instrumenting `quantizeShadowBlur` to count radii at runtime was tried first and reverted: that file is
+a verbatim port carrying `@note Version Control: Project Folia version 0.7.16-de09ad5`, and
+`docs/lumiere-port.zh-TW.md` §2.2 restricts edits to ported files. The guard belongs in CI anyway,
+where it runs on every platform rather than only on a Linux device after half an hour.
+
+**Part 4 — done.** `CONTRIBUTING.md` is new and carries upstream's four rules, the gate list, and the
+porting rules that were previously spread across `docs/lumiere-port.zh-TW.md` and file headers. It
+states plainly that upstream's verification rule ("open the memory monitor on Linux, check the fd
+curves are flat") **cannot be followed here** and says what to run instead, so nobody spends a day
+rediscovering that a PWA has no fd table. `docs/stage-measurement.zh-TW.md` — the guide for reading a
+probe report on a real device — gained the `clock advanced` row, the three ways to read it, and the
+STALLED warning's wording; its §四 had listed this exact gap, so that item is updated rather than left
+stale. `README.md` now links both.
+
+**Why** — you have 100% of a 70k-line rendering engine and, until this, zero instrumentation aimed at
+the failure mode you had actually hit twice. Both stalls were found by hand-building measurement.
+
+**How to verify** — the plan's criterion was that the harness flags a reverted `stageClock` read as
+"only 5 distinct positions across 61 frames" without anyone editing test code. That is now
+`stageProbe.test.ts`, and it asserts the exact numbers (61 samples, 4 advances, ratio 0.066, stalled)
+together with the healthy frame cadence that made the bug invisible. The leak guard reproduces the
+bounded/unbounded contrast on any platform. Outstanding: an in-app Debug overlay over the data that is
+already collected, per-mode counters for the other 12 modes, and the four CI steps.
 
 ---
 
