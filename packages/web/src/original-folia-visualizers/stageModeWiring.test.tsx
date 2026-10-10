@@ -69,6 +69,34 @@ describe('visualizer modes', () => {
         }
     });
 
+    it('gives every mode a callable `render`, which is what the live stage actually calls', () => {
+        // `OriginalFoliaVisualizerStage` renders `OriginalVisualizerRendererProxy`, which re-exports
+        // `VisualizerRenderer.tsx`, which resolves a mode with a *direct call*:
+        //
+        //     getVisualizerRegistryEntry(mode).render(resolvedProps)
+        //
+        // not with JSX, so every entry must carry a function at that key - the lazy wrappers from
+        // `lazyVisualizer` are plain `(props) => <Suspense>…` functions precisely so this works.
+        //
+        // `VisualizerRegistryEntry` declares `render` as required, but this whole tree sits outside
+        // `tsconfig.json`'s include, so a missing field was reported by nothing: not the main tsc,
+        // not the visualizer gate, not this file, which checked the label, the seed and the tuning
+        // and stopped one field short. Sonnet shipped without `render`, so selecting 商籁 threw
+        // `getVisualizerRegistryEntry(...).render is not a function`, and `SceneErrorBoundary`
+        // swallowed it into a stage that quietly fell back. Same shape as the picker/registry drift
+        // described in this file's header: a silent disagreement that looks like "nothing happens".
+        for (const entry of VISUALIZER_REGISTRY) {
+            expect(typeof entry.render, `${entry.mode} has no render`).toBe('function');
+
+            const element = entry.render({ ...props, seed: 'spec', showText: true });
+            expect(element, `${entry.mode}.render returned nothing`).toBeTruthy();
+            expect(
+                typeof element === 'object' && element !== null && 'type' in element,
+                `${entry.mode}.render did not return a React element`,
+            ).toBe(true);
+        }
+    });
+
     it('sorts the registry by `order`, which the picker deliberately does not follow', () => {
         // `order` is upstream's own cross-mode ordering (it drives the playground's list, and the
         // two ported modes keep their upstream slots: tempera 20, lumiere 25). The user-facing
