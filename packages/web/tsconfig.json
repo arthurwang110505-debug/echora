@@ -1,4 +1,33 @@
 {
+  // The whole-tree type check. This is the gate: everything under src/ is checked, with no
+  // directory-level blind spots.
+  //
+  // It used to exclude three broad paths - `src/original-folia-visualizers`, `src/utils` and
+  // `src/types.ts` - which put roughly 70,600 of the tree's 107,900 lines outside type checking,
+  // including the entire ported stage engine. Two live defects sat in that blind spot and were
+  // found only by lifting the exclusions locally:
+  //
+  //   - sonnet/sonnetTextViewBuilder.ts re-exported `measureText` instead of importing it, so the
+  //     call site 140 lines later was an unresolved identifier - a ReferenceError on the main path
+  //     of every sonnet scene build, swallowed by SceneErrorBoundary (TS2304).
+  //   - sonnet/entry.tsx registered without the `render` field VisualizerRegistryEntry requires and
+  //     VisualizerRenderer.tsx:27 calls directly, so selecting 商籁 threw (TS2345).
+  //
+  // Neither was reported by the main tsc, the visualizer gate, lint, the tests or the build. See
+  // docs/echora-vs-folia-gap-and-plan.md §3.3.
+  //
+  // `noUnusedLocals` / `noUnusedParameters` are OFF here, and that is deliberate rather than a
+  // relaxation. Upstream's own tsconfig.json sets `strict: true` and `jsx: "react-jsx"` but does not
+  // enable either flag, so the 77 unused declarations these exclusions were hiding are upstream's
+  // own code, faithfully ported - not Echora debt. docs/lumiere-port.zh-TW.md §2.2 requires that
+  // changes to ported files stay in forms its token-comparison tooling tolerates ("adding comments,
+  // changing string contents, replacing dead expressions - not changing logic"); deleting imports
+  // and locals to satisfy a flag upstream does not enable would break token identity with upstream
+  // and make every future re-sync of the stage engine harder, to buy nothing. Semantic checks stay
+  // on, which is what catches both defects above.
+  //
+  // Unused-declaration hygiene is still enforced where it applies today - on Echora-authored code -
+  // by tsconfig.unused-checks.json, which `pnpm typecheck` runs alongside this one.
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
@@ -12,8 +41,8 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
@@ -22,10 +51,37 @@
     }
   },
   "include": ["src"],
+  // Named files, not directories. Every entry here is a known, justified gap with a removal
+  // condition - the opposite of the three blanket directory excludes this replaces. Adding to this
+  // list should require saying, in a comment, what has to happen for the entry to come off it.
   "exclude": [
-    "src/original-folia-visualizers",
-    "src/utils",
-    "src/types.ts"
+    // Unreachable dev tooling, kept pending a delete-vs-wire-behind-a-dev-route decision. Cannot be
+    // checked as written: it imports `List` and `useListRef` from react-window, which is the v2 API,
+    // against the pinned react-window@^1.8.11 that exports neither (verified at runtime -
+    // `require('react-window').List === undefined`). VisPlayground.tsx is the package's only
+    // consumer in the tree, so the fix is one line either way: pin react-window@^2, or import
+    // FixedSizeList. Comes off this list when that decision is made.
+    "src/original-folia-visualizers/VisPlayground.tsx",
+    "src/original-folia-visualizers/VisPlaygroundSettingsPanel.tsx",
+
+    // Unreachable, kept as raw material for WP4. `appPlaybackGuards.ts` imports `NavidromeSong`
+    // from `../types/navidrome`, a module this repository has never ported, and uses it as a type
+    // predicate - so the 4 TS2339 that follow are downstream of that one missing module (the
+    // predicate narrows to `never`). Upstream's src/types/navidrome.ts is 354 lines of pure
+    // declarations whose own imports (AmllDbPlatform, LyricData, LyricProviderSource,
+    // ReplayGainInfo, SongResult) all already exist here, so porting it would clear all 5 errors -
+    // but that is Navidrome-source work, deliberately out of scope. Comes off this list when WP4
+    // wires these modules up, or when those types are ported.
+    //
+    // All three files are listed, not just the one with the errors, because `exclude` only filters
+    // the *root* set that `include` gathers: a file pulled in by an imported module is checked even
+    // when it is named here. `queueAddBehavior.ts` and `songThemeAutoGeneration.ts` are the only two
+    // importers of `appPlaybackGuards.ts`, both are themselves unreachable, and nothing imports
+    // them - so the three form a closed cluster and excluding all of it is what actually removes the
+    // file from the check. Excluding only `appPlaybackGuards.ts` still reports its 5 errors.
+    "src/utils/appPlaybackGuards.ts",
+    "src/utils/queueAddBehavior.ts",
+    "src/utils/songThemeAutoGeneration.ts"
   ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -96,13 +96,13 @@ describe('stage probe enablement', () => {
         const enabled = await installHarness('?stageProbe=1');
         enabled.probe.installStageProbeGlobals();
         enabled.probe.installStageProbeGlobals();
-        const target = (globalThis as { window?: Record<string, unknown> }).window ?? {};
+        const target = (globalThis as unknown as { window?: Record<string, unknown> }).window ?? {};
         expect(typeof target.__echoraStageReport).toBe('function');
         expect(typeof target.__echoraStageReset).toBe('function');
 
         const disabled = await installHarness('?stageProbe=0');
         disabled.probe.installStageProbeGlobals();
-        const quietTarget = (globalThis as { window?: Record<string, unknown> }).window ?? {};
+        const quietTarget = (globalThis as unknown as { window?: Record<string, unknown> }).window ?? {};
         expect(quietTarget.__echoraStageReport).toBeUndefined();
     });
 });

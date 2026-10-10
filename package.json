@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "pnpm --filter=@echora/web dev",
     "build": "turbo run build",
+    "typecheck": "pnpm --filter=@echora/web typecheck",
     "lint": "pnpm --filter=@echora/web lint",
     "test": "turbo run test",
     "bench": "pnpm --filter=@echora/web bench",

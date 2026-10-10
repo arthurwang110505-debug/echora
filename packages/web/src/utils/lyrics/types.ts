@@ -1,6 +1,5 @@
-import { LyricData } from '../../types';
+import { LyricData, type StageNavidromeStructuredLyricLine } from '../../types';
 import type { LyricParseFormat } from './parserCore';
-import type { StructuredLyric, StructuredLyricLine } from '../../types/navidrome';
 
 export type UnifiedLyric = LyricData;
 
@@ -53,8 +52,15 @@ export interface RawNeteaseLyric {
 
 export interface RawNavidromeLyric {
     type: 'navidrome';
-    // OpenSubsonic structured lyrics
-    structuredLyrics?: StructuredLyric | StructuredLyric[] | StructuredLyricLine[];
+    // OpenSubsonic structured lyrics. Typed with Echora's own `StageNavidromeStructuredLyricLine`
+    // rather than upstream's `StructuredLyric` / `StructuredLyricLine`, which live in a
+    // `src/types/navidrome.ts` this repository has never ported - the import of it was a phantom, and
+    // because the whole tree sat outside tsconfig.json's include it resolved to an error type that
+    // nothing ever reported. `types.ts` already declares `StageNavidromeLyricSource`, the same
+    // interface as this one, over the same line shape, so this now agrees with it. Porting
+    // upstream's navidrome types would widen this field back to the full OpenSubsonic union; that is
+    // Navidrome-source work, which is deliberately out of scope here.
+    structuredLyrics?: StageNavidromeStructuredLyricLine[];
     // Standard Subsonic plain lyrics string
     plainLyrics?: string;
 }

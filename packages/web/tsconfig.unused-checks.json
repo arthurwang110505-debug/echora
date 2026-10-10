@@ -1,0 +1,27 @@
+{
+  // Unused-declaration hygiene for Echora-authored code.
+  //
+  // `tsconfig.json` type-checks the whole tree but deliberately leaves `noUnusedLocals` and
+  // `noUnusedParameters` off, because the ported stage engine is token-identical to upstream and
+  // upstream does not enable them (see the header there). That would have silently dropped a check
+  // that this repository has always applied to its own code, so it is kept here instead - with
+  // exactly the include/exclude split the main config had before, so nothing that was checked for
+  // unused declarations stops being checked.
+  //
+  // Run by `pnpm typecheck` next to the main config. Both must pass.
+  //
+  // If a directory comes off the exclude list below because its port is finished and it has stopped
+  // being verbatim upstream code, it should be removed here too - that is the point of the split.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": ["src"],
+  "exclude": [
+    "src/original-folia-visualizers",
+    "src/utils",
+    "src/types.ts"
+  ],
+  "references": []
+}

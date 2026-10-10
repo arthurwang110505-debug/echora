@@ -30,9 +30,10 @@ so the reasoning is still auditable; this table is the live scoreboard.
 |---|---|---|
 | **WP0** — glyph-cache fd leak | `6f40c8d` | Fixed in classic / partita / claddagh / cadenza. One shared switch (`visualizer_glow_blur_quantize`, on by default on Linux, user-toggleable in Settings), one shared `wordGlowVariants`, fume now delegates to it instead of keeping the rule private. 33 new tests. **Not yet confirmed on a real device** — the sandbox has no browser, so this rests on source parity with upstream's published measurements. |
 | **WP1a** — delete unreachable code | `aafd5c5` | **77 files / 10,182 lines deleted.** Dead code 94 files / 13,993 L (12.9% of src) → **17 files / 3,811 L (3.9%)**. Product files 509 → 432, reachable 415. |
-| **WP1b** — the bug it uncovered | `c5bfdef` | `sonnetTextViewBuilder.ts` re-exported `measureText` instead of importing it, so the call site 140 lines later was an unresolved identifier. A `ReferenceError` on the **main, non-staff path of every sonnet scene build**, swallowed by `SceneErrorBoundary`. Only visible because the file sat under an excluded path. |
+| **WP1b** — the bugs it uncovered | `c5bfdef`, `d873248` | **Two live defects**, both invisible to every gate because the tree was excluded from type checking. (1) `sonnetTextViewBuilder.ts` re-exported `measureText` instead of importing it, so the call site 140 lines later was an unresolved identifier — a `ReferenceError` on the **main, non-staff path of every sonnet scene build**, swallowed by `SceneErrorBoundary`. (2) `sonnet/entry.tsx` registered without the `render` field the registry requires and `VisualizerRenderer.tsx:27` calls directly, so **selecting 商籁 threw**. Upstream has both lines; the port had lost them. See [§3.3](#33-what-wp1-actually-found). |
 | **WP1c** — type packages | `d030656` | `@types/three@^0.185.4` + `@types/react-window@^1.8.8`. Type debt with exclusions lifted: **175 → 97 → 89 errors**. The diorama tree (6,742 lines of Three.js) is no longer `any`. |
-| **WP1d** — burn down the rest | *not started* | 89 errors remain: 77 `TS6133` (mechanical), 12 across 5 files. Then lift the `tsconfig.json` exclusions and put `scripts/check-visualizer-types.mjs` in CI. |
+| **WP1d** — lift the exclusions, gate it | `37385ca` | **The whole tree is now type-checked: 0 errors, both configs.** `exclude` went from 3 directory trees (~70,600 lines blind) to **5 named files**, each with a documented removal condition. `pnpm typecheck` added. The 77 `TS6133` were *not* cleaned up — they are upstream's own code, and upstream does not enable those flags, so they are off in the main config and kept on for Echora-authored code in a new `tsconfig.unused-checks.json`. |
+| **WP1e** — the CI steps | **blocked** | Written and staged, but this session's GitHub App lacks the `workflows` permission, so pushes touching `.github/workflows/ci.yml` are rejected. The exact YAML is in [WP1](#wp1--make-the-type-gate-real-12-weeks--done-except-the-ci-push). `pnpm build` already runs the whole-tree `tsc`, so the gate is enforced on builds meanwhile. |
 | **WP2–WP4** | *not started* | Observability, stage prop contract, shipping the already-written features. |
 | **WP5** | **out of scope** | Dropped at the author's request — not part of the intended feature set. |
 
@@ -407,9 +408,14 @@ Ordered by *(risk removed × value) ÷ effort*. WP0 and WP1 are the ones to do b
 
 ---
 
-### WP1 — Make the type gate real (1–2 weeks)
+### WP1 — Make the type gate real (1–2 weeks) — **DONE except the CI push**
 
-**What**
+Landed as `aafd5c5` (deletion), `c5bfdef` (`measureText`), `d030656` (type
+packages), `d873248` (sonnet `render`), `37385ca` (lift the exclusions). What
+actually happened differs from the plan below in two places worth recording, both
+marked **↪**.
+
+**What was planned**
 
 1. **Delete the 95 unreachable files (13,995 lines)** from §4, in this order — each step is independently revertable:
    a. `components/visualizer/tempera/` duplicate (1,361) — *after* WP0/WP4 confirm the canonical tree is the one you keep.
@@ -422,9 +428,70 @@ Ordered by *(risk removed × value) ÷ effort*. WP0 and WP1 are the ones to do b
 4. **Widen `tsconfig.visualizers.json`** from tempera+lumiere to all 13 modes, then **delete it** once the main tsconfig covers the tree — two overlapping type configs is how the blind spot happened.
 5. **Add the gate to CI.** Today `ci.yml` runs lint / test / build / bundle-size / e2e and never runs `node scripts/check-visualizer-types.mjs`. Once step 2 lands, plain `pnpm build` covers it; until then, add the job.
 
-**Why** — 65% of your source is not type-checked, and the reason it "can't be" is 89 errors that delete themselves plus 72 that a lint pass removes. After this, a sonnet-contract drift (§3.1) or a stage-prop drift (§5) fails CI instead of shipping.
+**↪ Step 1 — 77 files deleted, not 95.** 95 was one too many (`OriginalVisualizerRendererProxy.d.ts`
+is load-bearing by TS adjacency, not dead), and 17 files are deliberately kept: the VisPlayground
+cluster (1b, decision still open) and the never-wired WP4 modules. Detail in [§4.1](#41-what-was-deleted-and-what-was-not).
 
-**How to verify** — `tsc --noEmit` clean over all of `src`; CI red on a deliberately introduced error in `diorama/`; `git diff --stat` showing ~14k deletions and no behaviour change (`pnpm test` still 469 passing, bundle sizes unchanged or smaller).
+**↪ Step 3 was the wrong plan, and following it would have damaged the port.** The 77 `TS6133` are
+not Echora debt to be cleaned up — they are **upstream's own code**. Upstream's `tsconfig.json` sets
+`strict: true` and `jsx: "react-jsx"` but enables neither `noUnusedLocals` nor `noUnusedParameters`,
+so upstream never flagged them. And `docs/lumiere-port.zh-TW.md` §2.2 requires that edits to ported
+files stay in forms its token-comparison tooling tolerates — *"adding comments, changing string
+contents, replacing dead expressions — not changing logic."* Deleting 77 imports and locals to
+satisfy a flag upstream does not enable would break token identity with upstream and make every
+future re-sync of the 70,609-line stage engine harder, buying nothing.
+
+So instead of step 3, those two flags are **off in `tsconfig.json`** (matching upstream) and **on in
+a new `tsconfig.unused-checks.json`** scoped to exactly the paths that were checked before — so
+nothing that had unused-declaration hygiene loses it, and the ported tree stays verbatim. `pnpm
+typecheck` runs both. I had already removed the 16 unused `import React from 'react'` lines before
+checking upstream's config; those edits are reverted.
+
+**Step 4 — partly done.** `tsconfig.visualizers.json` is kept rather than deleted: it still passes,
+its stale header comment is corrected, and removing it is a separate cleanup. The main config now
+covers everything it did.
+
+**↪ Step 5 — written, but cannot be pushed from here.** The GitHub App backing this session does not
+have the `workflows` permission, so any push touching `.github/workflows/ci.yml` is rejected with
+*"refusing to allow a GitHub App to create or update workflow … without `workflows` permission."*
+The change is staged in the working tree and reproduced below so it can be applied by hand, or
+pushed once that permission is granted.
+
+Three steps go into the `verify` job. `Typecheck` before `Lint`:
+
+```yaml
+      # Runs both packages/web/tsconfig.json (the whole tree, semantic checks) and
+      # tsconfig.unused-checks.json (Echora-authored code, unused-declaration hygiene).
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Visualizer type gate
+        run: node scripts/check-visualizer-types.mjs
+```
+
+and `Dead-code ratchet` after `Bundle-size budget`:
+
+```yaml
+      # Ratchet on unreachable lines. The 17 files / 3,811 lines still reported are all deliberate
+      # and tracked in §4.1. Lower this as the backlog clears; do not raise it to silence a failure.
+      - name: Dead-code ratchet
+        run: node scripts/check-dead-code.mjs --budget 3900
+```
+
+Note that `pnpm build` already runs the whole-tree `tsc` (its script is `tsc && vite build`), so the
+type gate is enforced on every build regardless — the explicit `Typecheck` step exists to name it, to
+run the unused-declaration config that `build` does not, and to fail before the slower steps.
+
+**Why** — 65% of the source was not type-checked. After this, a sonnet-contract drift (§3.1) or a
+stage-prop drift (§5) fails the build instead of shipping. That is not hypothetical: lifting the
+exclusions found two live defects that four separate gates had all missed (§3.3).
+
+**How to verify** — `pnpm typecheck` clean over all of `src` (both configs, 0 errors); tests
+75 files / 503 passing; lint 0 errors / 24 warnings; build ok; bundle check passed with all four
+budgets byte-identical. `exclude` is now **5 named files**, each with a comment stating its removal
+condition, down from 3 directory trees covering ~70,600 lines. Still outstanding: CI red on a
+deliberately introduced error in `diorama/` — cannot be demonstrated until the workflow change is
+pushed.
 
 ---
 
