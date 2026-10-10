@@ -254,3 +254,91 @@ describe('fillGlowText', () => {
         expect(calls[5]).toBe('restore');
     });
 });
+
+/**
+ * The property the whole WP0 switch exists to guarantee, asserted as a property over a sweep rather
+ * than as rounding on individual values.
+ *
+ * Chromium keys a cached glyph strike on the blur sigma in device space, and each new strike takes a
+ * discardable handle out of 4 KiB shared-memory chunks that are never returned. On Linux that is an
+ * fd in the renderer and GPU process, and the renderer's soft limit of 1024 runs out after ~35
+ * minutes - upstream measured 0.56-0.93 fd/s across classic, partita, claddagh and cadenza before
+ * the fix, and -0.003 to +0.002 after. Echora is a PWA and cannot read `/proc/<pid>/fd` at all, so
+ * this is the headless equivalent: count the distinct glyph-cache keys an animated sweep asks for.
+ * It runs identically on any platform, which is the point - a CI runner will never freeze, so a
+ * regression guard for the leak has to be a counting argument rather than an endurance test.
+ */
+describe('quantizeShadowBlur bounds the glyph-cache key set under an animated sweep', () => {
+    let mod: GlowModule;
+
+    beforeEach(async () => {
+        localStorage.clear();
+        setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/152.0.0.0 Safari/537.36');
+        mod = await loadModule();
+    });
+
+    /**
+     * Cadenza's shape - `quantizeShadowBlur(20 * blurScale)` and `quantizeShadowBlur(40 *
+     * blurScale)` per frame - with `blurScale` driven by two incommensurate sines, a fast breath
+     * plus a slow drift. That combination never repeats a value exactly, which is what a real
+     * animated glow does; a single symmetric sine revisits its own values on the way down and
+     * understates the leak by ~40%.
+     */
+    const sweep = (frames: number) => {
+        const radii: number[] = [];
+        for (let frame = 0; frame < frames; frame += 1) {
+            const blurScale = 1 + 0.4 * Math.sin(frame * 0.05) + 0.05 * Math.sin(frame * 0.013);
+            radii.push(mod.quantizeShadowBlur(20 * blurScale));
+            radii.push(mod.quantizeShadowBlur(40 * blurScale));
+        }
+        return radii;
+    };
+
+    const distinctOf = (radii: number[]) => new Set(radii).size;
+
+    it('is on by default on Linux, so the bounded behaviour is what a Linux user actually gets', () => {
+        expect(mod.isGlowBlurQuantized()).toBe(true);
+    });
+
+    it('collapses 1200 animated radii into 48 whole pixels', () => {
+        mod.setGlowBlurQuantized(true);
+        const radii = sweep(600);
+
+        expect(radii).toHaveLength(1200);
+        // 20x sweeps 11..29 and 40x sweeps 22..58, so the union is bounded by the integer range.
+        expect(distinctOf(radii)).toBe(48);
+        // New glyph-cache keys per draw. Bounded means the strike set stops growing early in a
+        // session instead of growing with it.
+        expect(distinctOf(radii) / radii.length).toBeLessThan(0.05);
+        for (const radius of radii) {
+            expect(Number.isInteger(radius), `fractional radius ${radius} reached the glyph cache`).toBe(true);
+            expect(radius).toBeGreaterThanOrEqual(0);
+        }
+    });
+
+    it('does not grow with session length, which is the whole difference from the leak', () => {
+        mod.setGlowBlurQuantized(true);
+        // Ten times the duration must give the same key set, because rounding collapses the sweep
+        // onto a fixed integer range. 6000 frames is 100 seconds; 35 minutes of playback is ~126,000
+        // frames, and the set is no larger there than it is here.
+        expect(distinctOf(sweep(6000))).toBe(distinctOf(sweep(600)));
+    });
+
+    it('shows the leak it prevents: off, the key set grows linearly against a fixed fd budget', () => {
+        mod.setGlowBlurQuantized(false);
+        const short = sweep(600);
+        const long = sweep(6000);
+
+        // The negative control, and the reason the two assertions above are meaningful rather than
+        // an artifact of the sweep happening to repeat values: same code path, switch off, and every
+        // single draw asks for a new key.
+        expect(distinctOf(short)).toBe(short.length);
+        expect(distinctOf(short) / short.length).toBe(1);
+        expect(short.some(radius => !Number.isInteger(radius))).toBe(true);
+
+        // Ten times the frames is ten times the keys - unbounded growth against a soft limit of
+        // 1024, which is what exhausts the renderer in ~35 minutes.
+        expect(distinctOf(long)).toBe(long.length);
+        expect(distinctOf(long)).toBe(distinctOf(short) * 10);
+    });
+});
