@@ -458,7 +458,12 @@ have the `workflows` permission, so any push touching `.github/workflows/ci.yml`
 The change is staged in the working tree and reproduced below so it can be applied by hand, or
 pushed once that permission is granted.
 
-Three steps go into the `verify` job. `Typecheck` before `Lint`:
+**The complete finished file is committed at [`docs/ci-proposed.yml`](./ci-proposed.yml)** — it is
+byte-identical to what `.github/workflows/ci.yml` should become, so it can be copied over wholesale
+rather than assembled from the fragments below. (`cp docs/ci-proposed.yml .github/workflows/ci.yml`,
+then delete the copy.) The fragments are kept here because they carry the reasoning.
+
+Four steps go into the `verify` job. `Typecheck` before `Lint`:
 
 ```yaml
       # Runs both packages/web/tsconfig.json (the whole tree, semantic checks) and

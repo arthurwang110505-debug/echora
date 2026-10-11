@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  verify:
+    name: Lint, test & build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Runs both packages/web/tsconfig.json (the whole tree, semantic checks) and
+      # tsconfig.unused-checks.json (Echora-authored code, unused-declaration hygiene). The first
+      # one used to exclude src/original-folia-visualizers, src/utils and src/types.ts, which left
+      # ~70,600 of 107,900 lines - the entire ported stage engine - unchecked, and two live defects
+      # sat in that blind spot. See docs/echora-vs-folia-gap-and-plan.md §3.3.
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Visualizer type gate
+        run: node scripts/check-visualizer-types.mjs
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Bundle-size budget
+        run: node scripts/check-bundle-size.mjs
+
+      # Regression budget for the sonnet program compile (bench/sonnetCompile.bench.ts asserts a
+      # 90 ms median; the reference machine records 33 ms). It has existed for a while and was never
+      # run here, so nothing enforced it. ~2s per run, one worker, on an otherwise idle machine -
+      # which is why it is a separate step from `pnpm test` rather than part of it.
+      - name: Perf budget
+        run: pnpm bench
+
+      # Ratchet on unreachable lines. The 17 files / 3,811 lines still reported are all deliberate
+      # and tracked in docs/echora-vs-folia-gap-and-plan.md §4.1: the VisPlayground dev-tool cluster
+      # (pending a delete-vs-wire decision) and the never-wired feature modules WP4 will connect.
+      # Lower this number as that backlog clears; do not raise it to make a failure go away.
+      - name: Dead-code ratchet
+        run: node scripts/check-dead-code.mjs --budget 3900
+
+  e2e:
+    name: E2E (Playwright + axe)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter=@echora/web exec playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
