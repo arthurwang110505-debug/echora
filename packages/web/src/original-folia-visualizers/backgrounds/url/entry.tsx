@@ -1,5 +1,3 @@
-import React from 'react';
-import UrlBackgroundLayer from './UrlBackgroundLayer';
 import { UrlBackgroundSettingsCard } from './UrlBackgroundSettingsCard';
 import { defineVisualizerBackground } from '../definition';
 
@@ -11,12 +9,7 @@ export default defineVisualizerBackground({
     order: 40,
     labelKey: 'options.visualizerBackgroundModeUrl',
     labelFallback: 'Embed',
-    render: ({ config }) => (
-        <UrlBackgroundLayer
-            urlBackgroundList={config?.url?.items}
-            urlBackgroundSelectedId={config?.url?.selectedId}
-        />
-    ),
+    loadRender: () => import('./render'),
     renderSettingsPanel: ({ config, actions, ...props }) => (
         <UrlBackgroundSettingsCard
             {...props}

@@ -29,6 +29,7 @@ import {
 import { LumiereCreditsLayer } from './lumiereCreditsLayer';
 import { LumiereDarkFieldLayer } from './lumiereDarkField';
 import { LumiereSongSwap } from './lumiereSongSwap';
+import { preloadLucideIcons } from '../../utils/lucideIconResolver';
 import { buildLumiereOverlay } from './overlay';
 import { createLightSprites, type LightSprites } from './light/sprites';
 import type { LumiereSceneTuning } from './types';
@@ -117,6 +118,11 @@ export class LumierePixiRuntime {
 
     static async create(options: LumiereRuntimeOptions) {
         const pixi = await loadPixi();
+        // The theme's icons are traced into line art while a scene is assembled, and that step is
+        // synchronous. Load their geometry first, here, where we are already waiting: the
+        // alternative is a static `import * as LucideIcons` (878 kB of every icon) in every chunk
+        // that can build a scene.
+        await preloadLucideIcons(options.song.theme.lyricsIcons ?? []);
         const app = new pixi.Application();
         const width = Math.max(options.host.clientWidth, MIN_WIDTH);
         const height = Math.max(options.host.clientHeight, MIN_HEIGHT);
@@ -399,6 +405,11 @@ export class LumierePixiRuntime {
 
     private commitSong(next: LumiereSongContext, staged: LumiereSceneEntry | null) {
         const themeChanged = next.theme !== this.options.song.theme;
+        // A new song usually brings a new theme, and a theme brings new icon names. Warm them
+        // without blocking the handover: the scenes that need them are built after this returns.
+        if (themeChanged) {
+            void preloadLucideIcons(next.theme.lyricsIcons ?? []);
+        }
         this.options.song = next;
         if (staged) {
             this.sceneCache.forEach(entry => {

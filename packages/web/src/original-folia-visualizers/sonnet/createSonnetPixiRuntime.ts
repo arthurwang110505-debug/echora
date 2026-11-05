@@ -344,7 +344,7 @@ export class SonnetPixiRuntime {
             ];
             const color = colors[index % colors.length];
             const key = buildSonnetIconTextureKey(name, color, 3.5, size, resolution);
-            const url = buildSonnetIconDataUrl(name, color, 3.5, size);
+            const url = await buildSonnetIconDataUrl(name, color, 3.5, size);
             if (!url) return;
             try {
                 textures.set(key, await texturePool.acquire(url));
