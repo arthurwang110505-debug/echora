@@ -13,6 +13,7 @@ import {
   resolveAudioRouting,
   type AudioRoutingDecision,
 } from '../playback/audioRouting';
+import { setPlaybackClockElement } from '../playback/playbackClock';
 import { derivePlaybackVolume } from '../playback/volumeState';
 import { recordDiagnostic } from '../lib/diagnostics';
 import { usePlayerStore } from '../store/playerStore';
@@ -145,6 +146,11 @@ export default function LocalAudioController() {
 
     audio.preload = 'auto';
 
+    // The stage reads this element's own `currentTime` once per frame (playbackClock.ts).
+    // `timeupdate` above stays as it is: the store's ~4 Hz clock is what the progress text,
+    // Media Session and the playback snapshot want, and they must not run at 60 Hz.
+    setPlaybackClockElement(audio);
+
     // Dev-only console hook: `__echoraAnalyserHealth()` answers "why is there no sound?"
     // with the routing decision, the AudioContext state and the element's own flags.
     if (import.meta.env.DEV) {
@@ -221,6 +227,7 @@ export default function LocalAudioController() {
       audio.removeEventListener('error', onError);
       document.removeEventListener('visibilitychange', syncAudioState);
       window.removeEventListener('pageshow', syncAudioState);
+      setPlaybackClockElement(null);
       // Sampling stops; the analyser graph and the element claim survive on purpose, so a
       // StrictMode remount can never strand the element on a closed context.
       detachLocalAudioAnalyser();

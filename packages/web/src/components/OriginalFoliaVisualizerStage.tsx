@@ -54,12 +54,17 @@ interface Props {
   /**
    * Overrides the clock the stage animates from, sampled once per frame while playing.
    *
-   * `displayedTime` is a prop, so it only moves the stage when React re-renders it - fine for local
-   * playback where the value updates continuously, useless for a remote source that pushes a clock
-   * anchor a few times a second. A provider lets the overlay's existing rAF loop read an
-   * extrapolated position at 60 fps with no React churn (see src/pages/ObsStage.tsx).
+   * `displayedTime` is a prop, so it only moves the stage when React re-renders it, and for local
+   * playback those re-renders ride `timeupdate` at ~4 Hz - useless for a remote source that pushes
+   * a clock anchor a few times a second, and too coarse for per-glyph animation locally. A provider
+   * lets the stage's existing rAF loop read a continuous position at 60 fps with no React churn
+   * (see src/pages/ObsStage.tsx).
+   *
+   * Returning null means "no opinion this frame" and falls through to `displayedTime`. A provider
+   * is also the only place the lyrics offset is applied, so it must answer an offset-adjusted
+   * time - the stage has no idea the offset exists.
    */
-  timeProvider?: () => number;
+  timeProvider?: () => number | null;
 }
 
 const MODES: OriginalMode[] = [
@@ -323,8 +328,14 @@ export default function OriginalFoliaVisualizerStage({
       }
 
       const playing = playingRef.current;
-      // A provider is sampled per frame; otherwise the prop is the clock, as before.
-      const time = timeProviderRef.current ? timeProviderRef.current() : timeRef.current;
+      // The provider is the 60 Hz clock when the host has one (the player reads the <audio>
+      // element and applies the lyrics offset; the OBS overlay extrapolates its relay clock). The
+      // prop below only moves when React re-renders it, which for local playback rides
+      // `timeupdate` at ~4 Hz - fine as a fallback for a remote source, too coarse to animate
+      // glyphs from.
+      // A provider that answers null means "no opinion this frame", so fall through to the prop.
+      const provided = timeProviderRef.current ? timeProviderRef.current() : null;
+      const time = provided ?? timeRef.current;
       const levels = resolveStageAudioBands({
         isPlaying: playing,
         displayedTime: time,

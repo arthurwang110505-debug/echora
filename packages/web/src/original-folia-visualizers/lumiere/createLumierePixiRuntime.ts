@@ -264,11 +264,20 @@ export class LumierePixiRuntime {
         this.activeIndex = -1;
     }
 
+    /**
+     * Parks scenes that left the window instead of destroying them here.
+     *
+     * This runs from the paragraph-change branch, on the same frame that just built the incoming
+     * scene. Destroying two paragraphs' display trees at that point put the teardown on the frame
+     * that already had the most work to do. `renderFrame` frees one parked entry per idle frame
+     * (see the `retired` drain), so the cost moves into frames that have nothing else to do.
+     */
     private pruneScenes(index: number, keep: ReadonlySet<number>) {
         this.sceneCache.forEach((entry, sceneIndex) => {
             if (Math.abs(sceneIndex - index) <= 1 || keep.has(sceneIndex)) return;
-            this.destroyEntry(entry);
             this.sceneCache.delete(sceneIndex);
+            entry.holder.visible = false;
+            this.retired.push(entry);
         });
     }
 

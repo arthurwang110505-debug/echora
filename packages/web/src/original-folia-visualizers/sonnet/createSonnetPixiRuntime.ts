@@ -83,6 +83,16 @@ export interface SonnetRuntimeOptions {
 
 export class SonnetPixiRuntime {
     private readonly sceneCache = new Map<number, SceneView>();
+    /**
+     * Scenes pruned out of the cache whose destructor has not run yet.
+     *
+     * `pruneScenes` used to destroy everything outside the active window inside the paragraph-change
+     * branch, on the same frame that had just built the incoming scene (layout for every grapheme,
+     * one Pixi Text per glyph). Two paragraphs' worth of GPU teardown on that frame is the visible
+     * hitch at a cut. They are parked here instead and freed one per idle frame, which is what
+     * Tempera already did with `retiredScenes`.
+     */
+    private readonly retiredScenes: SceneView[] = [];
     private readonly iconTextures = new Map<string, import('pixi.js').Texture>();
     private readonly iconUrls = new Set<string>();
     private activeParagraphIndex = -1;
@@ -385,6 +395,10 @@ export class SonnetPixiRuntime {
 
     private clearScenes() {
         this.clearOutroBlur();
+        // Also drops the parked scenes: on a song handover the retire queue belongs to the song
+        // that is going away, and keeping it would free the outgoing picture into the new one.
+        this.retiredScenes.forEach(scene => this.destroyScene(scene));
+        this.retiredScenes.length = 0;
         this.sceneCache.forEach(scene => {
             this.destroyScene(scene);
         });
@@ -478,13 +492,24 @@ export class SonnetPixiRuntime {
         this.sceneContainer.alpha = 1;
     }
 
+    /**
+     * Moves scenes outside the active window out of the cache, but leaves their teardown to
+     * `drainRetiredScene`. The scene is already invisible and unreachable from here, so deferring
+     * the destroy costs nothing but memory for a few frames.
+     */
     private pruneScenes(index: number) {
         this.sceneCache.forEach((scene, sceneIndex) => {
             if (Math.abs(sceneIndex - index) <= 1) return;
-            this.destroyScene(scene);
             this.sceneCache.delete(sceneIndex);
+            this.retiredScenes.push(scene);
             probeCount('sonnet.scene.pruned');
         });
+    }
+
+    /** Frees one retired scene. Called on frames that are not doing anything else expensive. */
+    private drainRetiredScene() {
+        const scene = this.retiredScenes.shift();
+        if (scene) this.destroyScene(scene);
     }
 
     private updateShot(view: ShotView, time: number, width: number, height: number, shakeIntensity: number) {
@@ -758,9 +783,14 @@ export class SonnetPixiRuntime {
             this.ensureScene(paragraphIndex);
             this.pruneScenes(paragraphIndex);
         } else {
+            // One piece of expensive work per frame, in priority order: free what the last cut left
+            // behind, then warm a neighbour. Neighbours are only needed at a boundary that is still
+            // ahead, so deferring them is free; a retired scene is holding GPU memory.
             const next = paragraphIndex + 1;
             const previous = paragraphIndex - 1;
-            if (next < this.options.program.paragraphs.length && !this.sceneCache.has(next)) {
+            if (this.retiredScenes.length > 0) {
+                this.drainRetiredScene();
+            } else if (next < this.options.program.paragraphs.length && !this.sceneCache.has(next)) {
                 this.ensureScene(next);
             } else if (previous >= 0 && !this.sceneCache.has(previous)) {
                 this.ensureScene(previous);
