@@ -1,6 +1,7 @@
 // YouTube Music Provider for Echora
 import type { Song, YouTubeVideoKind } from '../types';
 import type { Playlist } from './types';
+import { requestYouTubeJson } from './youtubeRequest';
 
 const YOUTUBE_VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 
@@ -68,27 +69,18 @@ export class YouTubeMusicProvider {
 
   setAccessToken(token: string | null) { this.accessToken = token; }
 
+  /**
+   * One authenticated Data API request.
+   *
+   * Timeout, retry and the structured failure reason all live in
+   * `youtubeRequest.ts`; this only supplies the token. The thrown error is a
+   * `YouTubeApiError`, whose `message` keeps the historical
+   * `YouTube API failed: <status> (<reason>)` shape so existing callers and
+   * UI copy keep working while the store migrates to reading `reason`/`status`.
+   */
   private async authorized<T>(url: string): Promise<T> {
     if (!this.accessToken) throw new Error('YouTube 尚未登入');
-    const response = await fetch(url, { headers: { Authorization: `Bearer ${this.accessToken}` } });
-    if (!response.ok) {
-      // Google's 401/403 responses carry a machine-readable reason (e.g.
-      // accessNotConfigured, quotaExceeded). Surfacing it lets the UI explain
-      // the fix instead of showing a bare status code.
-      const reason = await YouTubeMusicProvider.readErrorReason(response);
-      throw new Error(`YouTube API failed: ${response.status}${reason ? ` (${reason})` : ''}`);
-    }
-    return response.json() as Promise<T>;
-  }
-
-  private static async readErrorReason(response: Response): Promise<string | null> {
-    try {
-      const data = await response.json() as { error?: { errors?: Array<{ reason?: string }> } };
-      const reason = data.error?.errors?.[0]?.reason;
-      return typeof reason === 'string' && reason ? reason : null;
-    } catch {
-      return null;
-    }
+    return requestYouTubeJson<T>(url, { accessToken: this.accessToken });
   }
 
   async getUserPlaylists(): Promise<Playlist[]> {

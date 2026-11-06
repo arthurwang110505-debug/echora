@@ -87,6 +87,8 @@ describe('YouTubeMusicProvider metadata and pagination', () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({
         error: { errors: [{ reason: 'accessNotConfigured', message: 'YouTube Data API has not been used in project 123 before or it is disabled.' }] },
       }), { status: 403 }))
+      // The 502 is retried once, so it needs two responses before it gives up.
+      .mockResolvedValueOnce(new Response('upstream unavailable', { status: 502 }))
       .mockResolvedValueOnce(new Response('upstream unavailable', { status: 502 }));
     vi.stubGlobal('fetch', fetch);
 
@@ -94,6 +96,11 @@ describe('YouTubeMusicProvider metadata and pagination', () => {
     provider.setAccessToken('token');
 
     await expect(provider.getProfile()).rejects.toThrow('YouTube API failed: 403 (accessNotConfigured)');
+    // A 403 is a durable answer: one attempt, no retry.
+    expect(fetch).toHaveBeenCalledTimes(1);
+
     await expect(provider.getProfile()).rejects.toThrow('YouTube API failed: 502');
+    // A 502 is transient: the request is tried twice before it surfaces.
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
 });

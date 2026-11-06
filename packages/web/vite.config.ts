@@ -5,7 +5,7 @@ import { resolve } from 'path';
 import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 import { siteMetadataPlugin, type SiteMetadataEnv } from './vite-plugins/siteMetadata';
-import { devAiFunctionsPlugin } from './vite-plugins/devAiFunctions';
+import { devApiFunctionsPlugin } from './vite-plugins/devApiFunctions';
 import { precacheShellClosure } from './vite-plugins/precacheShellClosure';
 
 const gitCommitSha = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || '';
@@ -21,9 +21,10 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       siteMetadataPlugin(env),
-      // `vite dev` has no serverless functions; this mounts them so the AI features can be tried
-      // (and a prompt iterated on) before deploying. Never part of the production build.
-      devAiFunctionsPlugin(resolve(__dirname, '../..')),
+      // `vite dev` has no serverless functions; this mounts them so the AI features and the
+      // YouTube search proxy can be exercised (and a prompt iterated on) before deploying.
+      // Never part of the production build.
+      devApiFunctionsPlugin(resolve(__dirname, '../..')),
       react(),
       VitePWA({
         registerType: 'autoUpdate',
