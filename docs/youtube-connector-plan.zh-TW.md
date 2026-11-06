@@ -423,44 +423,60 @@ YouTube 那堆髒標題就吃得進 LRCLIB 了。
 
 ---
 
-## 5. 需要你決定的事
+## 5. 已決定的方向
 
-### D1. 認證要走哪條路？
+> 以下由使用者確認（2026-11-06）。這一節取代先前的「待決策」清單。
 
-- **A. GIS token model** — 無後端、token 不落地、改動小（1 個 PR）。**但仍然每小時要使用者按一次**。
-- **B. Code + PKCE + 後端 refresh token** — 真正免重登，但：新增 `api/youtube/token.ts`、
-  refresh token 要存 HttpOnly cookie、**隱私政策與 Google 驗證文件的敘述要改**
-  （目前寫「伺服器不儲存任何 Google 使用者資料」），且可能需要重跑敏感範圍驗證。
-- **C. 先做 A，B 留給之後的獨立 PR。**
+### D1 → **C：先做 GIS token model，後端 refresh token 留給之後的獨立 PR**
 
-### D2. 要不要寫入權限？
+- 這一輪把 implicit flow（`response_type=token`）改成 **Google Identity Services token model**
+  （`google.accounts.oauth2.initTokenClient`）：彈窗、不離開頁面、access token 只存在記憶體。
+- `api/youtube/token.ts` + HttpOnly cookie + `access_type=offline` 的 refresh 流程**不在這一輪**。
+- ⚠️ **連帶影響**：GIS 不回傳 `state`，改用 `TokenClient` 的 callback 綁定，所以
+  `youtubeAuth.ts` 現在那套 `sessionStorage` 的 `oauth.state` CSRF 檢查會移除。
+  同時 `YouTubeCallback.tsx`（`/oauth/youtube/callback`）在彈窗流程下**不再需要**。
+  README 與 `docs/google-oauth-brand-verification.md` 裡「導回網址固定為
+  `{origin}/oauth/youtube/callback`」的說明要一起改，OAuth 用戶端的「已授權的重新導向 URI」
+  也可以只留 JavaScript 來源。
 
-目前 scope 是 `youtube.readonly`，provider **完全沒有寫入能力**。
-若要「在 Echora 內建立/改名歌單、把歌加進歌單」，scope 要改成 `youtube`（讀寫），
-**這是敏感範圍 → 會觸發 Google 重新驗證**，而且要改同意畫面的用途說明與示範影片。
-要不要做？還是維持唯讀？
+### D2 → **要：升級成讀寫 scope**（重新驗證的時程風險已確認可接受）
 
-### D3. 搜尋的定位
+- scope 從 `youtube.readonly` 改成 `https://www.googleapis.com/auth/youtube`。
+- 使用者確認（2026-11-06）：「認證覺得沒關係，因為我現在也沒認證」。
+  同意畫面仍在「測試中」、用 test user 登入，所以**重新驗證不會擋住開發與自用**。
+  §5.1 第 2 點的時程風險因此降級：只在使用者要把 App 公開給非 test user 時才成立。
+- **實作順序不變**：仍建議 W1（GIS）先單獨上線，再開一個 PR 換 scope ——
+  一次同時改認證機制與權限範圍，出問題時無法分辨是哪一個壞掉。
 
-- **只做音樂**（維持 `videoCategoryId=10`，把 `youtubeVideoKind` 改對）——最省，歌詞體驗最好。
-- **音樂 + 一般影片**（分類參數化，`unknown` 走影片播放器）——功能更完整，但歌詞舞台會變少，
-  且搜尋分類放寬後**使用者可能搜到不能嵌入的影片**（現在有 `embeddable` 欄位但沒在用）。
+### D3 → **只搜音樂**
 
-### D4. 要不要跨 session 快取歌單？
+- `api/youtube/search.ts` 維持 `videoCategoryId=10`，**不參數化分類**。
+- 修的是 `ytmusic.ts:195`：不要無條件標 `youtubeVideoKind: 'music'`。
+  分類改由 `videos.list` 的 `snippet.categoryId` 判定（跟歌單那條路一致）；
+  拿不到就 `unknown`，由 `youtubePlayback.ts` 的既有語意處理。
+- `embeddable` 仍然讀出來（避免播放必失敗），但**不做分類放寬**。
 
-現在每次重新整理都會重抓。若把歌單寫進 IndexedDB，可以離線看列表、開歌單瞬間完成，
-但那是「把 Google 使用者資料存到裝置上」，隱私政策需要補一句。要不要做？
+### D4 → **要，但做成「多裝置連線進度同步」的地基；功能本體之後再做**
 
+- 這一輪只做 **IndexedDB 快取歌單 + 播放進度**，讓重新整理／離線能秒開。
+- **跨裝置同步**（真正的多裝置進度）需要後端，屬於之後的獨立專案，
+  但它會需要**穩定、可預測的播放進度上報格式** —— 這一輪的資料模型要為它留位置，
+  不要做出一個之後得重寫的形狀。
+- 隱私政策要補一句（Google 使用者資料現在會多存一份在裝置上）。
 
-### D5. 線上歌詞匹配要做到哪一層？（W6）
+### 5.1 D2 的連鎖後果（必須一起做，不能只改 scope 字串）
 
-- **L1 + L2（建議）**：搬 folia 的標題清洗與評分（已在 repo、但沒接上、也編譯不過），
-  LRCLIB 改成「搜尋 → 評分 → 取最高分」。**不需要新後端。**
-- **再加 L3**：接 QQ 音樂 / 酷狗 / AMLLDB 的逐字歌詞。需要新增 `api/lyric-proxy`（有 SSRF 風險，
-  必須白名單）、補 NetEase provider，而且**用到的是非官方端點與私有格式解密**
-  —— 對一個已通過 Google 驗證的公開 PWA 而言有法務風險。
+1. **權限邊界**：讀寫 scope 讓 provider 可以改動使用者的真實歌單。
+   任何寫入都要有確認步驟，而且**不能有「自動整理」行為**。
+2. **Google 重新驗證**：`youtube` 比 `youtube.readonly` 權限更大，屬敏感範圍變更。
+   需要更新同意畫面的用途說明、重錄示範影片、重新送出驗證。
+   在驗證通過前，公開站的新 scope 會被 Google 擋下或顯示未驗證警告。
+3. **隱私政策／服務條款**：現在寫「只讀取」，要改成包含寫入；`legal.*.json` 與
+   `docs/google-oauth-brand-verification.md` 的 `youtube.readonly` 敘述全部要改。
 
----
+### D5 → 尚未回答
+
+線上歌詞匹配要做到哪一層（L1+L2 或再加 L3）仍待確認。不影響 W0–W4 的動工。
 
 ## 6. 非目標（這次不做）
 
