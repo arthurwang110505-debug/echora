@@ -4,6 +4,7 @@ import { usePlayer } from '../contexts/PlayerContext';
 import { extractYouTubeVideoId } from '@echora/core';
 import { recordDiagnostic } from '../lib/diagnostics';
 import { derivePlaybackVolume } from '../playback/volumeState';
+import { YOUTUBE_FADE_OUT_MS, YOUTUBE_FADE_STEP_MS, isYouTubeTrackChange, resolveYouTubeEndAction, resolveYouTubeFadeInGain, resolveYouTubeFadeOutGain } from '../playback/youtubeCrossfade';
 
 declare global { interface Window { YT?: any; onYouTubeIframeAPIReady?: () => void; } }
 
@@ -23,6 +24,17 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
   const disposedRef = useRef(false);
+  /**
+   * The track change currently dissolving, if any.
+   *
+   * A `load` for a different video first ramps the outgoing track down, waits
+   * `YOUTUBE_FADE_OUT_MS`, and only then calls `loadVideoById` so the new track
+   * starts silent and ramps up (`youtubeCrossfade.ts`). Holding the pending load
+   * here - rather than firing it immediately and fading afterwards - is what makes
+   * the change sound like a dissolve instead of a cut followed by a fade.
+   */
+  const pendingLoadRef = useRef<string | null>(null);
+  const fadeTimerRef = useRef<number | null>(null);
   const { currentSong, isPlaying, volume, isMuted, youtubeError, playbackState } = usePlayer();
 
   useEffect(() => {
@@ -58,7 +70,24 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
             if (event.data === window.YT.PlayerState.PLAYING) usePlayer.setState({ isPlaying: true, playbackState: 'playing', currentTime: Number.isFinite(currentTime) ? currentTime : state.currentTime, duration: Number.isFinite(duration) ? duration : state.duration, youtubeError: null });
             if (event.data === window.YT.PlayerState.BUFFERING) usePlayer.setState({ isPlaying: false, playbackState: 'buffering', currentTime: Number.isFinite(currentTime) ? currentTime : state.currentTime, duration: Number.isFinite(duration) ? duration : state.duration });
             if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.CUED) usePlayer.setState({ isPlaying: false, playbackState: 'paused', currentTime, duration });
-            if (event.data === window.YT.PlayerState.ENDED) usePlayer.setState({ isPlaying: false, playbackState: 'ended', currentTime, duration });
+            if (event.data === window.YT.PlayerState.ENDED) {
+              // A finished track advances the queue. Before this it set `ended` and
+              // stopped: the player went dead at the end of every song and the
+              // playlist never moved on, while local audio had always called
+              // `next()` from its own `ended` handler.
+              //
+              // The branch mirrors `tickTime` in playerStore, which is the app's one
+              // definition of "a track reached its end", so YouTube and local
+              // playback cannot disagree about what `loopMode` means.
+              usePlayer.setState({ isPlaying: false, playbackState: 'ended', currentTime, duration });
+              if (resolveYouTubeEndAction(state.loopMode) === 'restart') {
+                usePlayer.getState().seek(0);
+                usePlayer.getState().playPause();
+              } else {
+                usePlayer.getState().next();
+              }
+              return;
+            }
           },
           onError: (event: any) => {
             recordDiagnostic('youtube_error', { code: Number(event.data) || 0 });
@@ -87,6 +116,12 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
     }
     return () => {
       disposedRef.current = true;
+      // A dissolve outliving its player would drive a destroyed iframe's volume.
+      if (fadeTimerRef.current !== null) {
+        window.clearInterval(fadeTimerRef.current);
+        fadeTimerRef.current = null;
+      }
+      pendingLoadRef.current = null;
       if (window.onYouTubeIframeAPIReady === readyHandler) window.onYouTubeIframeAPIReady = undefined;
       const player = playerRef.current;
       playerRef.current = null;
@@ -99,6 +134,100 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
 
   const youtubeCommand = usePlayer(state => state.youtubeCommand);
 
+  /**
+   * Cancels any dissolve in flight and restores the iframe to the user's own level.
+   *
+   * Called before every new dissolve and on teardown. A half-finished ramp must
+   * never be left applied: the volume is the user's, and the next track has to
+   * start from it, not from wherever the previous fade happened to stop.
+   */
+  const cancelDissolve = () => {
+    if (fadeTimerRef.current !== null) {
+      window.clearInterval(fadeTimerRef.current);
+      fadeTimerRef.current = null;
+    }
+    pendingLoadRef.current = null;
+    const state = usePlayer.getState();
+    if (typeof playerRef.current?.setVolume === 'function') {
+      playerRef.current.setVolume(Math.round(derivePlaybackVolume(state.volume, state.isMuted) * 100));
+    }
+  };
+
+  /**
+   * Loads `videoId`, dissolving the change when a different track is playing.
+   *
+   * A first load, a re-selection of the same video, and a load while nothing is
+   * audible all skip straight to `loadVideoById`: there is no outgoing audio to
+   * fade, and delaying the very first track by 280 ms would read as a stall.
+   */
+  const startDissolve = (videoId: string) => {
+    const player = playerRef.current;
+    const state = usePlayer.getState();
+    const canLoad = !disposedRef.current && typeof player?.loadVideoById === 'function';
+    const currentVideoId = extractYouTubeVideoId(state.currentSong?.audioUrl || state.currentSong?.id);
+    const shouldDissolve = canLoad
+      && state.isPlaying
+      && isYouTubeTrackChange(currentVideoId, videoId)
+      && currentVideoId !== videoId;
+
+    if (!shouldDissolve) {
+      cancelDissolve();
+      if (canLoad) player.loadVideoById(videoId);
+      return;
+    }
+
+    // A second load arriving mid-fade wins: drop the half-finished ramp and start
+    // the new one from the level the user actually set.
+    cancelDissolve();
+    const audibleGain = derivePlaybackVolume(state.volume, state.isMuted);
+    const startedAt = performance.now();
+
+    fadeTimerRef.current = window.setInterval(() => {
+      if (disposedRef.current || typeof playerRef.current?.setVolume !== 'function') {
+        cancelDissolve();
+        return;
+      }
+      const elapsed = performance.now() - startedAt;
+      const gain = resolveYouTubeFadeOutGain(elapsed, YOUTUBE_FADE_OUT_MS);
+
+      if (gain > 0) {
+        playerRef.current.setVolume(Math.round(audibleGain * gain * 100));
+        return;
+      }
+
+      // The outgoing track is silent. Swap sources now, so the incoming track is
+      // the one that fades up rather than the one that starts at full volume.
+      window.clearInterval(fadeTimerRef.current ?? undefined);
+      fadeTimerRef.current = null;
+      if (disposedRef.current) return;
+      if (typeof playerRef.current?.setVolume === 'function') playerRef.current.setVolume(0);
+      if (pendingLoadRef.current) playerRef.current.loadVideoById(pendingLoadRef.current);
+      pendingLoadRef.current = null;
+      startFadeIn(audibleGain);
+    }, YOUTUBE_FADE_STEP_MS);
+
+    pendingLoadRef.current = videoId;
+  };
+
+  /** Ramps the freshly loaded track up to `audibleGain`. */
+  const startFadeIn = (audibleGain: number) => {
+    if (fadeTimerRef.current !== null) window.clearInterval(fadeTimerRef.current);
+    const startedAt = performance.now();
+    fadeTimerRef.current = window.setInterval(() => {
+      if (disposedRef.current || typeof playerRef.current?.setVolume !== 'function') {
+        cancelDissolve();
+        return;
+      }
+      const elapsed = performance.now() - startedAt;
+      const gain = resolveYouTubeFadeInGain(elapsed);
+      playerRef.current.setVolume(Math.round(audibleGain * gain * 100));
+      if (gain >= 1) {
+        window.clearInterval(fadeTimerRef.current ?? undefined);
+        fadeTimerRef.current = null;
+      }
+    }, YOUTUBE_FADE_STEP_MS);
+  };
+
   useEffect(() => {
     if (!youtubeCommand || youtubeCommand.seq === 0) return;
     if (youtubeCommand.action === 'load') {
@@ -107,7 +236,7 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
         usePlayer.setState({ isPlaying: false, playbackState: 'error', youtubeError: t('player.ytErrorNoVideoId') });
         return;
       }
-      if (!disposedRef.current && typeof playerRef.current?.loadVideoById === 'function') playerRef.current.loadVideoById(videoId);
+      startDissolve(videoId);
       return;
     }
     if (youtubeCommand.action === 'play') {
@@ -125,6 +254,9 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
 
   useEffect(() => {
     // Mute is a flag now, so the iframe must follow the derived level instead of a zeroed volume.
+    // While a dissolve is running the ramp owns the volume; writing the user's level here would
+    // snap a half-faded track back to full and the fade would be heard as a stutter.
+    if (fadeTimerRef.current !== null) return;
     if (typeof playerRef.current?.setVolume === 'function') playerRef.current.setVolume(Math.round(derivePlaybackVolume(volume, isMuted) * 100));
   }, [volume, isMuted]);
 
