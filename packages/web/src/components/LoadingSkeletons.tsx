@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CSSProperties, ReactNode } from 'react';
 import { Sparkles } from 'lucide-react';
+import { BUNDLED_COVER_VARIANT_SIZE, getSizedCoverUrl } from '../utils/coverUrl';
 
 interface SkeletonBlockProps {
   className?: string;
@@ -21,24 +22,28 @@ interface CoverImageProps {
 }
 
 export function CoverImage({ src, alt, className = '', wrapperClassName = '', loading = 'eager' }: CoverImageProps) {
+  // One place, so every small cover surface - queue rows, the mini player, the library grid -
+  // asks a bundled 1920x1920 demo cover for its 1024 px variant instead. Full resolution stays
+  // available to the stage, which requests the original URL directly.
+  const resolvedSrc = src ? getSizedCoverUrl(src, BUNDLED_COVER_VARIANT_SIZE) : src;
   const [isLoading, setIsLoading] = useState(Boolean(src));
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
-    setIsLoading(Boolean(src));
+    setIsLoading(Boolean(resolvedSrc));
     setHasError(false);
-  }, [src]);
+  }, [resolvedSrc]);
 
   return (
     <span className={`relative block overflow-hidden ${wrapperClassName}`} aria-busy={isLoading || undefined}>
-      {(isLoading || hasError || !src) && (
+      {(isLoading || hasError || !resolvedSrc) && (
         <span className="absolute inset-0 z-0" aria-hidden="true">
-          <span className="echora-cover-skeleton-mark">{hasError || !src ? <Sparkles aria-hidden="true" className="h-5 w-5" /> : null}</span>
+          <span className="echora-cover-skeleton-mark">{hasError || !resolvedSrc ? <Sparkles aria-hidden="true" className="h-5 w-5" /> : null}</span>
         </span>
       )}
-      {src && !hasError && (
+      {resolvedSrc && !hasError && (
         <img
-          src={src}
+          src={resolvedSrc}
           alt={alt}
           loading={loading}
           decoding="async"

@@ -16,6 +16,7 @@ import { pickAutoVisualizerMode, resolveStageAudioBands, visualizerEnergy } from
 import { useObsStagePublisher } from '../obs/useObsStagePublisher';
 import { useLineSplitPreview, useLyricSegmentation, useSegmentedLyrics } from '../hooks/useLyricSegmentation';
 import { sampleLocalAudioBands } from '../playback/localAudioAnalyser';
+import { getPlaybackClockReading } from '../playback/playbackClock';
 import { VOLUME_STEP } from '../playback/volumeState';
 import { isYouTubeVideo } from '../utils/youtubePlayback';
 import { songOffsetKey, useStageStore } from '../store/stageStore';
@@ -130,15 +131,8 @@ export default function Player() {
   const isYouTubeVideoMode = isYouTubeVideo(currentSong);
   const [hasHydrated, setHasHydrated] = useState(false);
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('youtube') !== 'error') return;
-    setActiveSource('ytmusic');
-    setShowConnectModal(true);
-    params.delete('youtube');
-    const nextQuery = params.toString();
-    window.history.replaceState({}, document.title, `${location.pathname}${nextQuery ? `?${nextQuery}` : ''}${location.hash}`);
-  }, [location.hash, location.pathname, location.search]);
+  // The `?youtube=error` branch that used to open the connect modal here is gone with the redirect
+  // flow. A failed connect now resolves inside `connectYouTube`, which is where the error is shown.
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setHasHydrated(true));
@@ -388,6 +382,30 @@ export default function Player() {
   const displayedTime = (isSeeking && seekPreviewTime !== null) ? seekPreviewTime : currentTime;
   const displayedLyricsTime = Math.max(0, displayedTime + lyricsOffsetSeconds);
 
+  // The 60 Hz clock for the stage, when a local `<audio>` element is driving playback.
+  //
+  // `displayedLyricsTime` above is rebuilt by React on every store write, and for local playback
+  // those writes ride `<audio>`'s `timeupdate` at ~4x/s - so a stage fed only the prop advances
+  // every glyph animation in 250 ms steps while drawing at 60 fps. This reader asks the element
+  // for its own position each frame instead (playback/playbackClock.ts).
+  //
+  // What it has to get right, after the offset regression this was written to fix:
+  //   * it answers null for a source with no element of ours (YouTube, Spotify), so the stage
+  //     keeps using the prop there;
+  //   * it applies the lyrics offset and honours a scrub preview, so this stays the ONE place
+  //     that decides what time the stage is showing - the stage itself must not learn about
+  //     offsets, or the two paths would disagree mid-drag.
+  const seekPreviewRef = useRef<{ active: boolean; time: number | null }>({ active: false, time: null });
+  seekPreviewRef.current = { active: isSeeking, time: seekPreviewTime };
+  const lyricsOffsetRef = useRef(lyricsOffsetSeconds);
+  lyricsOffsetRef.current = lyricsOffsetSeconds;
+  const stageClockProvider = useCallback(() => {
+    const preview = seekPreviewRef.current;
+    if (preview.active && preview.time !== null) return Math.max(0, preview.time + lyricsOffsetRef.current);
+    const reading = getPlaybackClockReading();
+    return reading === null ? null : Math.max(0, reading + lyricsOffsetRef.current);
+  }, []);
+
   // Publish the live stage for an OBS overlay / captured window. Off unless enabled in Settings;
   // `displayedLyricsTime` already has the lyrics offset applied, so the overlay is told offset 0.
   const { publishing: obsStagePublishing } = useObsStagePublisher({
@@ -555,6 +573,7 @@ export default function Player() {
                   lines={stageLines}
                   activeLineIndex={activeLineIndex}
                   displayedTime={displayedLyricsTime}
+                  timeProvider={stageClockProvider}
                   isPlaying={isPlaying}
                   theme={currentTheme}
                   visualizerMode={activeVisualizer}

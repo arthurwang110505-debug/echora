@@ -29,9 +29,11 @@ export const LOCALE_BUNDLE_SECTIONS: Record<LocaleBundleName, readonly string[]>
 
 /**
  * Every lazily rendered route (keyed by the specifier `App.tsx` imports) and the bundle it loads
- * before rendering. `null` means the route is deliberately shell-only: the OBS overlay and the
- * OAuth callback must not drag the player's copy in, so the handful of strings they use ship in
- * `shell.*.json` instead.
+ * before rendering. `null` means the route is deliberately shell-only: the OBS overlay must not drag
+ * the player's copy in, so the handful of strings it uses ship in `shell.*.json` instead.
+ *
+ * The YouTube OAuth callback used to be listed here. It is gone: the token-model popup never
+ * navigates, so there is no `/oauth/youtube/callback` route left to load copy for.
  */
 export const ROUTE_LOCALE_BUNDLES: Record<string, LocaleBundleName | null> = {
   './pages/Player': 'player',
@@ -42,5 +44,4 @@ export const ROUTE_LOCALE_BUNDLES: Record<string, LocaleBundleName | null> = {
   './pages/Privacy': 'legal',
   './pages/Terms': 'legal',
   './pages/ObsStage': null,
-  './pages/YouTubeCallback': null,
 };

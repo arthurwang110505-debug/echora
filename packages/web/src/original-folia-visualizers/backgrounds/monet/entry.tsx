@@ -1,7 +1,5 @@
-import React from 'react';
 import { DEFAULT_MONET_BACKGROUND_TUNING } from '../../../types';
 import { MonetBackgroundSettingsCard } from './MonetBackgroundSettingsCard';
-import MonetBackgroundLayer from './MonetBackgroundLayer';
 import { defineVisualizerBackground } from '../definition';
 
 // src/components/visualizer/backgrounds/monet/entry.tsx
@@ -12,16 +10,7 @@ export default defineVisualizerBackground({
     order: 20,
     labelKey: 'options.visualizerBackgroundModeMonet',
     labelFallback: 'Monet',
-    render: ({ config, coverUrl, theme, isDaylight }) => (
-        <MonetBackgroundLayer
-            coverUrl={coverUrl}
-            monetBackgroundImage={config?.customImage}
-            theme={theme}
-            isDaylight={isDaylight}
-            tuning={config?.monet?.tuning}
-            transparentBackground={config?.transparent}
-        />
-    ),
+    loadRender: () => import('./render'),
     renderSettingsPanel: ({
         config,
         actions,

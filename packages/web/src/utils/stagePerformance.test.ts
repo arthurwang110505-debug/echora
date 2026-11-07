@@ -1,4 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import {
+    advanceStageTier,
+    stagePromotionStreakFor,
+    type StagePerformanceTier,
+    type StageTierState,
+} from './stagePerformance';
 import { DEFAULT_DIORAMA_TUNING, DEFAULT_SONNET_TUNING } from '../types';
 import {
     resolveCompactDioramaTuning,
@@ -141,5 +147,86 @@ describe('stage performance profile', () => {
         expect(resolveFumeCanvasDpr(2, false)).toBe(2);
         expect(resolveFumeCanvasDpr(1.5, false)).toBe(1.5);
         expect(resolveFumeCanvasDpr(0, true)).toBe(1);
+    });
+});
+
+describe('stage tier ladder', () => {
+    const stateAt = (tier: StagePerformanceTier, demotions = 0): StageTierState => ({
+        tier,
+        slowFrames: 0,
+        goodFrames: 0,
+        demotions,
+    });
+
+    const feed = (state: StageTierState, frameMs: number, count: number) => {
+        for (let i = 0; i < count; i += 1) advanceStageTier(state, frameMs);
+        return state;
+    };
+
+    it('demotes a steady 30 fps on the 60 fps tier', () => {
+        // The regression this replaces: a fixed >42 ms threshold never saw 33 ms frames, so this
+        // device stayed on `full` at half the frame rate indefinitely.
+        const state = stateAt('full');
+        feed(state, 33, 8);
+        expect(state.tier).toBe('balanced');
+        expect(state.demotions).toBe(1);
+    });
+
+    it('accepts the same frame time once it is within the tier budget', () => {
+        // 30 ms is a miss at 60 fps, borderline-but-inside at 45 fps (22.2 ms * 1.5 = 33.3 ms).
+        const state = stateAt('balanced');
+        feed(state, 30, 20);
+        expect(state.tier).toBe('balanced');
+        expect(state.demotions).toBe(0);
+    });
+
+    it('needs the streak to be consecutive', () => {
+        const state = stateAt('full');
+        feed(state, 60, 7);
+        advanceStageTier(state, 16);
+        feed(state, 60, 7);
+        expect(state.tier).toBe('full');
+        advanceStageTier(state, 60);
+        expect(state.tier).toBe('balanced');
+    });
+
+    it('never demotes below compact', () => {
+        const state = stateAt('compact');
+        feed(state, 200, 100);
+        expect(state.tier).toBe('compact');
+        expect(state.demotions).toBe(0);
+    });
+
+    it('recovers from a demotion instead of latching it permanently', () => {
+        const state = stateAt('full');
+        feed(state, 33, 8);
+        expect(state.tier).toBe('balanced');
+        // Compact-budget frames are unambiguous proof the tier above is affordable.
+        feed(state, 10, stagePromotionStreakFor(state.demotions));
+        expect(state.tier).toBe('full');
+    });
+
+    it('makes every retry cost more evidence than the one before it', () => {
+        expect(stagePromotionStreakFor(0)).toBeLessThan(stagePromotionStreakFor(1));
+        expect(stagePromotionStreakFor(1)).toBeLessThan(stagePromotionStreakFor(2));
+        // The proof window grows without bound, so a device that keeps failing settles by
+        // arithmetic rather than by a hard cap that also traps a device that failed once.
+        expect(stagePromotionStreakFor(9)).toBeGreaterThan(stagePromotionStreakFor(8));
+    });
+
+    it('does not promote on frames that only fit the current tier', () => {
+        // 25 ms fits `balanced` (33.3 ms budget) but not `full` (17.4 ms budget), so it is not
+        // evidence for moving back up - the rule reads the destination budget, not the current one.
+        const state = stateAt('balanced');
+        feed(state, 25, stagePromotionStreakFor(0) * 2);
+        expect(state.tier).toBe('balanced');
+    });
+
+    it('ignores non-positive and non-finite frame deltas', () => {
+        const state = stateAt('full');
+        feed(state, 0, 20);
+        feed(state, Number.NaN, 20);
+        feed(state, -5, 20);
+        expect(state).toEqual(stateAt('full'));
     });
 });

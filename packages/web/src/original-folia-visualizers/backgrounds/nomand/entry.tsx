@@ -1,6 +1,4 @@
-import React from 'react';
 import { DEFAULT_NOMAND_BACKGROUND_TUNING } from '../../../types';
-import NomandBackgroundLayer from './NomandBackgroundLayer';
 import NomandBackgroundSettingsCard from './NomandBackgroundSettingsCard';
 import { defineVisualizerBackground } from '../definition';
 
@@ -12,15 +10,7 @@ export default defineVisualizerBackground({
     order: 30,
     labelKey: 'options.visualizerBackgroundModeNomand',
     labelFallback: 'Nomand',
-    render: ({ config, coverUrl, theme, isDaylight }) => (
-        <NomandBackgroundLayer
-            coverUrl={coverUrl}
-            monetBackgroundImage={config?.customImage}
-            tuning={config?.nomand?.tuning}
-            theme={theme}
-            isDaylight={isDaylight}
-        />
-    ),
+    loadRender: () => import('./render'),
     renderSettingsPanel: ({ config, actions, ...props }) => (
         <NomandBackgroundSettingsCard
             {...props}
