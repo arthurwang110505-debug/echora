@@ -16,7 +16,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     restorePlaybackSnapshot();
     void restoreSpotifySession();
-    if (window.location.pathname !== '/oauth/youtube/callback') void restoreYouTubeSession();
+    // No callback route to skip any more: a GIS token lives in memory, so on a cold load this is a
+    // no-op and the user is simply disconnected.
+    void restoreYouTubeSession();
     const timer = window.setInterval(() => void syncSpotifyPlayback(), 5000);
     return () => window.clearInterval(timer);
   }, [restorePlaybackSnapshot, restoreSpotifySession, restoreYouTubeSession, syncSpotifyPlayback]);

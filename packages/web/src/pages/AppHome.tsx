@@ -168,22 +168,21 @@ export default function AppHome() {
     setFocusedSongIndex(index => Math.min(index, Math.max(0, filteredSongs.length - 1)));
   }, [filteredSongs.length]);
 
+  // A popup never navigates, so there is no `?youtube=connected` to read on the way back: the only
+  // observable event left is the store reaching `synced`. Rising edge only, otherwise every re-render
+  // while connected would re-toast.
+  const wasSynced = useRef(false);
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const youtubeStatus = params.get('youtube');
-    if (youtubeStatus === 'connected' || youtubeStatus === 'error') {
-      if (youtubeStatus === 'connected') setConnectionNotice(true);
-      else {
-        setActiveSource('ytmusic');
-        setShowConnectModal(true);
-      }
-      params.delete('youtube');
-      const nextQuery = params.toString();
-      window.history.replaceState({}, document.title, `${location.pathname}${nextQuery ? `?${nextQuery}` : ''}${location.hash}`);
-      const timer = window.setTimeout(() => setConnectionNotice(false), 5000);
-      return () => window.clearTimeout(timer);
-    }
-  }, [location.hash, location.pathname, location.search]);
+    const synced = youtubeConnectionState === 'synced';
+    if (synced && !wasSynced.current) setConnectionNotice(true);
+    wasSynced.current = synced;
+  }, [youtubeConnectionState]);
+
+  useEffect(() => {
+    if (!connectionNotice) return;
+    const timer = window.setTimeout(() => setConnectionNotice(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [connectionNotice]);
 
   const handleInstall = async () => {
     if (!deferredPrompt) return;

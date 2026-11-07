@@ -131,15 +131,8 @@ export default function Player() {
   const isYouTubeVideoMode = isYouTubeVideo(currentSong);
   const [hasHydrated, setHasHydrated] = useState(false);
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('youtube') !== 'error') return;
-    setActiveSource('ytmusic');
-    setShowConnectModal(true);
-    params.delete('youtube');
-    const nextQuery = params.toString();
-    window.history.replaceState({}, document.title, `${location.pathname}${nextQuery ? `?${nextQuery}` : ''}${location.hash}`);
-  }, [location.hash, location.pathname, location.search]);
+  // The `?youtube=error` branch that used to open the connect modal here is gone with the redirect
+  // flow. A failed connect now resolves inside `connectYouTube`, which is where the error is shown.
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setHasHydrated(true));

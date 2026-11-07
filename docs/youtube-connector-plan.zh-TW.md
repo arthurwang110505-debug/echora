@@ -432,12 +432,16 @@ YouTube 那堆髒標題就吃得進 LRCLIB 了。
 - 這一輪把 implicit flow（`response_type=token`）改成 **Google Identity Services token model**
   （`google.accounts.oauth2.initTokenClient`）：彈窗、不離開頁面、access token 只存在記憶體。
 - `api/youtube/token.ts` + HttpOnly cookie + `access_type=offline` 的 refresh 流程**不在這一輪**。
-- ⚠️ **連帶影響**：GIS 不回傳 `state`，改用 `TokenClient` 的 callback 綁定，所以
-  `youtubeAuth.ts` 現在那套 `sessionStorage` 的 `oauth.state` CSRF 檢查會移除。
-  同時 `YouTubeCallback.tsx`（`/oauth/youtube/callback`）在彈窗流程下**不再需要**。
-  README 與 `docs/google-oauth-brand-verification.md` 裡「導回網址固定為
-  `{origin}/oauth/youtube/callback`」的說明要一起改，OAuth 用戶端的「已授權的重新導向 URI」
-  也可以只留 JavaScript 來源。
+- ⚠️ **連帶影響**（**已在 2026-11-07 完成**）：GIS 不回傳 `state`，改用 `TokenClient` 的
+  callback 綁定，所以 `youtubeAuth.ts` 那套 `sessionStorage` 的 `oauth.state` CSRF 檢查已移除。
+  `YouTubeCallback.tsx`（`/oauth/youtube/callback`）與整條路由已刪除，
+  `PlayerContext` 的 callback-pathname 特例、`AppHome`/`Player` 對
+  `?youtube=connected|error` 的讀取也一併清掉（彈窗不換頁，那些 query 不會再出現；
+  「連線成功」改由 store 進入 `synced` 的上升緣觸發）。
+  README、`packages/web/.env.example` 與 `docs/google-oauth-brand-verification.md` 已改成
+  「只需要 JavaScript 來源，不需要已授權的重新導向 URI」，`VITE_GOOGLE_REDIRECT_URI` 已移除。
+- **代價（使用者已接受）**：token 只在記憶體，**重新整理頁面就要重新連線**。這是刻意的取捨，
+  不是 bug；要跨重新整理保留連線需要後端的 refresh token，屬於之後的獨立 PR。
 
 ### D2 → **要：升級成讀寫 scope**（重新驗證的時程風險已確認可接受）
 

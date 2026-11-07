@@ -93,8 +93,8 @@ YouTube Music 使用官方 Data API 讀取私人歌單，歌曲以嵌入播放�
 ### YouTube Music OAuth 設定清單
 
 1. 在 [Google Cloud Console](https://console.cloud.google.com/) 建立專案，到「API 和服務 → 媒體庫」**啟用 YouTube Data API v3**（未啟用時可完成 Google 登入，但讀取頻道／歌單會回 403）。
-2. 「API 和服務 → 憑證」建立 **OAuth 用戶端 ID（Web 應用程式）」，「已授權的 JavaScript 來源」加入部署網址 origin：本機 `http://localhost:3000`、正式環境 `https://你的網域.vercel.app`（Echora 使用隱含流程，導回網址固定為 `{origin}/oauth/youtube/callback`，由來源設定涵蓋）。
-3. 「OAuth 同意畫面」新增 `https://www.googleapis.com/auth/youtube.readonly` scope；若發布狀態為「測試中」，請把要登入的 Google 帳號**加入測試使用者**（正式版則不用）。
+2. 「API 和服務 → 憑證」建立 **OAuth 用戶端 ID（Web 應用程式）」，「已授權的 JavaScript 來源」加入部署網址 origin：本機 `http://localhost:3000`、正式環境 `https://你的網域.vercel.app`（登入使用 Google Identity Services 權杖模式的彈出視窗，不會把頁面導轉出去，所以只需要 JavaScript 來源，**不需要**「已授權的重新導向 URI」）。
+3. 「OAuth 同意畫面」新增 `https://www.googleapis.com/auth/youtube` scope（讀寫，含把歌曲存進自己的歌單）；若發布狀態為「測試中」，請把要登入的 Google 帳號**加入測試使用者**（正式版則不用）。
 4. 把用戶端 ID 填入 `packages/web/.env` 的 `VITE_GOOGLE_CLIENT_ID`，重新啟動／重新部署。
 
 連線後若顯示「YouTube API 拒絕存取（403 …）」，錯誤訊息會標明原因：`accessNotConfigured` 表示專案未啟用 YouTube Data API v3；`quotaExceeded` 表示每日配額用盡；`forbidden` 通常代表該帳號（如 Workspace 帳號）無法使用 YouTube Data API。
