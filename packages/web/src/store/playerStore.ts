@@ -6,6 +6,8 @@ import {
   SpotifyProvider,
   YouTubeMusicProvider,
   extractYouTubeVideoId,
+  isYouTubeApiError,
+  parseYouTubeApiErrorMessage,
   type Playlist,
 } from '@echora/core';
 import {
@@ -15,7 +17,7 @@ import {
   refreshSpotifySession,
   type SpotifySession,
 } from '../integrations/spotifyAuth';
-import { beginYouTubeLogin, clearYouTubeSession, finishYouTubeLogin, getStoredYouTubeSession, revokeYouTubeAccessToken, type YouTubeLoginOptions } from '../integrations/youtubeAuth';
+import { beginYouTubeLogin, clearYouTubeSession, getStoredYouTubeSession, revokeYouTubeAccessToken, type YouTubeLoginOptions } from '../integrations/youtubeAuth';
 import { getBundledDemoLyrics } from './demoLyrics';
 import { LOCAL_DEMO_LYRICS, LOCAL_DEMO_SONGS } from './localDemoSongs';
 import { recordDiagnostic } from '../lib/diagnostics';
@@ -149,12 +151,30 @@ const YOUTUBE_403_REASONS: Array<{ match: RegExp; message: string }> = [
   { match: /forbidden/i, message: 'YouTube API 拒絕存取（403 forbidden）：這個帳號無法使用 YouTube Data API（常見於受管理的 Workspace 帳號）。請改用一般 Google 個人帳號重新連線。' },
 ];
 
+/**
+ * Whether a failure means "this token is dead and only a fresh sign-in fixes it".
+ *
+ * Reads the typed error when there is one, and falls back to the message format for anything that
+ * still crosses a module boundary as a string. This replaces the old
+ * `.includes('授權已失效')` check, which decided whether to delete a user's session by matching a
+ * translated sentence - so editing copy could silently change the security behaviour.
+ */
+export const isYouTubeAuthFailure = (error: unknown): boolean => {
+  if (isYouTubeApiError(error)) return error.isAuthFailure;
+  const parsed = error instanceof Error ? parseYouTubeApiErrorMessage(error.message) : null;
+  return parsed?.status === 401 || parsed?.reason === 'invalid_grant';
+};
+
 export const getYouTubeErrorMessage = (error: unknown, prefix = 'YouTube 連線失敗') => {
   const message = error instanceof Error ? error.message : String(error || '未知錯誤');
-  if (message.includes('401')) return 'YouTube 授權已失效，請解除連線後重新使用 Google 登入。';
-  if (message.includes('403')) {
-    const reason = YOUTUBE_403_REASONS.find(item => item.match.test(message));
-    return reason?.message || 'YouTube API 拒絕存取（403）：請確認 OAuth 用戶端所屬的 Google Cloud 專案已啟用 YouTube Data API v3，且 OAuth 同意畫面在「測試中」狀態時已將此帳號加入測試使用者（或已發布成正式版）。';
+  // Prefer the structured facts; fall back to the historical message shape for anything without them.
+  const status = isYouTubeApiError(error) ? error.status : parseYouTubeApiErrorMessage(message)?.status;
+  const reason = isYouTubeApiError(error) ? error.reason : parseYouTubeApiErrorMessage(message)?.reason ?? null;
+  if (status === 401) return 'YouTube 授權已失效，請解除連線後重新使用 Google 登入。';
+  if (status === 403) {
+    const haystack = reason ? `${message} ${reason}` : message;
+    const advice = YOUTUBE_403_REASONS.find(item => item.match.test(haystack));
+    return advice?.message || 'YouTube API 拒絕存取（403）：請確認 OAuth 用戶端所屬的 Google Cloud 專案已啟用 YouTube Data API v3，且 OAuth 同意畫面在「測試中」狀態時已將此帳號加入測試使用者（或已發布成正式版）。';
   }
   return `${prefix}：${message}`;
 };
@@ -504,8 +524,27 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   connectYouTube: async (options = {}) => {
-    try { set({ youtubeError: null, youtubeConnectionState: 'authorizing' }); await beginYouTubeLogin(options); }
-    catch (error) { set({ youtubeConnectionState: 'error', youtubeError: error instanceof Error ? error.message : 'YouTube 登入設定不完整' }); }
+    set({ youtubeError: null, youtubeConnectionState: 'authorizing' });
+    try {
+      const result = await beginYouTubeLogin(options);
+      if (result.status === 'cancelled') {
+        // The user closed the Google popup. That is a choice, not a failure: returning to the
+        // previous state silently is the only honest response.
+        set({ youtubeConnectionState: get().youtubeConnected ? 'synced' : 'disconnected', youtubeError: null });
+        return;
+      }
+      if (result.status === 'error' || !result.session) {
+        set({ youtubeConnectionState: 'error', youtubeError: result.message || 'YouTube 登入設定不完整' });
+        return;
+      }
+      // The popup never navigates, so nothing reloads the app for us: adopt the token, then run the
+      // same profile-and-playlist sync the redirect flow used to reach through /oauth/youtube/callback.
+      get().ytProvider.setAccessToken(result.session.accessToken);
+      set({ youtubeToken: result.session.accessToken, youtubeConnectionState: 'syncing' });
+      await get().restoreYouTubeSession();
+    } catch (error) {
+      set({ youtubeConnectionState: 'error', youtubeError: error instanceof Error ? error.message : 'YouTube 登入設定不完整' });
+    }
   },
 
   switchYouTubeAccount: async () => {
@@ -516,7 +555,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   restoreYouTubeSession: async () => {
     const { ytProvider } = get();
     try {
-      const session = finishYouTubeLogin() || getStoredYouTubeSession();
+      // No URL to read any more: a GIS token lives in memory, so on a fresh page load this is a
+      // no-op and the user is simply disconnected. `getStoredYouTubeSession` is kept as the seam a
+      // future backend session will fill.
+      const session = getStoredYouTubeSession() || (get().youtubeToken ? { accessToken: get().youtubeToken as string, expiresAt: Date.now() + 60_000 } : null);
       if (!session) {
         ytProvider.setAccessToken(null);
         set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: 'disconnected', youtubeError: null, youtubeProfile: null, userPlaylists: [], selectedPlaylistId: null, loadedPlaylistId: null, libraryError: null, isSyncingLibrary: false });
@@ -528,10 +570,17 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       set({ youtubeToken: session.accessToken, youtubeConnected: true, youtubeConnectionState: 'syncing', youtubeError: null, youtubeProfile: profile, activeSource: 'ytmusic', libraryError: null });
       await get().loadSourcePlaylists();
     } catch (error) {
-      clearYouTubeSession();
-      ytProvider.setAccessToken(null);
       const message = getYouTubeErrorMessage(error);
-      set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: message.includes('授權已失效') ? 'expired' : 'error', youtubeProfile: null, userPlaylists: [], selectedPlaylistId: null, loadedPlaylistId: null, libraryError: message, isSyncingLibrary: false, youtubeError: message });
+      // Only a genuine authorization failure may drop the token. A timeout, a network blip or a
+      // quota 403 leaves the session intact - the plan's P1: one flaky moment used to sign the user
+      // out, and `expired` was unreachable because this branch also cleared `youtubeConnected`.
+      if (isYouTubeAuthFailure(error)) {
+        clearYouTubeSession();
+        ytProvider.setAccessToken(null);
+        set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: 'expired', youtubeProfile: null, userPlaylists: [], selectedPlaylistId: null, loadedPlaylistId: null, libraryError: message, isSyncingLibrary: false, youtubeError: message });
+      } else {
+        set({ youtubeConnected: Boolean(get().youtubeToken), youtubeConnectionState: 'error', isSyncingLibrary: false, libraryError: message, youtubeError: message });
+      }
     }
   },
 
@@ -654,7 +703,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       }
     } catch (error) {
       const message = getYouTubeErrorMessage(error, '歌單讀取失敗');
-      if (message.includes('授權已失效')) {
+      if (isYouTubeAuthFailure(error)) {
         clearYouTubeSession();
         ytProvider.setAccessToken(null);
         set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: 'expired', youtubeProfile: null, userPlaylists: [], selectedPlaylistId: null, loadedPlaylistId: null, isSyncingLibrary: false, libraryError: message, youtubeError: message });

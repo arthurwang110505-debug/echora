@@ -22,7 +22,6 @@ const Privacy = lazyWithRetry(withLocaleBundle('legal', () => import('./pages/Pr
 const Terms = lazyWithRetry(withLocaleBundle('legal', () => import('./pages/Terms')), 'route-terms');
 // These two render from the shell copy on purpose: the OBS overlay and the OAuth callback are the
 // lightest pages in the app, and neither should drag the player's panel strings in behind it.
-const YouTubeCallback = lazyWithRetry(() => import('./pages/YouTubeCallback'), 'route-youtube-callback');
 // The overlay an OBS browser source points at. Chrome-free by design, and outside the app shell
 // chrome the other routes render inside.
 const ObsStage = lazyWithRetry(() => import('./pages/ObsStage'), 'route-obs-stage');
@@ -97,7 +96,6 @@ const router = createBrowserRouter([
       { path: '/privacy', element: <Privacy /> },
       { path: '/terms', element: <Terms /> },
       { path: '/obs', element: <ObsStage /> },
-      { path: '/oauth/youtube/callback', element: <YouTubeCallback /> },
     ],
   },
 ]);
