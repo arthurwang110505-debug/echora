@@ -10,6 +10,7 @@ import {
   readAmllDbIds,
   isYouTubeApiError,
   parseYouTubeApiErrorMessage,
+  parseSpotifyPlaylistId,
   type Playlist,
 } from '@echora/core';
 import {
@@ -200,6 +201,16 @@ export const classifyYouTubeFailure = (error: unknown): YouTubeFailure => {
 
 export type DisplayMode = 'stage' | 'full';
 
+/**
+ * What a pasted Spotify link turned into. The Web API only serves playlist contents to the owner
+ * or a collaborator, so "understood the link but cannot read its tracks" is a real outcome and not
+ * an error - the UI has to be able to tell them apart.
+ */
+export type SpotifyLinkImport =
+  | { ok: true; name: string; trackCount: number }
+  | { ok: false; reason: 'not_a_playlist_link' | 'not_connected' | 'error' }
+  | { ok: false; reason: 'contents_unavailable'; name: string };
+
 interface PlayerState {
   currentSong: Song | null;
   currentLyrics: LyricData | null;
@@ -223,6 +234,10 @@ interface PlayerState {
   spotifyToken: string | null;
   spotifyConnected: boolean;
   spotifyError: string | null;
+  /** Results of the last Spotify catalogue search; empty when none was run. */
+  spotifySearchResults: Song[];
+  spotifySearchQuery: string;
+  spotifySearching: boolean;
   youtubeToken: string | null;
   youtubeConnected: boolean;
   youtubeError: YouTubeFailure | null;
@@ -289,6 +304,16 @@ interface PlayerState {
   importLyricsText: (raw: string) => boolean;
   loadSourcePlaylists: () => Promise<void>;
   loadSpotifyPlaylist: (playlistId: string) => Promise<void>;
+  /** Runs a real Spotify catalogue search. Kept in the store so the results outlive the page. */
+  searchSpotifySongs: (query: string) => Promise<Song[]>;
+  /**
+   * Opens a pasted Spotify playlist link.
+   *
+   * Since February 2026 the Web API only serves a playlist's contents to its owner or a
+   * collaborator, so the outcome is a value rather than a throw: `readable` is true when the queue
+   * was filled, false when only the metadata could be read.
+   */
+  importSpotifyPlaylistLink: (input: string) => Promise<SpotifyLinkImport>;
   loadYouTubePlaylist: (playlistId: string, options?: { autoplay?: boolean }) => Promise<void>;
 }
 
@@ -332,6 +357,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   spotifyToken: null,
   spotifyConnected: false,
   spotifyError: null,
+  spotifySearchResults: [],
+  spotifySearchQuery: '',
+  spotifySearching: false,
   youtubeToken: null,
   youtubeConnected: false,
   youtubeError: null,
@@ -806,6 +834,57 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       } else {
         set({ isSyncingLibrary: false, libraryError: failure, youtubeConnectionState: 'error', youtubeError: failure });
       }
+    }
+  },
+
+  searchSpotifySongs: async (query) => {
+    const term = query.trim();
+    if (!term) {
+      set({ spotifySearchResults: [], spotifySearchQuery: '', spotifySearching: false });
+      return [];
+    }
+    const { spotifyProvider, spotifyToken } = get();
+    if (!spotifyToken) {
+      set({ spotifyError: '請先連接 Spotify 才能搜尋。', spotifySearching: false });
+      return [];
+    }
+    set({ spotifySearching: true, spotifySearchQuery: term, spotifyError: null });
+    try {
+      const results = await spotifyProvider.searchTracks(term);
+      set({ spotifySearchResults: results, spotifySearching: false });
+      return results;
+    } catch (error) {
+      set({
+        spotifySearchResults: [],
+        spotifySearching: false,
+        spotifyError: error instanceof Error ? `Spotify 搜尋失敗：${error.message}` : 'Spotify 搜尋失敗。',
+      });
+      return [];
+    }
+  },
+
+  importSpotifyPlaylistLink: async (input) => {
+    const playlistId = parseSpotifyPlaylistId(input);
+    if (!playlistId) return { ok: false, reason: 'not_a_playlist_link' };
+    const { spotifyProvider, spotifyToken } = get();
+    if (!spotifyToken) {
+      set({ spotifyError: '請先連接 Spotify 才能開啟歌單。' });
+      return { ok: false, reason: 'not_connected' };
+    }
+    try {
+      const { playlist: imported, tracks } = await spotifyProvider.getPlaylist(playlistId);
+      if (!tracks.length) {
+        // Readable metadata, unusable contents. Say which, and keep the name so the listener knows
+        // their link was understood.
+        set({ spotifyError: `「${imported.name}」讀不到曲目。Spotify 只提供自己的或共同編輯歌單的內容。` });
+        return { ok: false, reason: 'contents_unavailable', name: imported.name };
+      }
+      set({ playlist: tracks, currentIndex: 0, loadedPlaylistId: imported.id, spotifyError: null });
+      get().play(tracks[0], tracks);
+      return { ok: true, name: imported.name, trackCount: tracks.length };
+    } catch (error) {
+      set({ spotifyError: error instanceof Error ? `開啟歌單失敗：${error.message}` : '開啟歌單失敗。' });
+      return { ok: false, reason: 'error' };
     }
   },
 

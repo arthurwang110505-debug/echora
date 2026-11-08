@@ -67,9 +67,13 @@ export default function AppHome() {
     currentSong, play, setPlaylist, playlist, selectedPlaylistId, loadedPlaylistId, recentSongs,
     activeSource, setActiveSource, spotifyConnected, spotifyError, connectSpotify, disconnectSpotify,
     youtubeConnected, youtubeError, youtubeConnectionState, youtubeProfile, userPlaylists, isSyncingLibrary, libraryError, lastLibrarySyncAt, loadSourcePlaylists, connectYouTube, switchYouTubeAccount, disconnectYouTube,
+    spotifySearchResults, spotifySearchQuery, spotifySearching, searchSpotifySongs, importSpotifyPlaylistLink,
   } = usePlayer();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [playlistLink, setPlaylistLink] = useState('');
+  const [playlistLinkBusy, setPlaylistLinkBusy] = useState(false);
+  const [playlistLinkNotice, setPlaylistLinkNotice] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [songViewMode, setSongViewMode] = useState<'3d' | 'grid'>(() => {
@@ -154,18 +158,59 @@ export default function AppHome() {
   }, [songViewMode]);
 
   const sourceSongs = useMemo(() => {
+    if (activeSource === 'spotify') {
+      // A connected Spotify account searches the real catalogue; without one there is nothing to
+      // search, so the page shows the connection prompt instead of demo rows.
+      if (spotifySearchResults.length) return spotifySearchResults;
+      if (playlist.length && playlist.every(song => song.source === 'spotify')) return playlist;
+      return spotifyConnected ? [] : FEATURED_SONGS.filter(song => song.source === 'spotify');
+    }
     if (activeSource !== 'ytmusic') return FEATURED_SONGS.filter(song => song.source === activeSource);
     if (!youtubeConnected) return FEATURED_SONGS.filter(song => song.source === 'ytmusic');
     if (!selectedPlaylistId || loadedPlaylistId !== selectedPlaylistId) return [];
     return playlist.filter(song => song.source === 'ytmusic');
-  }, [activeSource, loadedPlaylistId, playlist, selectedPlaylistId, youtubeConnected]);
+  }, [activeSource, loadedPlaylistId, playlist, selectedPlaylistId, youtubeConnected, spotifyConnected, spotifySearchResults]);
 
-  const filteredSongs = useMemo(() => sourceSongs.filter(song => {
-    if (!searchQuery.trim()) return true;
-    const query = searchQuery.toLowerCase();
-    const artist = typeof song.artists[0] === 'string' ? song.artists[0] : song.artists[0]?.name || '';
-    return `${song.title} ${artist} ${song.album?.name || ''}`.toLowerCase().includes(query);
-  }), [searchQuery, sourceSongs]);
+  // Spotify results are already the answer to a query; filtering them again would hide rows the
+  // API deliberately ranked. The other sources still filter locally, as they always have.
+  const filteredSongs = useMemo(() => {
+    if (activeSource === 'spotify') return sourceSongs;
+    return sourceSongs.filter(song => {
+      if (!searchQuery.trim()) return true;
+      const query = searchQuery.toLowerCase();
+      const artist = typeof song.artists[0] === 'string' ? song.artists[0] : song.artists[0]?.name || '';
+      return `${song.title} ${artist} ${song.album?.name || ''}`.toLowerCase().includes(query);
+    });
+  }, [activeSource, searchQuery, sourceSongs]);
+
+  // Spotify is the one source whose search costs a request (and a rate-limit slot), so it runs on
+  // submit rather than on every keystroke. The YouTube/local boxes stay client-side filters.
+  const submitSearch = () => {
+    if (activeSource !== 'spotify') return;
+    void searchSpotifySongs(searchQuery);
+  };
+
+  const openPlaylistLink = async () => {
+    const input = playlistLink.trim();
+    if (!input || playlistLinkBusy) return;
+    setPlaylistLinkBusy(true);
+    setPlaylistLinkNotice(null);
+    const result = await importSpotifyPlaylistLink(input);
+    setPlaylistLinkBusy(false);
+    if (result.ok) {
+      setPlaylistLink('');
+      setPlaylistLinkNotice({ tone: 'ok', text: t('appHome.spotifyLinkOpened', { name: result.name, count: result.trackCount }) });
+      return;
+    }
+    const text = result.reason === 'contents_unavailable'
+      ? t('appHome.spotifyLinkUnavailable', { name: result.name })
+      : result.reason === 'not_a_playlist_link'
+        ? t('appHome.spotifyLinkInvalid')
+        : result.reason === 'not_connected'
+          ? t('appHome.spotifyLinkNotConnected')
+          : t('appHome.spotifyLinkFailed');
+    setPlaylistLinkNotice({ tone: 'error', text });
+  };
 
   useEffect(() => {
     setFocusedSongIndex(index => Math.min(index, Math.max(0, filteredSongs.length - 1)));
@@ -402,22 +447,69 @@ export default function AppHome() {
                 </button>
               </div></div>
 
-              <label className="flex min-h-11 min-w-[220px] items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-slate-400 transition focus-within:border-[#62f5c4]/40 focus-within:bg-white/[0.07]">
+              <form
+                onSubmit={event => { event.preventDefault(); submitSearch(); }}
+                className="flex min-h-11 min-w-[220px] items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-slate-400 transition focus-within:border-[#62f5c4]/40 focus-within:bg-white/[0.07]"
+              >
                 <Search aria-hidden="true" className="h-4 w-4 shrink-0" />
                 <input
                   value={searchQuery}
                   onChange={event => setSearchQuery(event.target.value)}
                   className="w-full bg-transparent text-xs text-white outline-none placeholder:text-slate-500"
-                  placeholder={t('appHome.searchPlaceholder')}
-                  aria-label={t('appHome.searchAria')}
+                  placeholder={activeSource === 'spotify' ? t('appHome.spotifySearchPlaceholder') : t('appHome.searchPlaceholder')}
+                  aria-label={activeSource === 'spotify' ? t('appHome.spotifySearchAria') : t('appHome.searchAria')}
                 />
-              </label>
+                {activeSource === 'spotify' && (
+                  <span aria-live="polite" className="shrink-0 text-[10px] font-bold text-slate-500">
+                    {spotifySearching ? t('appHome.spotifySearching') : null}
+                  </span>
+                )}
+              </form>
             </div>
           </div>
 
+          {activeSource === 'spotify' && !spotifyConnected && (
+            <div role="status" className="rounded-2xl border border-[#1ed760]/25 bg-[#1ed760]/10 px-4 py-3 text-[11px] leading-5 text-[#b8ffe2]">
+              {t('appHome.spotifySearchNeedsConnection')}
+            </div>
+          )}
+
+          {activeSource === 'spotify' && (
+            <form
+              onSubmit={event => { event.preventDefault(); void openPlaylistLink(); }}
+              className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
+            >
+              <p className="text-sm font-bold text-white">{t('appHome.spotifyLinkTitle')}</p>
+              <p className="mt-1 text-[11px] leading-5 text-slate-400">{t('appHome.spotifyLinkHint')}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <input
+                  value={playlistLink}
+                  onChange={event => { setPlaylistLink(event.target.value); setPlaylistLinkNotice(null); }}
+                  spellCheck={false}
+                  autoComplete="off"
+                  aria-label={t('appHome.spotifyLinkTitle')}
+                  placeholder={t('appHome.spotifyLinkPlaceholder')}
+                  className="min-w-0 flex-1 rounded-xl border border-white/10 bg-[#111720] px-3 py-2 font-mono text-xs text-white outline-none focus:border-[#62f5c4]"
+                />
+                <button
+                  type="submit"
+                  disabled={!playlistLink.trim() || playlistLinkBusy}
+                  className="rounded-xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-3.5 py-2 text-xs font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/20 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {playlistLinkBusy ? t('appHome.spotifyLinkImporting') : t('appHome.spotifyLinkOpen')}
+                </button>
+              </div>
+              {playlistLinkNotice && (
+                <p role="status" className={`mt-2 text-[11px] leading-5 ${playlistLinkNotice.tone === 'ok' ? 'text-[#9ff9d7]' : 'text-amber-300'}`}>
+                  {playlistLinkNotice.text}
+                </p>
+              )}
+            </form>
+          )}
+
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-slate-300" aria-live="polite">
-              {activeSource === 'ytmusic' ? (youtubeConnected ? (selectedPlaylist ? t('appHome.yourPlaylist', { name: selectedPlaylist.name }) : t('appHome.yourYtPlaylists')) : t('appHome.ytDemoSongs')) : activeSource === 'local' ? t('appHome.localDemoTracks') : t('appHome.spotifySongs')} <span className="ml-1 text-slate-500">{filteredSongs.length.toString().padStart(2, '0')}</span>
+              {activeSource === 'ytmusic' ? (youtubeConnected ? (selectedPlaylist ? t('appHome.yourPlaylist', { name: selectedPlaylist.name }) : t('appHome.yourYtPlaylists')) : t('appHome.ytDemoSongs')) : activeSource === 'local' ? t('appHome.localDemoTracks') : spotifySearchQuery ? t('appHome.spotifySearchResults') : t('appHome.spotifySongs')} <span className="ml-1 text-slate-500">{filteredSongs.length.toString().padStart(2, '0')}</span>
             </p>
             {searchQuery && (
               <button type="button" onClick={() => setSearchQuery('')} aria-label={t('appHome.clearFilterAria')} className="min-h-11 min-w-24 rounded-xl px-3 text-xs font-bold text-slate-400 transition hover:bg-white/[0.05] hover:text-[#62f5c4]">
@@ -452,8 +544,8 @@ export default function AppHome() {
             )
           ) : (
             <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.025] px-6 py-16 text-center">
-              <p className="text-sm font-bold text-slate-300">{searchQuery ? t('appHome.noResults') : activeSource === 'local' ? t('appHome.localUnavailable') : t('appHome.sourceEmpty')}</p>
-              <p className="mt-2 text-xs text-slate-500">{searchQuery ? t('appHome.noResultsHint') : activeSource === 'local' ? t('appHome.localUnavailableHint') : activeSource === 'ytmusic' && youtubeConnected ? (isSyncingLibrary ? t('appHome.syncingHint') : t('appHome.ytEmptyHint')) : t('appHome.connectHint')}</p>
+              <p className="text-sm font-bold text-slate-300">{activeSource === 'spotify' ? (spotifySearchQuery ? t('appHome.spotifySearchEmpty') : t('appHome.sourceEmpty')) : searchQuery ? t('appHome.noResults') : activeSource === 'local' ? t('appHome.localUnavailable') : t('appHome.sourceEmpty')}</p>
+              <p className="mt-2 text-xs text-slate-500">{activeSource === 'spotify' ? (spotifySearchQuery ? t('appHome.spotifySearchEmptyHint') : t('appHome.spotifyLinkHint')) : searchQuery ? t('appHome.noResultsHint') : activeSource === 'local' ? t('appHome.localUnavailableHint') : activeSource === 'ytmusic' && youtubeConnected ? (isSyncingLibrary ? t('appHome.syncingHint') : t('appHome.ytEmptyHint')) : t('appHome.connectHint')}</p>
               {youtubeConnected && <button type="button" onClick={() => navigate('/library')} className="mt-4 rounded-xl border border-[#62f5c4]/25 px-4 py-2 text-xs font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/10">{t('appHome.goToLibrary')}</button>}
             </div>
           )}
@@ -488,7 +580,7 @@ export default function AppHome() {
             <p id="connect-description" className="text-sm leading-6 text-slate-300">{t('appHome.connectDescription')}</p>
             {spotifyError && (
               <p className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs leading-5 text-rose-200">
-                {spotifyError}<br />{t('appHome.spotifyRedirectHint')}
+                {spotifyError}{!spotifyConnected && <><br />{t('appHome.spotifyRedirectHint')}</>}
               </p>
             )}
             {youtubeError && <div role="alert" className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs leading-5 text-rose-200"><YouTubeFailureMessage failure={youtubeError} /></div>}

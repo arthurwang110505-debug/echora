@@ -191,6 +191,24 @@
     "prevCover": "前一張專輯",
     "nextCover": "後一張專輯",
     "carouselHint": "目前選取第 {{current}} 首，共 {{total}} 首；按 Enter 播放，方向鍵切換歌曲。",
-    "playStageNow": "立即播放舞台"
+    "playStageNow": "立即播放舞台",
+    "spotifySearchPlaceholder": "搜尋 Spotify 歌曲",
+    "spotifySearchAria": "搜尋 Spotify 歌曲",
+    "spotifySearching": "搜尋中…",
+    "spotifySearchResults": "Spotify 搜尋結果",
+    "spotifySearchClear": "清除搜尋",
+    "spotifySearchEmpty": "沒有找到歌曲",
+    "spotifySearchEmptyHint": "換個關鍵字，或用英文、原文歌名再試一次。",
+    "spotifySearchNeedsConnection": "連接 Spotify 後就能搜尋整個目錄。",
+    "spotifyLinkTitle": "貼上 Spotify 歌單連結",
+    "spotifyLinkHint": "公開歌單的曲目只有擁有者或共同編輯者讀得到。若是你自己的歌單，貼上來就能直接播放。",
+    "spotifyLinkPlaceholder": "https://open.spotify.com/playlist/…",
+    "spotifyLinkOpen": "開啟",
+    "spotifyLinkImporting": "讀取中…",
+    "spotifyLinkInvalid": "這不是歌單連結。請貼 open.spotify.com/playlist/… 或 spotify:playlist:…",
+    "spotifyLinkNotConnected": "請先連接 Spotify。",
+    "spotifyLinkUnavailable": "讀不到「{name}」的曲目。Spotify 只提供自己的或共同編輯歌單的內容。",
+    "spotifyLinkOpened": "已載入「{name}」，共 {count} 首。",
+    "spotifyLinkFailed": "開啟歌單失敗。"
   }
 }

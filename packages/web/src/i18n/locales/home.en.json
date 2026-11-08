@@ -191,6 +191,24 @@
     "prevCover": "Previous cover",
     "nextCover": "Next cover",
     "carouselHint": "Selected song {{current}} of {{total}}; press Enter to play, arrow keys to switch songs.",
-    "playStageNow": "Play the stage now"
+    "playStageNow": "Play the stage now",
+    "spotifySearchPlaceholder": "Search Spotify songs",
+    "spotifySearchAria": "Search Spotify songs",
+    "spotifySearching": "Searching…",
+    "spotifySearchResults": "Spotify results",
+    "spotifySearchClear": "Clear search",
+    "spotifySearchEmpty": "No songs found",
+    "spotifySearchEmptyHint": "Try a different keyword, or the original title.",
+    "spotifySearchNeedsConnection": "Connect Spotify to search the whole catalogue.",
+    "spotifyLinkTitle": "Open a Spotify playlist link",
+    "spotifyLinkHint": "Only the owner or a collaborator can read a playlist’s tracks. If it is yours, pasting the link plays it here.",
+    "spotifyLinkPlaceholder": "https://open.spotify.com/playlist/…",
+    "spotifyLinkOpen": "Open",
+    "spotifyLinkImporting": "Reading…",
+    "spotifyLinkInvalid": "That is not a playlist link. Paste open.spotify.com/playlist/… or spotify:playlist:…",
+    "spotifyLinkNotConnected": "Connect Spotify first.",
+    "spotifyLinkUnavailable": "Could not read the tracks of “{name}”. Spotify only serves playlists you own or collaborate on.",
+    "spotifyLinkOpened": "Loaded “{name}”, {count} songs.",
+    "spotifyLinkFailed": "Could not open that playlist."
   }
 }

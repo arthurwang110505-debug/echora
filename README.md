@@ -122,6 +122,8 @@ Client ID 存放於 `localStorage['echora.spotify.client-id']`。沒填時會退
 
 授權工作階段會記錄發給它的 Client ID：換一個 Client ID 等同換一個 app，必須重新授權，舊的 refresh token 不會被誤用。
 
+**搜尋與歌單連結**：連接後，探索頁的搜尋框會直接查 Spotify 目錄（按 Enter 送出，避免每次按鍵都消耗 rate limit）。同一頁可貼上歌單連結（`open.spotify.com/playlist/…`、`spotify:playlist:…` 或純 ID），自己的或共同編輯的歌單會直接載入播放。
+
 **已知限制（Spotify 2026 年改制）**：Web API 現在只提供「自己的」或「共同編輯」歌單的曲目內容，別人的公開歌單只回傳中繼資料。Echora 開啟這類歌單時會顯示原因，而不是留一個空佇列。搜尋每頁上限也從 50 降為 10，程式已自動套用。
 
 ## 疑難排解：畫面在動但沒聲音

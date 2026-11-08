@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { SpotifyProvider, SPOTIFY_SEARCH_LIMIT_MAX } from './spotify';
+import { parseSpotifyPlaylistId, SpotifyProvider, SPOTIFY_SEARCH_LIMIT_MAX } from './spotify';
 
 /**
  * The February 2026 Web API changes removed two endpoints Echora was built against and shrank a
@@ -142,5 +142,99 @@ describe('Spotify provider after the February 2026 changes', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://api.spotify.com/v1/me/player/currently-playing');
     expect(playback).toMatchObject({ isPlaying: true, progressMs: 1000 });
     expect(playback.song?.title).toBe('Night Signals');
+  });
+});
+
+const PLAYLIST_ID = '37i9dQZF1DXcBWIGoYBM5M';
+
+describe('parseSpotifyPlaylistId', () => {
+  it.each([
+    ['open.spotify.com link', `https://open.spotify.com/playlist/${PLAYLIST_ID}`],
+    ['link with a share token', `https://open.spotify.com/playlist/${PLAYLIST_ID}?si=abc123&nd=1`],
+    ['link with a locale segment', `https://open.spotify.com/intl-zh-TW/playlist/${PLAYLIST_ID}`],
+    ['link with a trailing slash', `https://open.spotify.com/playlist/${PLAYLIST_ID}/`],
+    ['http link', `http://open.spotify.com/playlist/${PLAYLIST_ID}`],
+    ['spotify URI', `spotify:playlist:${PLAYLIST_ID}`],
+    ['bare ID', PLAYLIST_ID],
+    ['surrounding whitespace', `  https://open.spotify.com/playlist/${PLAYLIST_ID}\n`],
+  ])('accepts a %s', (_label, input) => {
+    expect(parseSpotifyPlaylistId(input)).toBe(PLAYLIST_ID);
+  });
+
+  it.each([
+    ['a track link', 'https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT'],
+    ['an album link', 'https://open.spotify.com/album/1ATL5GLyefJaxhQzSPVrLX'],
+    ['an artist link', 'https://open.spotify.com/artist/06HL4z0CvFAxyc27GXpf02'],
+    ['a lookalike host', `https://open.spotify.com.evil.test/playlist/${PLAYLIST_ID}`],
+    ['a different site', `https://example.com/playlist/${PLAYLIST_ID}`],
+    ['a javascript: URL', 'javascript:alert(1)'],
+    ['an empty string', '   '],
+    ['a truncated ID', 'https://open.spotify.com/playlist/37i9dQZF1DXcB'],
+    ['plain words', 'my favourite playlist'],
+  ])('rejects %s', (_label, input) => {
+    expect(parseSpotifyPlaylistId(input)).toBeNull();
+  });
+});
+
+describe('getPlaylist (a pasted link)', () => {
+  const track = {
+    id: 'track-1',
+    name: 'Night Signals',
+    uri: 'spotify:track:track-1',
+    duration_ms: 210_000,
+    artists: [{ id: 'artist-1', name: 'Echora Sessions' }],
+    album: { id: 'album-1', name: 'Sessions', images: [{ url: 'https://img/cover.jpg', width: 640, height: 640 }] },
+  };
+
+  it('returns the metadata and the contents of a playlist the user owns', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
+      id: PLAYLIST_ID,
+      name: '我的專注歌單',
+      images: [{ url: 'https://img/p.jpg' }],
+      items: { total: 1, items: [{ item: track }] },
+    }));
+    const provider = providerWith(fetchMock);
+
+    const { playlist, tracks } = await provider.getPlaylist(PLAYLIST_ID);
+
+    expect(fetchMock.mock.calls[0][0]).toBe(`https://api.spotify.com/v1/playlists/${PLAYLIST_ID}`);
+    expect(playlist).toEqual({
+      id: PLAYLIST_ID,
+      name: '我的專注歌單',
+      coverUrl: 'https://img/p.jpg',
+      trackCount: 1,
+      source: 'spotify',
+    });
+    expect(tracks).toHaveLength(1);
+    expect(tracks[0].title).toBe('Night Signals');
+  });
+
+  // The February 2026 rule: someone else's playlist answers with metadata only, and the `items`
+  // field is absent rather than empty. That is the case a pasted link hits most often, so it has to
+  // be a usable result - the name and cover - and not an error.
+  it('returns metadata without contents for a playlist the user does not own', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        id: PLAYLIST_ID,
+        name: '別人的歌單',
+        owner: { display_name: 'Someone' },
+        images: [{ url: 'https://img/other.jpg' }],
+      }))
+      // `getPlaylistTracks` is tried next and answers with no items either.
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: PLAYLIST_ID }), { status: 200 }));
+    const provider = providerWith(fetchMock);
+
+    const { playlist, tracks } = await provider.getPlaylist(PLAYLIST_ID);
+
+    expect(playlist.name).toBe('別人的歌單');
+    expect(playlist.coverUrl).toBe('https://img/other.jpg');
+    expect(tracks).toEqual([]);
+  });
+
+  it('rejects when the playlist does not exist', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{"error":{"status":404}}', { status: 404 }));
+    const provider = providerWith(fetchMock);
+
+    await expect(provider.getPlaylist('does-not-exist')).rejects.toThrow('Spotify API Error [404]');
   });
 });

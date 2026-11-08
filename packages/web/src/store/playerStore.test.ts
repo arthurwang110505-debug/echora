@@ -193,4 +193,110 @@ describe('loadYouTubePlaylist failure contract', () => {
     expect(usePlayerStore.getState().playlist).toEqual([spotifyTrack]);
     expect(usePlayerStore.getState().spotifyError).toBeNull();
   });
+
+  describe('Spotify catalogue search', () => {
+    const hit: Song = { ...musicTrack, id: 'sp-1', title: 'Night Signals', source: 'spotify', audioUrl: 'spotify:track:sp-1' };
+
+    it('asks the provider for the term and keeps the results', async () => {
+      const spotifyProvider = { searchTracks: vi.fn().mockResolvedValue([hit]) };
+      usePlayerStore.setState({ spotifyToken: 'token', spotifyProvider: spotifyProvider as never, spotifySearchResults: [], spotifySearchQuery: '' });
+
+      const results = await usePlayerStore.getState().searchSpotifySongs('  night signals  ');
+
+      // Trimmed: a stray space would otherwise be part of the query Spotify ranks.
+      expect(spotifyProvider.searchTracks).toHaveBeenCalledWith('night signals');
+      expect(results).toEqual([hit]);
+      expect(usePlayerStore.getState().spotifySearchResults).toEqual([hit]);
+      expect(usePlayerStore.getState().spotifySearchQuery).toBe('night signals');
+      expect(usePlayerStore.getState().spotifySearching).toBe(false);
+    });
+
+    it('never calls the API for an empty term', async () => {
+      const spotifyProvider = { searchTracks: vi.fn() };
+      usePlayerStore.setState({ spotifyToken: 'token', spotifyProvider: spotifyProvider as never, spotifySearchResults: [hit] });
+
+      const results = await usePlayerStore.getState().searchSpotifySongs('   ');
+
+      expect(spotifyProvider.searchTracks).not.toHaveBeenCalled();
+      expect(results).toEqual([]);
+      expect(usePlayerStore.getState().spotifySearchResults).toEqual([]);
+    });
+
+    it('explains a search made without a connection instead of returning nothing silently', async () => {
+      const spotifyProvider = { searchTracks: vi.fn() };
+      usePlayerStore.setState({ spotifyToken: null, spotifyProvider: spotifyProvider as never, spotifyError: null });
+
+      await usePlayerStore.getState().searchSpotifySongs('night');
+
+      expect(spotifyProvider.searchTracks).not.toHaveBeenCalled();
+      expect(usePlayerStore.getState().spotifyError).toContain('連接 Spotify');
+    });
+
+    it('surfaces a failed search and stops the spinner', async () => {
+      const spotifyProvider = { searchTracks: vi.fn().mockRejectedValue(new Error('Spotify API Error [429]')) };
+      usePlayerStore.setState({ spotifyToken: 'token', spotifyProvider: spotifyProvider as never, spotifyError: null });
+
+      await usePlayerStore.getState().searchSpotifySongs('night');
+
+      expect(usePlayerStore.getState().spotifySearching).toBe(false);
+      expect(usePlayerStore.getState().spotifyError).toContain('429');
+    });
+  });
+
+  describe('pasting a Spotify playlist link', () => {
+    const PLAYLIST_ID = '37i9dQZF1DXcBWIGoYBM5M';
+    const spTrack: Song = { ...musicTrack, id: 'sp-1', title: 'Night Signals', source: 'spotify', audioUrl: 'spotify:track:sp-1' };
+
+    it('opens a link whose contents are readable and starts playing', async () => {
+      const spotifyProvider = {
+        getPlaylist: vi.fn().mockResolvedValue({
+          playlist: { id: PLAYLIST_ID, name: '我的歌單', source: 'spotify', trackCount: 1 },
+          tracks: [spTrack],
+        }),
+        play: vi.fn().mockResolvedValue(true),
+      };
+      usePlayerStore.setState({ spotifyToken: 'token', spotifyProvider: spotifyProvider as never, playlist: [], spotifyError: null });
+
+      const result = await usePlayerStore.getState().importSpotifyPlaylistLink(`https://open.spotify.com/playlist/${PLAYLIST_ID}?si=x`);
+
+      expect(result).toEqual({ ok: true, name: '我的歌單', trackCount: 1 });
+      expect(spotifyProvider.getPlaylist).toHaveBeenCalledWith(PLAYLIST_ID);
+      expect(usePlayerStore.getState().playlist).toEqual([spTrack]);
+    });
+
+    it('distinguishes an unreadable playlist from a bad link', async () => {
+      // Metadata came back, so the link was understood; the contents simply are not on offer.
+      const spotifyProvider = {
+        getPlaylist: vi.fn().mockResolvedValue({
+          playlist: { id: PLAYLIST_ID, name: '別人的歌單', source: 'spotify', trackCount: 120 },
+          tracks: [],
+        }),
+      };
+      usePlayerStore.setState({ spotifyToken: 'token', spotifyProvider: spotifyProvider as never, spotifyError: null });
+
+      const result = await usePlayerStore.getState().importSpotifyPlaylistLink(`spotify:playlist:${PLAYLIST_ID}`);
+
+      expect(result).toEqual({ ok: false, reason: 'contents_unavailable', name: '別人的歌單' });
+      // The name is kept in the message so the listener knows the link itself was fine.
+      expect(usePlayerStore.getState().spotifyError).toContain('別人的歌單');
+    });
+
+    it('rejects a non-playlist link without touching the network', async () => {
+      const spotifyProvider = { getPlaylist: vi.fn() };
+      usePlayerStore.setState({ spotifyToken: 'token', spotifyProvider: spotifyProvider as never });
+
+      const result = await usePlayerStore.getState().importSpotifyPlaylistLink('https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT');
+
+      expect(result).toEqual({ ok: false, reason: 'not_a_playlist_link' });
+      expect(spotifyProvider.getPlaylist).not.toHaveBeenCalled();
+    });
+
+    it('reports a missing connection rather than a bad link', async () => {
+      usePlayerStore.setState({ spotifyToken: null, spotifyError: null });
+
+      const result = await usePlayerStore.getState().importSpotifyPlaylistLink(`spotify:playlist:${PLAYLIST_ID}`);
+
+      expect(result).toEqual({ ok: false, reason: 'not_connected' });
+    });
+  });
 });
