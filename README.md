@@ -122,6 +122,8 @@ Client ID 存放於 `localStorage['echora.spotify.client-id']`。沒填時會退
 
 授權工作階段會記錄發給它的 Client ID：換一個 Client ID 等同換一個 app，必須重新授權，舊的 refresh token 不會被誤用。
 
+**已知限制（Spotify 2026 年改制）**：Web API 現在只提供「自己的」或「共同編輯」歌單的曲目內容，別人的公開歌單只回傳中繼資料。Echora 開啟這類歌單時會顯示原因，而不是留一個空佇列。搜尋每頁上限也從 50 降為 10，程式已自動套用。
+
 ## 疑難排解：畫面在動但沒聲音
 
 播放器的 `<audio>` 是否要繞經 Web Audio（給頻譜視覺化取樣）取決於音檔來源，規則寫在

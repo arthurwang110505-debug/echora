@@ -2,6 +2,9 @@
 import type { Song } from '../types';
 import type { Playlist } from './types';
 
+/** February 2026 reduced the search page size: 50 -> 10, default 20 -> 5. */
+export const SPOTIFY_SEARCH_LIMIT_MAX = 10;
+
 export interface SpotifyTrack {
   id: string;
   name: string;
@@ -96,6 +99,10 @@ export class SpotifyProvider {
   }
 
   // 2. Fetch User Playlists
+  //
+  // February 2026: the playlist object renamed `tracks` to `items`. Content is only included for
+  // playlists the user owns or collaborates on, but the count is returned for every playlist, so
+  // the library list stays complete.
   async getUserPlaylists(limit = 20): Promise<Playlist[]> {
     try {
       const data = await this.fetchSpotify<{
@@ -103,7 +110,7 @@ export class SpotifyProvider {
           id: string;
           name: string;
           images: Array<{ url: string }>;
-          tracks: { total: number };
+          items?: { total: number };
         }>;
       }>(`/me/playlists?limit=${limit}`);
 
@@ -113,7 +120,7 @@ export class SpotifyProvider {
         id: p.id,
         name: p.name,
         coverUrl: p.images[0]?.url,
-        trackCount: p.tracks?.total || 0,
+        trackCount: p.items?.total || 0,
         source: 'spotify' as const,
       }));
     } catch (err) {
@@ -123,20 +130,24 @@ export class SpotifyProvider {
   }
 
   // 3. Fetch Tracks in a Playlist
+  //
+  // February 2026: `GET /playlists/{id}/tracks` was removed in favour of `/items`, and the wrapper
+  // object's `track` field became `item`. Contents are only served for playlists the user owns or
+  // collaborates on - anything else comes back as metadata only and yields no tracks.
   async getPlaylistTracks(playlistId: string): Promise<Song[]> {
     try {
       const data = await this.fetchSpotify<{
         items: Array<{
-          track: SpotifyTrack | null;
+          item: SpotifyTrack | null;
         }>;
-      }>(`/playlists/${playlistId}/tracks?limit=50`);
+      }>(`/playlists/${playlistId}/items?limit=50`);
 
       if (!data || !data.items) return [];
 
       return data.items
-        .filter(item => item.track !== null)
+        .filter(item => item.item !== null)
         .map(item => {
-          const t = item.track!;
+          const t = item.item!;
           return {
             id: t.id,
             title: t.name,
@@ -159,13 +170,17 @@ export class SpotifyProvider {
   }
 
   // 4. Search Tracks
-  async searchTracks(query: string, limit = 20): Promise<Song[]> {
+  //
+  // February 2026 lowered the search `limit` ceiling from 50 to 10 (default 20 -> 5). Asking for
+  // more is rejected, so the cap is applied here rather than left to every caller.
+  async searchTracks(query: string, limit = SPOTIFY_SEARCH_LIMIT_MAX): Promise<Song[]> {
+    const pageSize = Math.min(Math.max(1, Math.floor(limit)), SPOTIFY_SEARCH_LIMIT_MAX);
     try {
       const data = await this.fetchSpotify<{
         tracks: {
           items: SpotifyTrack[];
         };
-      }>(`/search?type=track&q=${encodeURIComponent(query)}&limit=${limit}`);
+      }>(`/search?type=track&q=${encodeURIComponent(query)}&limit=${pageSize}`);
 
       if (!data || !data.tracks || !data.tracks.items) return [];
 

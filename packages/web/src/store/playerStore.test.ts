@@ -161,4 +161,36 @@ describe('loadYouTubePlaylist failure contract', () => {
     expect(usePlayerStore.getState().youtubeError).toBeNull();
     expect(usePlayerStore.getState().loadedPlaylistId).toBe('playlist-1');
   });
+
+  it('explains an empty Spotify queue instead of showing one without a reason', async () => {
+    // Since February 2026 the Web API only serves a playlist's contents to its owner or a
+    // collaborator; opening anyone else's playlist comes back as an empty array, not an error.
+    const spotifyProvider = { getPlaylistTracks: vi.fn().mockResolvedValue([]) };
+    usePlayerStore.setState({ activeSource: 'spotify', spotifyToken: 'token', spotifyProvider: spotifyProvider as never, spotifyError: null });
+
+    await usePlayerStore.getState().loadSpotifyPlaylist('someone-elses-playlist');
+
+    expect(usePlayerStore.getState().playlist).toEqual([]);
+    expect(usePlayerStore.getState().spotifyError).toContain('只提供');
+  });
+
+  it('clears the previous reason when a readable Spotify playlist loads', async () => {
+    const spotifyTrack: Song = { ...musicTrack, id: 'track-1', source: 'spotify', audioUrl: 'spotify:track:track-1' };
+    // A non-empty playlist also starts playback, so the provider needs its playback call too.
+    const spotifyProvider = {
+      getPlaylistTracks: vi.fn().mockResolvedValue([spotifyTrack]),
+      play: vi.fn().mockResolvedValue(true),
+    };
+    usePlayerStore.setState({
+      activeSource: 'spotify',
+      spotifyToken: 'token',
+      spotifyProvider: spotifyProvider as never,
+      spotifyError: '這個歌單讀不到曲目。',
+    });
+
+    await usePlayerStore.getState().loadSpotifyPlaylist('my-own-playlist');
+
+    expect(usePlayerStore.getState().playlist).toEqual([spotifyTrack]);
+    expect(usePlayerStore.getState().spotifyError).toBeNull();
+  });
 });

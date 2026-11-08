@@ -813,7 +813,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { spotifyProvider, spotifyToken } = get();
     if (!spotifyToken) return;
     const tracks = await spotifyProvider.getPlaylistTracks(playlistId);
-    set({ playlist: tracks, currentIndex: 0 });
+    // Since February 2026 the Web API only serves a playlist's contents to its owner (or a
+    // collaborator); every other playlist is metadata only. That arrives as an empty array, not an
+    // error, so say why instead of leaving a blank queue on screen.
+    set({
+      playlist: tracks,
+      currentIndex: 0,
+      spotifyError: tracks.length ? null : '這個歌單讀不到曲目。Spotify 現在只提供「自己的」或「共同編輯」歌單的內容；請改用你自己的歌單。',
+    });
     if (tracks[0]) get().play(tracks[0], tracks);
   },
 

@@ -489,6 +489,16 @@ export default function Player() {
         />
       )}
 
+      {/* A Spotify failure that belongs to the library rather than to a connection attempt: since
+          February 2026 the Web API only serves a playlist's contents to its owner, so opening
+          someone else's playlist leaves the queue empty. The connect modal is closed by then, so
+          the reason has to be visible here or not at all. */}
+      {spotifyError && !showConnectModal && (
+        <div role="status" className="relative z-30 mx-4 mt-3 rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-2.5 text-[11px] leading-5 text-amber-100 sm:mx-6">
+          {spotifyError}
+        </div>
+      )}
+
       {/* Main Content Area */}
       <div className="relative z-30 flex min-h-0 min-w-0 flex-1 overflow-hidden">
         {displayMode === 'full' && showPlaylistDrawer && (
