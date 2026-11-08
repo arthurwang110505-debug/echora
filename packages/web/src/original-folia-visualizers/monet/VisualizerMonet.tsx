@@ -45,6 +45,7 @@ const VisualizerMonet: React.FC<VisualizerMonetProps> = (props) => {
         monetPortraitImage = null,
         onMonetTuningChange,
         onLyricLineSeek,
+        onLyricLineResync,
         seed,
     } = props;
     const { t } = useTranslation();
@@ -243,6 +244,7 @@ const VisualizerMonet: React.FC<VisualizerMonetProps> = (props) => {
                                     audioPower={audioPower}
                                     audioBands={audioBands}
                                     onLyricLineSeek={onLyricLineSeek}
+                                    onLyricLineResync={onLyricLineResync}
                                     seekDisabled={isPreviewMode}
                                 />
                             </motion.div>

@@ -4,6 +4,8 @@ import {
   adjustLyricsOffset,
   clampLyricsOffset,
   getActiveLyricIndex,
+  offsetForLineStart,
+  LYRICS_OFFSET_MAX_SECONDS,
 } from './activeLine';
 
 const lines = [
@@ -94,5 +96,31 @@ describe('getActiveLyricIndex holds the line that has begun', () => {
   it('falls back to 0 for an empty list or a non-finite time', () => {
     expect(getActiveLyricIndex({ lines: [], currentTimeSeconds: 12 })).toBe(0);
     expect(getActiveLyricIndex({ lines, currentTimeSeconds: Number.NaN })).toBe(0);
+  });
+
+  describe('offsetForLineStart', () => {
+    it('puts the clicked line under the playhead', () => {
+      // Line starts at 12 s, we are 3 s into the song: the timeline must move 9 s earlier.
+      expect(offsetForLineStart(12, 3)).toBeCloseTo(9);
+      // And the other way when the line is behind the playhead.
+      expect(offsetForLineStart(4, 12)).toBeCloseTo(-8);
+      // A correction larger than the limit is clamped, not accepted: ±10 s is where the controls
+      // stop, and a gesture must not be able to exceed what the panel can undo.
+      expect(offsetForLineStart(4, 19)).toBeCloseTo(-10);
+    });
+
+    it('is zero when the line is already in sync', () => {
+      expect(offsetForLineStart(8.5, 8.5)).toBe(0);
+    });
+
+    it('respects the same limit the arrows and the slider use', () => {
+      expect(offsetForLineStart(900, 0)).toBe(LYRICS_OFFSET_MAX_SECONDS);
+      expect(offsetForLineStart(0, 900)).toBe(-LYRICS_OFFSET_MAX_SECONDS);
+    });
+
+    it('declines to guess from a missing reading', () => {
+      expect(offsetForLineStart(Number.NaN, 4)).toBe(0);
+      expect(offsetForLineStart(4, Number.NaN)).toBe(0);
+    });
   });
 });

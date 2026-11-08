@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePlayer } from '../contexts/PlayerContext';
 import { extractYouTubeVideoId } from '@echora/core';
+import { clearExtrapolatedClock, sampleExtrapolatedClock } from '../playback/extrapolatedClock';
 import { recordDiagnostic } from '../lib/diagnostics';
 import YouTubeFailureMessage from './YouTubeFailureMessage';
 import { derivePlaybackVolume } from '../playback/volumeState';
@@ -60,6 +61,9 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
             if (typeof event.target.setVolume === 'function') event.target.setVolume(Math.round(derivePlaybackVolume(state.volume, state.isMuted) * 100));
             if (videoId) {
               event.target.cueVideoById(videoId);
+              // A cued video is a new timeline: drop the old extrapolation rather than letting it
+              // coast into the next song's first lyric.
+              clearExtrapolatedClock();
               usePlayer.setState({ isPlaying: false, playbackState: 'paused', currentTime: 0, youtubeError: null });
             }
           },
@@ -68,9 +72,22 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
             const state = usePlayer.getState();
             const duration = Number(event.target.getDuration?.() || state.duration);
             const currentTime = Number(event.target.getCurrentTime?.() || 0);
-            if (event.data === window.YT.PlayerState.PLAYING) usePlayer.setState({ isPlaying: true, playbackState: 'playing', currentTime: Number.isFinite(currentTime) ? currentTime : state.currentTime, duration: Number.isFinite(duration) ? duration : state.duration, youtubeError: null });
-            if (event.data === window.YT.PlayerState.BUFFERING) usePlayer.setState({ isPlaying: false, playbackState: 'buffering', currentTime: Number.isFinite(currentTime) ? currentTime : state.currentTime, duration: Number.isFinite(duration) ? duration : state.duration });
-            if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.CUED) usePlayer.setState({ isPlaying: false, playbackState: 'paused', currentTime, duration });
+            // Every transition is also a trustworthy position sample, and the ones that stop
+            // playback must stop the extrapolated clock with them: a paused timeline that keeps
+            // coasting would walk the lyrics off the screen.
+            if (event.data === window.YT.PlayerState.PLAYING) {
+              sampleExtrapolatedClock(currentTime, { reset: true });
+              usePlayer.setState({ isPlaying: true, playbackState: 'playing', currentTime: Number.isFinite(currentTime) ? currentTime : state.currentTime, duration: Number.isFinite(duration) ? duration : state.duration, youtubeError: null });
+            }
+            if (event.data === window.YT.PlayerState.BUFFERING) {
+              // Buffering is not a timeline change; hold the clock where it was so the next sample
+              // does not read as a seek.
+              usePlayer.setState({ isPlaying: false, playbackState: 'buffering', currentTime: Number.isFinite(currentTime) ? currentTime : state.currentTime, duration: Number.isFinite(duration) ? duration : state.duration });
+            }
+            if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.CUED) {
+              sampleExtrapolatedClock(currentTime, { reset: true });
+              usePlayer.setState({ isPlaying: false, playbackState: 'paused', currentTime, duration });
+            }
             if (event.data === window.YT.PlayerState.ENDED) {
               // A finished track advances the queue. Before this it set `ended` and
               // stopped: the player went dead at the end of every song and the
@@ -264,15 +281,27 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
     if (typeof playerRef.current?.setVolume === 'function') playerRef.current.setVolume(Math.round(derivePlaybackVolume(volume, isMuted) * 100));
   }, [volume, isMuted]);
 
+  // Sampling and publishing are two different jobs with two different rates.
+  //
+  // The extrapolated clock wants frequent measurements, because every sample corrects the drift;
+  // React wants few store writes, because each one re-renders the player chrome. Reading
+  // `getCurrentTime()` is a property access into the iframe, not a request, so sampling at 50 ms is
+  // cheap - it is the `setState` that is not.
   useEffect(() => {
+    let publishedAt = 0;
     const timer = window.setInterval(() => {
       if (disposedRef.current || typeof playerRef.current?.getCurrentTime !== 'function' || currentSong?.source !== 'ytmusic') return;
       const state = usePlayer.getState();
       if (!state.isPlaying) return;
       const currentTime = Number(playerRef.current.getCurrentTime() || 0);
+      if (!Number.isFinite(currentTime)) return;
+      sampleExtrapolatedClock(currentTime);
+      const now = Date.now();
+      if (now - publishedAt < 250) return;
+      publishedAt = now;
       const duration = Number(playerRef.current.getDuration?.() || state.duration);
-      if (Number.isFinite(currentTime) && Number.isFinite(duration) && Math.abs(currentTime - state.currentTime) > 0.04) usePlayer.setState({ currentTime, duration });
-    }, 100);
+      if (Number.isFinite(duration) && Math.abs(currentTime - state.currentTime) > 0.04) usePlayer.setState({ currentTime, duration });
+    }, 50);
     return () => window.clearInterval(timer);
   }, [currentSong]);
 

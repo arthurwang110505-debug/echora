@@ -10,13 +10,14 @@ import { useSpotifyCredentialStore } from '../store/spotifyCredentialStore';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import LyriclessSoundscapeStage from '../components/LyriclessSoundscapeStage';
 import { CoverImage, PanelSkeleton, PlayerSkeleton, StageSkeleton } from '../components/LoadingSkeletons';
-import { adjustLyricsOffset, getActiveLyricIndex, LYRICS_OFFSET_STEP_SECONDS } from '../utils/lyrics/activeLine';
+import { adjustLyricsOffset, getActiveLyricIndex, LYRICS_OFFSET_STEP_SECONDS, offsetForLineStart } from '../utils/lyrics/activeLine';
 import { lazyWithRetry } from '../utils/recovery';
 import { pickAutoVisualizerMode, resolveStageAudioBands, visualizerEnergy } from '../playback/audioBands';
 import { useObsStagePublisher } from '../obs/useObsStagePublisher';
 import { useLineSplitPreview, useLyricSegmentation, useSegmentedLyrics } from '../hooks/useLyricSegmentation';
 import { sampleLocalAudioBands } from '../playback/localAudioAnalyser';
 import { getPlaybackClockReading } from '../playback/playbackClock';
+import { readExtrapolatedClock } from '../playback/extrapolatedClock';
 import { VOLUME_STEP } from '../playback/volumeState';
 import { isYouTubeVideo } from '../utils/youtubePlayback';
 import { songOffsetKey, useStageStore } from '../store/stageStore';
@@ -345,6 +346,15 @@ export default function Player() {
     setStoredLyricsOffset(offsetKey, adjustLyricsOffset(lyricsOffsetSeconds, deltaSeconds));
   };
   const resetStageLyricsOffset = () => setStoredLyricsOffset(offsetKey, 0);
+  // Shift-click a lyric line: that line is the one that should be under the playhead, so the
+  // offset that makes it true is `line − now`. Reuses the same per-song memory the arrows write.
+  const resyncLyricLine = (lineStartSeconds: number) => {
+    if (!offsetKey) return;
+    // Where the playhead is *now*: the seek preview while a drag is in flight, otherwise the
+    // clock. Same rule the stage uses, so the correction matches what the user is looking at.
+    const now = (isSeeking && seekPreviewTime !== null) ? seekPreviewTime : currentTime;
+    setStoredLyricsOffset(offsetKey, offsetForLineStart(lineStartSeconds, now));
+  };
 
   if (!currentSong) {
     return (
@@ -403,7 +413,11 @@ export default function Player() {
   const stageClockProvider = useCallback(() => {
     const preview = seekPreviewRef.current;
     if (preview.active && preview.time !== null) return Math.max(0, preview.time + lyricsOffsetRef.current);
-    const reading = getPlaybackClockReading();
+    // Local playback reads its own element at 60 Hz; a remote source has no element, so it answers
+    // from the extrapolated clock, which is continuous between the samples the player can take.
+    // Both already include the lyrics offset exactly once - this is the single place that decides
+    // what time the stage is showing.
+    const reading = getPlaybackClockReading() ?? readExtrapolatedClock();
     return reading === null ? null : Math.max(0, reading + lyricsOffsetRef.current);
   }, []);
 
@@ -592,6 +606,7 @@ export default function Player() {
                   songTitle={currentSong.title}
                   songArtist={activeArtist}
                   onSeekLine={seek}
+                  onResyncLine={resyncLyricLine}
                   backgroundMode={backgroundMode}
                   visualizerTunings={visualizerTunings}
                   isPlayerChromeHidden={false}

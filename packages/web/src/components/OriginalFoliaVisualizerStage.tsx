@@ -40,6 +40,8 @@ interface Props {
   songTitle?: string;
   songArtist?: string;
   onSeekLine: (timeSec: number) => void;
+  /** Shift the lyric timeline so this line lands under the playhead. */
+  onResyncLine?: (timeSec: number) => void;
   audioBands?: {
     bass: number;
     lowMid: number;
@@ -235,6 +237,7 @@ export default function OriginalFoliaVisualizerStage({
   songTitle,
   songArtist,
   onSeekLine,
+  onResyncLine,
   audioBands,
   backgroundMode = "latent",
   visualizerTunings,
@@ -407,6 +410,7 @@ export default function OriginalFoliaVisualizerStage({
           paused={!isPlaying}
           isPlayerChromeHidden={isPlayerChromeHidden}
           onLyricLineSeek={onSeekLine}
+          onLyricLineResync={onResyncLine}
           lyricsFontScale={1}
           subtitleFontScale={1}
           visualizerOpacity={1}

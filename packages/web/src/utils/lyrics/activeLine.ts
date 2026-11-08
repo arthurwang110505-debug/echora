@@ -16,6 +16,18 @@ export const adjustLyricsOffset = (offsetSeconds: number, deltaSeconds: number):
   clampLyricsOffset(offsetSeconds + deltaSeconds);
 
 /**
+ * The offset that puts `lineStartSeconds` under the playhead right now.
+ *
+ * Dragging a slider is guesswork ("a bit earlier, a bit later"); pointing at the line that *should*
+ * be highlighted says the answer outright. Used by the "tap a lyric to re-sync" gesture, which is
+ * the only part of the offset controls that reads as a correction rather than a preference.
+ */
+export const offsetForLineStart = (lineStartSeconds: number, playbackSeconds: number): number => {
+  if (!Number.isFinite(lineStartSeconds) || !Number.isFinite(playbackSeconds)) return 0;
+  return clampLyricsOffset(lineStartSeconds - playbackSeconds);
+};
+
+/**
  * The line whose start is the latest one at or before `effectiveTime`.
  *
  * This is a scan from the end rather than a scan from the start: playback moves forward, so the

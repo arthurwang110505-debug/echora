@@ -71,6 +71,8 @@ export interface VisualizerSharedProps {
     alwaysShowBackButton?: boolean;
     onPlayerPanelGuideHotspotChange?: (isActive: boolean) => void;
     onLyricLineSeek?: (lyricTimeSec: number) => void;
+    /** Shift-click on a lyric line: shift the timeline so that line lands under the playhead. */
+    onLyricLineResync?: (lyricTimeSec: number) => void;
     isPreviewMode?: boolean;
     visualizerTunings?: VisualizerTuningBundle;
     classicTuning?: ClassicTuning;
