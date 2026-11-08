@@ -86,7 +86,7 @@ node scripts/google-search-console-verify.mjs file google1a2b3c4d5e6f.html
 
 ## 音樂服務連線
 
-自己的歌請連接 **YouTube Music**（官方 OAuth）。未設定 `VITE_SPOTIFY_CLIENT_ID` 時，介面不會把 Spotify 當成現有功能。
+自己的歌請連接 **YouTube Music**（官方 OAuth）。Spotify 需要一組 Client ID（設定頁或 `VITE_SPOTIFY_CLIENT_ID`）；兩者都沒有時，介面不會把 Spotify 當成現有功能。
 
 YouTube Music 使用官方 Data API 讀取私人歌單，歌曲以嵌入播放器播放。官方沒有提供可讓第三方 PWA 讀取個人 YouTube Music 播放狀態的公開 API，因此 Echora 不會依賴 Piped／Invidious 這類不穩定的非官方鏡像。
 
@@ -99,12 +99,28 @@ YouTube Music 使用官方 Data API 讀取私人歌單，歌曲以嵌入播放�
 
 連線後若顯示「YouTube API 拒絕存取（403 …）」，錯誤訊息會標明原因：`accessNotConfigured` 表示專案未啟用 YouTube Data API v3；`quotaExceeded` 表示每日配額用盡；`forbidden` 通常代表該帳號（如 Workspace 帳號）無法使用 YouTube Data API。
 
-Spotify 程式仍保留，但在 Client ID 設定完成前不會出現在 Landing、來源列或 README 賣點。若要啟用：
+Spotify 程式仍保留，但在 Client ID 設定完成前不會出現在 Landing、來源列或 README 賣點。
+
+### Spotify：每位使用者帶自己的 Client ID
+
+Spotify 自 2026 年 3 月起，開發模式的 app 只允許 **5 位已授權使用者**，而且 Extended Quota Mode 只接受組織申請（需 25 萬 MAU），個人拿不到。因此一個共用的 app 無法服務一群人。
+
+解法與 [Lyricify](https://github.com/WXRIW/Lyricify-App) 相同：**每位使用者自己建一個 app**。限制是「每個 app 5 人」，不是「每個人 5 人」，所以一萬個人就是各自 1 人，全部合法。app 擁有者的 Spotify 帳號需要有 Premium。
+
+Echora 的 Client ID 因此可以在執行期設定，不必重新部署：
+
+1. 使用者開啟 **設定 → Spotify 連線**，頁面會顯示自己該填的 Redirect URI（預設 `<origin>/app`）。
+2. 到 [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) 建立 app，把該 Redirect URI 加進去。**必須是 `127.0.0.1` 或 `https` 網址**，Spotify 已不接受 `localhost`。
+3. 複製 Client ID 貼回設定頁即可，**不需要 Client Secret**（本專案使用 PKCE，secret 永遠不會離開使用者的 Dashboard）。
+
+Client ID 存放於 `localStorage['echora.spotify.client-id']`。沒填時會退回建置期的 `VITE_SPOTIFY_CLIENT_ID`，所以單人自架仍可用環境變數一勞永逸：
 
 1. 在 Spotify Developer Dashboard 建立一個 app。
-2. 本機請將 `http://127.0.0.1:3000/` 加入 Redirect URI（正式環境使用 HTTPS 網址）。
+2. 本機請將 `http://127.0.0.1:3000/app` 加入 Redirect URI（正式環境使用 HTTPS 網址）。
 3. 複製 `packages/web/.env.example` 為 `packages/web/.env`，填入 `VITE_SPOTIFY_CLIENT_ID`。
 4. 重新啟動 `pnpm dev`。
+
+授權工作階段會記錄發給它的 Client ID：換一個 Client ID 等同換一個 app，必須重新授權，舊的 refresh token 不會被誤用。
 
 ## 疑難排解：畫面在動但沒聲音
 

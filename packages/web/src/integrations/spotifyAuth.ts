@@ -1,14 +1,38 @@
+import {
+  SPOTIFY_VERIFIER_KEY as VERIFIER_KEY,
+  useSpotifyCredentialStore,
+} from '../store/spotifyCredentialStore';
+
 const STORAGE_KEY = 'echora.spotify.session';
-const VERIFIER_KEY = 'echora.spotify.pkce.verifier';
-const STATE_KEY = 'echora.spotify.pkce.state';
+
+// Same indirection as the credential store: `window` does not exist when the unit tests import
+// this module, and the auth code must not throw on import.
+const storage = (kind: 'local' | 'session'): Storage | null => {
+  if (typeof window !== 'undefined') {
+    const fromWindow = kind === 'local' ? window.localStorage : window.sessionStorage;
+    if (fromWindow) return fromWindow;
+  }
+  try {
+    return kind === 'local' ? window.localStorage : window.sessionStorage;
+  } catch {
+    return null;
+  }
+};
 
 export interface SpotifySession {
   accessToken: string;
   refreshToken?: string;
   expiresAt: number;
+  /**
+   * The Client ID that issued this session. Refresh tokens are app-bound, so the pair has to be
+   * kept together: a listener who pastes a new Client ID has to authorize again, not retry a
+   * refresh against the old app.
+   */
+  clientId: string;
 }
 
-export const spotifyClientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID as string | undefined;
+// The Client ID is read at call time, not at import time: it can come from the Settings page.
+const currentClientId = () => useSpotifyCredentialStore.getState().clientId;
 
 // Spotify redirects back here after OAuth. Default to /app so a just-connected
 // user lands in the app shell; deployments that still point the registered
@@ -37,31 +61,41 @@ const codeChallenge = async (verifier: string) => {
 
 export const getStoredSpotifySession = (): SpotifySession | null => {
   try {
-    const value = localStorage.getItem(STORAGE_KEY);
-    return value ? JSON.parse(value) as SpotifySession : null;
+    const value = storage('local')?.getItem(STORAGE_KEY);
+    if (!value) return null;
+    const session = JSON.parse(value) as SpotifySession;
+    // A session with no recorded app predates the Client ID handshake or belongs to another app:
+    // either way its refresh token is useless here.
+    if (!session.clientId || session.clientId !== currentClientId()) return null;
+    return session;
   } catch {
     return null;
   }
 };
 
-const storeSession = (data: { access_token: string; refresh_token?: string; expires_in: number }, previous?: SpotifySession): SpotifySession => {
+const storeSession = (
+  data: { access_token: string; refresh_token?: string; expires_in: number },
+  clientId: string,
+  previous?: SpotifySession,
+): SpotifySession => {
   const session: SpotifySession = {
     accessToken: data.access_token,
     refreshToken: data.refresh_token || previous?.refreshToken,
     expiresAt: Date.now() + Math.max(data.expires_in - 60, 30) * 1000,
+    clientId,
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  storage('local')?.setItem(STORAGE_KEY, JSON.stringify(session));
   return session;
 };
 
 export const beginSpotifyLogin = async () => {
-  if (!spotifyClientId) throw new Error('缺少 VITE_SPOTIFY_CLIENT_ID');
+  const clientId = currentClientId();
+  if (!clientId) throw new Error('尚未設定 Spotify Client ID');
   const verifier = randomString(64);
   const state = randomString(24);
-  sessionStorage.setItem(VERIFIER_KEY, verifier);
-  sessionStorage.setItem(STATE_KEY, state);
+  useSpotifyCredentialStore.getState().beginOAuth(state, verifier);
   const params = new URLSearchParams({
-    client_id: spotifyClientId,
+    client_id: clientId,
     response_type: 'code',
     redirect_uri: spotifyRedirectUri,
     code_challenge_method: 'S256',
@@ -80,15 +114,20 @@ export const finishSpotifyLogin = async (): Promise<SpotifySession | null> => {
   if (error) throw new Error(`Spotify 授權未完成：${error}`);
   if (!code) return getStoredSpotifySession();
 
-  const verifier = sessionStorage.getItem(VERIFIER_KEY);
-  const expectedState = sessionStorage.getItem(STATE_KEY);
+  const verifier = storage('session')?.getItem(VERIFIER_KEY) || null;
+  // `state` is stored as "<clientId>:<state>": the prefix names the app the code has to be
+  // exchanged with, even if the listener changed their Client ID while the consent page was open.
+  const handshake = useSpotifyCredentialStore.getState().readPendingReturn();
+  const separator = handshake.indexOf(':');
+  const handshakeClientId = separator > 0 ? handshake.slice(0, separator) : '';
+  const expectedState = separator > 0 ? handshake.slice(separator + 1) : '';
   if (!verifier || !expectedState || returnedState !== expectedState) throw new Error('Spotify 授權狀態驗證失敗');
 
   const response = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: spotifyClientId || '',
+      client_id: handshakeClientId,
       grant_type: 'authorization_code',
       code,
       redirect_uri: spotifyRedirectUri,
@@ -96,9 +135,8 @@ export const finishSpotifyLogin = async (): Promise<SpotifySession | null> => {
     }),
   });
   if (!response.ok) throw new Error('Spotify token exchange failed');
-  const session = storeSession(await response.json());
-  sessionStorage.removeItem(VERIFIER_KEY);
-  sessionStorage.removeItem(STATE_KEY);
+  const session = storeSession(await response.json(), handshakeClientId);
+  storage('session')?.removeItem(VERIFIER_KEY);
   window.history.replaceState({}, document.title, window.location.pathname);
   // If the registered redirect URI still points at the landing page, hand the
   // freshly connected user to the app shell instead of leaving them on /.
@@ -107,14 +145,21 @@ export const finishSpotifyLogin = async (): Promise<SpotifySession | null> => {
 };
 
 export const refreshSpotifySession = async (session: SpotifySession): Promise<SpotifySession | null> => {
-  if (!session.refreshToken || !spotifyClientId) return null;
+  if (!session.refreshToken || !session.clientId) return null;
   const response = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: spotifyClientId, grant_type: 'refresh_token', refresh_token: session.refreshToken }),
+    body: new URLSearchParams({
+      client_id: session.clientId,
+      grant_type: 'refresh_token',
+      refresh_token: session.refreshToken,
+    }),
   });
   if (!response.ok) return null;
-  return storeSession(await response.json(), session);
+  return storeSession(await response.json(), session.clientId, session);
 };
 
-export const clearSpotifySession = () => localStorage.removeItem(STORAGE_KEY);
+export const clearSpotifySession = () => {
+  storage('local')?.removeItem(STORAGE_KEY);
+  // The lander's own Client ID survives a disconnect; only the session goes.
+};

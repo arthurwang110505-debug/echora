@@ -58,4 +58,20 @@ describe('Settings AI stage experience', () => {
     expect(markup).toContain('原始碼');
     expect(markup).toContain('隱私權說明');
   });
+
+  it('offers a pasted Spotify Client ID, with the redirect URI the listener must register', () => {
+    mocks.currentSong = null;
+    mocks.currentLyrics = null;
+
+    const markup = renderToStaticMarkup(<Settings />);
+
+    // Spotify dev mode caps an app at five listeners; the way through is one app per listener, so
+    // the settings page has to hand them the exact Redirect URI their app must be created with.
+    expect(markup).toContain('Spotify 連線');
+    expect(markup).toContain('Client ID');
+    expect(markup).toContain('http://127.0.0.1:3000/app');
+    // The secret never belongs in a browser app: only one credential field, and no password input.
+    expect(markup).not.toContain('type="password"');
+    expect(markup.match(/aria-label="Client ID"/g)).toHaveLength(1);
+  });
 });

@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, Minimize2, Sparkles } from 'lucide-react';
 import { usePlayer } from '../contexts/PlayerContext';
 import { useTheme } from '../contexts/ThemeProvider';
 import YouTubePlayer from '../components/YouTubePlayer';
-import { spotifyClientId } from '../integrations/spotifyAuth';
+import { useSpotifyCredentialStore } from '../store/spotifyCredentialStore';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import LyriclessSoundscapeStage from '../components/LyriclessSoundscapeStage';
 import { CoverImage, PanelSkeleton, PlayerSkeleton, StageSkeleton } from '../components/LoadingSkeletons';
@@ -127,7 +127,7 @@ export default function Player() {
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isThemeQuickEditorOpen, setIsThemeQuickEditorOpen] = useState(false);
   const stageRootRef = useRef<HTMLDivElement>(null);
-  const spotifyAvailable = Boolean(spotifyClientId);
+  const spotifyAvailable = useSpotifyCredentialStore((state) => Boolean(state.clientId));
   const demoMode = location.state?.demo === true || new URLSearchParams(location.search).get('demo') === '1';
   const isYouTubeVideoMode = isYouTubeVideo(currentSong);
   const [hasHydrated, setHasHydrated] = useState(false);

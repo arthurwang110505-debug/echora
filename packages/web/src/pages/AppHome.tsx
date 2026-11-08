@@ -5,7 +5,7 @@ import { ArrowRight, Check, LayoutGrid, Library, Orbit, Play, Search, Settings2,
 import { usePlayer } from '../contexts/PlayerContext';
 import YouTubeFailureMessage from '../components/YouTubeFailureMessage';
 import { type Song } from '@echora/core';
-import { spotifyClientId } from '../integrations/spotifyAuth';
+import { useSpotifyCredentialStore } from '../store/spotifyCredentialStore';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { LOCAL_DEMO_SONGS } from '../store/localDemoSongs';
 import { consumeLandingHandoff } from '../utils/landingHandoff';
@@ -81,7 +81,9 @@ export default function AppHome() {
   const connectModalRef = useRef<HTMLDivElement>(null);
   const previousSourceRef = useRef(activeSource);
   const closeConnectModal = useCallback(() => setShowConnectModal(false), []);
-  const spotifyAvailable = Boolean(spotifyClientId);
+  // Subscribe rather than read once: pasting a Client ID on the Settings page must reveal the
+  // Spotify source without a reload.
+  const spotifyAvailable = useSpotifyCredentialStore((state) => Boolean(state.clientId));
 
   useDialogFocus(showConnectModal, connectModalRef, closeConnectModal);
 

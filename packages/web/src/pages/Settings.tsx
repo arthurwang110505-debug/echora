@@ -13,13 +13,15 @@ import type { MotionPreference } from '../store/themeStore';
 import { getCorrespondingSourceUrl } from '../lib/sourceAvailability';
 import { getLanguage, setLanguage, type AppLanguage } from '../i18n';
 import { useObsStageStore } from '../store/obsStageStore';
+import { useSpotifyCredentialStore } from '../store/spotifyCredentialStore';
+import { spotifyRedirectUri } from '../integrations/spotifyAuth';
 import { buildObsStageOverlayUrl } from '../obs/protocol';
 
 export default function Settings() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { currentTheme, activeTheme, setTheme, toggleTheme, enableAiTheme, aiThemeEnabled, motionPreference, setMotionPreference } = useTheme();
-  const { currentSong, currentLyrics, localSpectrum } = usePlayer();
+  const { currentSong, currentLyrics, localSpectrum, disconnectSpotify } = usePlayer();
   // Plain-language read-out of the audio routing decision, so a silent stage can be
   // diagnosed from the UI instead of the Web Audio console.
   const spectrumLabel = !localSpectrum
@@ -34,6 +36,33 @@ export default function Settings() {
   const [generationError, setGenerationError] = useState('');
   // Stage overlay (OBS): the store owns the settings, the copied flag is local UI state.
   const obsStage = useObsStageStore();
+  // Spotify credential: Spotify caps an app at five listeners, so a crowd needs one app each.
+  const spotifyCredential = useSpotifyCredentialStore();
+  const [spotifyDraft, setSpotifyDraft] = useState('');
+  const [spotifyNotice, setSpotifyNotice] = useState<'' | 'saved' | 'invalid' | 'removed'>('');
+  const [spotifyRedirectCopied, setSpotifyRedirectCopied] = useState(false);
+  const saveSpotifyCredential = () => {
+    const previous = spotifyCredential.clientId;
+    const result = spotifyCredential.setClientId(spotifyDraft);
+    if (!result.ok) {
+      setSpotifyNotice('invalid');
+      return;
+    }
+    // A refresh token only works against the app that issued it, so switching apps has to drop the
+    // old connection rather than leave a session that will fail on its first refresh.
+    if (spotifyCredential.clientId !== previous) disconnectSpotify();
+    setSpotifyDraft('');
+    setSpotifyNotice('saved');
+  };
+  const copySpotifyRedirect = async () => {
+    try {
+      await navigator.clipboard.writeText(spotifyRedirectUri);
+      setSpotifyRedirectCopied(true);
+      window.setTimeout(() => setSpotifyRedirectCopied(false), 2000);
+    } catch {
+      setSpotifyRedirectCopied(false);
+    }
+  };
   const [overlayCopied, setOverlayCopied] = useState(false);
   const overlayUrl = typeof window === 'undefined'
     ? ''
@@ -262,6 +291,86 @@ export default function Settings() {
             <p className="font-bold text-white">{t('settings.spectrumTitle')}</p>
             <p className="mt-1">{spectrumLabel}</p>
             <p className="mt-1 text-[11px] text-slate-500">{t('settings.spectrumHint')}</p>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="font-mono text-xs font-extrabold uppercase tracking-widest text-[#62f5c4]">{t('settings.spotifyTitle')}</h2>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs leading-6 text-slate-300">
+            <p className="font-bold text-white">
+              {spotifyCredential.isCustom
+                ? t('settings.spotifyConfigured')
+                : spotifyCredential.clientId
+                  ? t('settings.spotifyUsingEnv')
+                  : t('settings.spotifyNotConfigured')}
+            </p>
+            <p className="mt-1 text-[11px] leading-5 text-slate-400">{t('settings.spotifyIntro')}</p>
+            <p className="mt-1 text-[11px] leading-5 text-[#9ff9d7]">{t('settings.spotifySlotsLead')}</p>
+
+            <div className="mt-4 space-y-2">
+              <label className="block">
+                <span className="font-bold text-white">{t('settings.spotifyClientIdLabel')}</span>
+                <span className="mt-0.5 block text-[11px] text-slate-500">{t('settings.spotifyClientIdHint')}</span>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    value={spotifyDraft}
+                    onChange={event => { setSpotifyDraft(event.target.value); setSpotifyNotice(''); }}
+                    spellCheck={false}
+                    autoComplete="off"
+                    placeholder={t('settings.spotifyClientIdPlaceholder')}
+                    aria-label={t('settings.spotifyClientIdLabel')}
+                    className="min-w-0 flex-1 rounded-xl border border-white/10 bg-[#111720] px-3 py-2 font-mono text-xs text-white outline-none focus:border-[#62f5c4]"
+                  />
+                  <button
+                    type="button"
+                    onClick={saveSpotifyCredential}
+                    disabled={!spotifyDraft.trim()}
+                    className="rounded-xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-3.5 py-2 text-xs font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/20 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {t('settings.spotifySave')}
+                  </button>
+                </div>
+              </label>
+              {spotifyNotice === 'saved' && <p className="text-[11px] leading-5 text-[#9ff9d7]">{t('settings.spotifySaved')}</p>}
+              {spotifyNotice === 'invalid' && <p className="text-[11px] leading-5 text-rose-300">{t('settings.spotifyInvalid')}</p>}
+              {spotifyNotice === 'removed' && <p className="text-[11px] leading-5 text-slate-400">{t('settings.spotifyRemoved')}</p>}
+              {spotifyCredential.isCustom && (
+                <button
+                  type="button"
+                  onClick={() => { spotifyCredential.clearClientId(); disconnectSpotify(); setSpotifyNotice('removed'); }}
+                  className="text-left text-[11px] font-bold text-slate-400 underline decoration-white/20 underline-offset-2 transition hover:text-white"
+                >
+                  {t('settings.spotifyRemove')} →
+                </button>
+              )}
+            </div>
+
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <p className="font-bold text-white">{t('settings.spotifyRedirectLabel')}</p>
+              <p className="mt-0.5 text-[11px] leading-5 text-slate-500">{t('settings.spotifyRedirectHint')}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <code className="min-w-0 flex-1 break-all rounded-xl border border-white/10 bg-black/30 px-3 py-2 font-mono text-[11px] text-slate-300">{spotifyRedirectUri}</code>
+                <button type="button" onClick={() => void copySpotifyRedirect()} className="rounded-xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-3.5 py-2 text-xs font-bold text-[#b8ffe2] transition hover:bg-[#62f5c4]/20">
+                  {spotifyRedirectCopied ? t('settings.spotifyCopied') : t('settings.spotifyCopy')}
+                </button>
+              </div>
+            </div>
+
+            <details className="mt-4 border-t border-white/10 pt-4">
+              <summary className="cursor-pointer font-bold text-white">{t('settings.spotifyGuideLink')}</summary>
+              <ol className="mt-2 list-decimal space-y-1 pl-5 text-[11px] leading-5 text-slate-400">
+                <li>{t('settings.spotifyStep1')}</li>
+                <li>{t('settings.spotifyStep2')}</li>
+                <li>{t('settings.spotifyStep3')}</li>
+                <li>{t('settings.spotifyStep4')}</li>
+                <li>{t('settings.spotifyStep5')}</li>
+                <li>{t('settings.spotifyStep6')}</li>
+              </ol>
+              <p className="mt-2 text-[11px] leading-5 text-amber-300">{t('settings.spotifyPremiumNote')}</p>
+            </details>
+
+            <p className="mt-3 text-[11px] leading-5 text-slate-500">{t('settings.spotifySecretNote')}</p>
           </div>
         </section>
 
