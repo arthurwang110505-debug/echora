@@ -1,14 +1,18 @@
 import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
+import YouTubeFailureMessage from '../YouTubeFailureMessage';
+import type { YouTubeFailure } from '../../lib/youtubeFailure';
+import type { YouTubeConnectionState } from '../../store/playerStore';
 
 type ConnectModalProps = {
   dialogRef: RefObject<HTMLDivElement | null>;
   spotifyAvailable: boolean;
   activeSource: 'spotify' | 'ytmusic' | 'local';
   spotifyError: string | null;
-  youtubeError: string | null;
+  youtubeError: YouTubeFailure | null;
   youtubeConnected: boolean;
+  youtubeConnectionState: YouTubeConnectionState;
   spotifyConnected: boolean;
   onClose: () => void;
   onConnectYouTube: () => void;
@@ -25,6 +29,7 @@ export default function ConnectModal({
   spotifyError,
   youtubeError,
   youtubeConnected,
+  youtubeConnectionState,
   spotifyConnected,
   onClose,
   onConnectYouTube,
@@ -54,8 +59,26 @@ export default function ConnectModal({
           </p>
         )}
         {youtubeError && (
-          <p className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs leading-5 text-rose-200">
-            {youtubeError}
+          <div role="alert" className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs leading-5 text-rose-200">
+            <YouTubeFailureMessage failure={youtubeError} />
+          </div>
+        )}
+        {/* The four states the plan asked for. `syncing` and `expired` used to be invisible here:
+            the modal only knew connected or not, so a dead token looked healthy and a first sync
+            looked hung. */}
+        {youtubeConnected && youtubeConnectionState !== 'error' && (
+          <p role="status" className="flex items-center gap-2 text-[11px] text-slate-300">
+            <span
+              aria-hidden="true"
+              className={`inline-block h-1.5 w-1.5 rounded-full ${
+                youtubeConnectionState === 'syncing' ? 'animate-pulse bg-amber-300'
+                  : youtubeConnectionState === 'expired' ? 'bg-rose-400'
+                    : 'bg-emerald-400'
+              }`}
+            />
+            {youtubeConnectionState === 'syncing' ? t('player.stateSyncing')
+              : youtubeConnectionState === 'expired' ? t('player.stateExpired')
+                : t('player.stateConnected')}
           </p>
         )}
         {/*

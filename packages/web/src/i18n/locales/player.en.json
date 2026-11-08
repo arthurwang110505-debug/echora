@@ -167,7 +167,10 @@
     "connectGooglePrivacyLink": "Google Privacy Policy",
     "enterFullscreen": "Fullscreen",
     "enterFullscreenAria": "Enter fullscreen playback",
-    "obsPublishing": "On air"
+    "obsPublishing": "On air",
+    "stateConnected": "Connected",
+    "stateSyncing": "Syncing…",
+    "stateExpired": "Authorization expired — sign in again"
   },
   "panel": {
     "toggleAria": "Expand the control panel",
@@ -289,7 +292,12 @@
       "showAll": "Show every command",
       "ariaLabel": "Command palette",
       "resultCount": "{{count}} commands found"
-    }
+    },
+    "stateAuthorizing": "Waiting for Google…",
+    "stateError": "Connection error",
+    "reconnect": "Sign in again",
+    "stateExpired": "Authorization expired — sign in again",
+    "stateSyncing": "Syncing…"
   },
   "ui": {
     "backToHome": "Back to home",

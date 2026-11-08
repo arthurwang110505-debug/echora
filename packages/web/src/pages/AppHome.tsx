@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowRight, Check, LayoutGrid, Library, Orbit, Play, Search, Settings2, X } from 'lucide-react';
 import { usePlayer } from '../contexts/PlayerContext';
+import YouTubeFailureMessage from '../components/YouTubeFailureMessage';
 import { type Song } from '@echora/core';
 import { spotifyClientId } from '../integrations/spotifyAuth';
 import { useDialogFocus } from '../hooks/useDialogFocus';
@@ -488,8 +489,8 @@ export default function AppHome() {
                 {spotifyError}<br />{t('appHome.spotifyRedirectHint')}
               </p>
             )}
-            {youtubeError && <p className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs leading-5 text-rose-200">{youtubeError}</p>}
-            {activeSource === 'ytmusic' && youtubeConnected && <div className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-xs text-emerald-100"><p className="font-bold">{t('appHome.connectedYt', { name: youtubeProfile?.name || 'YouTube', sync: syncCopy })}</p><p className="mt-1 text-emerald-100/75">{t('appHome.playlistsShared')}</p>{libraryError ? <p className="mt-2 text-rose-200">{libraryError}</p> : null}<div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => void loadSourcePlaylists()} disabled={isSyncingLibrary} className="rounded-lg border border-emerald-200/25 px-3 py-1.5 font-bold transition hover:bg-emerald-300/10 disabled:opacity-60">{isSyncingLibrary ? t('appHome.syncing') : t('appHome.resync')}</button><button type="button" onClick={() => { setShowConnectModal(false); navigate('/library'); }} className="rounded-lg border border-emerald-200/25 px-3 py-1.5 font-bold transition hover:bg-emerald-300/10">{t('appHome.openLibrary')}</button></div></div>}
+            {youtubeError && <div role="alert" className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3 text-xs leading-5 text-rose-200"><YouTubeFailureMessage failure={youtubeError} /></div>}
+            {activeSource === 'ytmusic' && youtubeConnected && <div className="mt-4 rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-xs text-emerald-100"><p className="font-bold">{t('appHome.connectedYt', { name: youtubeProfile?.name || 'YouTube', sync: syncCopy })}</p><p className="mt-1 text-emerald-100/75">{t('appHome.playlistsShared')}</p>{libraryError ? <YouTubeFailureMessage failure={libraryError} compact className="mt-2 text-rose-200" /> : null}<div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => void loadSourcePlaylists()} disabled={isSyncingLibrary} className="rounded-lg border border-emerald-200/25 px-3 py-1.5 font-bold transition hover:bg-emerald-300/10 disabled:opacity-60">{isSyncingLibrary ? t('appHome.syncing') : t('appHome.resync')}</button><button type="button" onClick={() => { setShowConnectModal(false); navigate('/library'); }} className="rounded-lg border border-emerald-200/25 px-3 py-1.5 font-bold transition hover:bg-emerald-300/10">{t('appHome.openLibrary')}</button></div></div>}
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => changeSource('ytmusic')} className={`min-h-16 rounded-xl border px-4 py-3 text-left text-xs font-bold transition ${activeSource === 'ytmusic' ? 'border-[#ff3d57]/60 bg-[#ff3d57]/10 text-white' : 'border-white/10 bg-white/[0.03] text-slate-400'}`}>
                 <span className="block text-sm text-[#ff7180]">YouTube Music</span>

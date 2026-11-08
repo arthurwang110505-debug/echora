@@ -86,6 +86,7 @@ const makeControls = (overrides: Partial<ControlsTabProps> = {}): ControlsTabPro
 const makeAccount = (overrides: Partial<AccountTabProps> = {}): AccountTabProps => ({
   activeSource: 'local',
   youtubeConnected: false,
+  youtubeConnectionState: 'disconnected',
   youtubeProfile: null,
   spotifyConnected: false,
   spotifyAvailable: false,

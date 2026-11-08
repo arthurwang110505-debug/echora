@@ -45,5 +45,27 @@
     "privacy": "隱私權政策",
     "terms": "服務條款",
     "backToApp": "回到播放器"
+  },
+  "youtubeFailure": {
+    "not_connected": "尚未連線 YouTube",
+    "auth_expired": "YouTube 授權已失效，請重新登入。",
+    "api_disabled": "這個專案沒有啟用 YouTube Data API。",
+    "quota_exceeded": "今天的 YouTube API 配額已用完。",
+    "account_forbidden": "這個帳號無法使用 YouTube Data API。",
+    "access_denied": "YouTube 拒絕了這次存取。",
+    "search_limited": "搜尋太頻繁，請稍後再試。",
+    "upstream_unavailable": "YouTube 暫時沒有回應。",
+    "player_error": "播放器無法播放這部影片。",
+    "no_playable_video": "找不到可播放的影片。",
+    "missing_query": "這首歌缺少歌名，無法搜尋。",
+    "empty_library": "這個帳號沒有回傳任何歌單。",
+    "misconfigured": "YouTube 連線設定不完整。",
+    "unknown": "YouTube 發生未預期的錯誤。",
+    "hintApiDisabled": "請到 Google Cloud Console 的「API 和服務 → 媒體庫」啟用 YouTube Data API v3，儲存後重新連線。",
+    "hintQuota": "配額在太平洋時間午夜重置，或可在 Cloud Console 申請提高。",
+    "hintForbidden": "常見於受管理的 Workspace 帳號，請改用一般 Google 個人帳號。",
+    "hintSearchLimited": "稍候再試，或直接從已同步的私人歌單選曲。",
+    "hintEmptyLibrary": "請確認歌單存在於同一個 YouTube 帳戶。",
+    "timeout": "連線逾時，請檢查網路後再試。"
   }
 }

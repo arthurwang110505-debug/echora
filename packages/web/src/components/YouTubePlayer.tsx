@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { usePlayer } from '../contexts/PlayerContext';
 import { extractYouTubeVideoId } from '@echora/core';
 import { recordDiagnostic } from '../lib/diagnostics';
+import YouTubeFailureMessage from './YouTubeFailureMessage';
 import { derivePlaybackVolume } from '../playback/volumeState';
 import { YOUTUBE_FADE_OUT_MS, YOUTUBE_FADE_STEP_MS, isYouTubeTrackChange, resolveYouTubeEndAction, resolveYouTubeFadeInGain, resolveYouTubeFadeOutGain } from '../playback/youtubeCrossfade';
 
@@ -91,14 +92,17 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
           },
           onError: (event: any) => {
             recordDiagnostic('youtube_error', { code: Number(event.data) || 0 });
-            const messages: Record<number, string> = {
-              2: t('player.ytErrorInvalidParams'),
-              5: t('player.ytErrorHtml5'),
-              100: t('player.ytErrorUnavailable'),
-              101: t('player.ytErrorEmbedDisabled'),
-              150: t('player.ytErrorEmbedDisabled'),
-            };
-            usePlayer.setState({ isPlaying: false, playbackState: 'error', youtubeError: messages[event.data] || t('player.ytErrorGeneric') });
+            // The IFrame API's numeric codes are evidence, not copy: they go in `detail` so the
+            // screen can show the translated sentence and the code separately, and so this file
+            // stops holding five user-facing strings that no translation pass could reach.
+            const known = [2, 5, 100, 101, 150].includes(Number(event.data));
+            usePlayer.setState({
+              isPlaying: false,
+              playbackState: 'error',
+              youtubeError: known
+                ? { code: 'player_error', detail: `YT ${event.data}` }
+                : { code: 'unknown', detail: `YT ${event.data}` },
+            });
           },
         },
       });
@@ -233,7 +237,7 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
     if (youtubeCommand.action === 'load') {
       const videoId = extractYouTubeVideoId(youtubeCommand.url);
       if (!videoId) {
-        usePlayer.setState({ isPlaying: false, playbackState: 'error', youtubeError: t('player.ytErrorNoVideoId') });
+        usePlayer.setState({ isPlaying: false, playbackState: 'error', youtubeError: { code: 'no_playable_video' } });
         return;
       }
       startDissolve(videoId);
@@ -275,8 +279,7 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
   // The official IFrame Player API requires a rendered viewport of at least 200×200px.
   // Keep its native play surface visible until the user starts audio so browsers can preserve the gesture.
   const awaitingUserGesture = currentSong?.source === 'ytmusic' && !isPlaying;
-  const playerMessage = youtubeError
-    || (playbackState === 'buffering' ? t('player.ytBuffering') : t('player.ytGestureHint'));
+  const statusMessage = playbackState === 'buffering' ? t('player.ytBuffering') : t('player.ytGestureHint');
   const visibleSurfaceClass = videoMode ? getYouTubeVideoSurfaceClass() : getYouTubeSurfaceClass(immersive);
   const surfaceClass = concealed
     ? `${visibleSurfaceClass} pointer-events-none opacity-0`
@@ -284,7 +287,9 @@ export default function YouTubePlayer({ immersive = false, concealed = false, vi
       ? visibleSurfaceClass
       : 'pointer-events-none fixed -left-[10000px] top-0 h-[200px] w-[356px] overflow-hidden';
   return <div className={surfaceClass} aria-hidden={concealed || (!awaitingUserGesture && !videoMode)} aria-label={concealed ? undefined : t('player.ytNativePlayer')}>
-    {awaitingUserGesture && !concealed &&         <div role={youtubeError ? 'alert' : 'status'} className={`${immersive && !youtubeError ? 'sr-only' : 'pointer-events-none absolute inset-x-0 top-0 z-10 px-3 py-2 text-center text-xs font-semibold'} ${youtubeError ? 'bg-rose-950/90 text-rose-100' : 'bg-black/70 text-white'}`}>{playerMessage}</div>}
+    {awaitingUserGesture && !concealed && (youtubeError
+      ? <div role="alert" className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-rose-950/90 px-3 py-2 text-center text-xs font-semibold text-rose-100"><YouTubeFailureMessage failure={youtubeError} compact /></div>
+      : <div role="status" className={`${immersive ? 'sr-only' : 'pointer-events-none absolute inset-x-0 top-0 z-10 bg-black/70 px-3 py-2 text-center text-xs font-semibold text-white'}`}>{statusMessage}</div>)}
 
     <div ref={containerRef} className={videoMode ? 'h-full w-full aspect-video' : undefined} />
   </div>;

@@ -1,10 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { usePlayer } from '../contexts/PlayerContext';
+import { usePlayerStore, classifyYouTubeFailure } from '../store/playerStore';
+import type { YouTubeFailure } from '../lib/youtubeFailure';
 import { createCoverPlaceholder } from '../utils/coverPlaceholders';
 import BrandMark from '../components/BrandMark';
+import YouTubeFailureMessage from '../components/YouTubeFailureMessage';
 
 export default function Library() {
   const { t, i18n } = useTranslation();
@@ -38,9 +41,34 @@ export default function Library() {
     }
   }, [activeSource, isSyncingLibrary, libraryError, loadSourcePlaylists, userPlaylists.length, youtubeConnected]);
 
+  /**
+   * Opens a playlist, and stays on this page if it cannot be opened.
+   *
+   * The previous version awaited the load and then navigated unconditionally. A failure - a playlist
+   * deleted on the phone, a quota rejection, an expired token - therefore landed the user on the
+   * player with nothing loaded and no explanation of why, while the error sat back here on a page
+   * they had just left. Navigating is a promise that there is something to play; this only makes it
+   * after the load succeeds.
+   */
+  const [openingPlaylistId, setOpeningPlaylistId] = useState<string | null>(null);
+  const [openError, setOpenError] = useState<YouTubeFailure | null>(null);
   const openPlaylist = async (playlistId: string) => {
-    await loadYouTubePlaylist(playlistId);
-    navigate('/player');
+    setOpeningPlaylistId(playlistId);
+    setOpenError(null);
+    try {
+      await loadYouTubePlaylist(playlistId);
+      // An empty playlist resolves "successfully" with nothing to play; treat that as a failure
+      // here rather than sending the user to an empty player.
+      if (usePlayerStore.getState().playlist.length === 0) {
+        setOpenError({ code: 'no_playable_video' });
+        return;
+      }
+      navigate('/player');
+    } catch (error) {
+      setOpenError(classifyYouTubeFailure(error));
+    } finally {
+      setOpeningPlaylistId(null);
+    }
   };
 
   const syncLabel = lastLibrarySyncAt
@@ -92,11 +120,13 @@ export default function Library() {
           </section>
         )}
 
-        {libraryError ? <section role="alert" className="rounded-2xl border border-rose-300/25 bg-rose-300/10 p-5"><p className="font-bold text-rose-100">{t('library.syncErrorTitle')}</p><p className="mt-1 text-sm leading-6 text-rose-200/80">{libraryError}</p><button type="button" onClick={() => void loadSourcePlaylists()} className="mt-4 min-h-11 rounded-xl border border-rose-200/25 px-4 py-2 text-xs font-bold text-rose-100 transition hover:bg-rose-300/10">{t('library.retrySync')}</button></section> : null}
+        {libraryError ? <section role="alert" className="rounded-2xl border border-rose-300/25 bg-rose-300/10 p-5"><p className="font-bold text-rose-100">{t('library.syncErrorTitle')}</p><YouTubeFailureMessage failure={libraryError} className="mt-1 text-sm leading-6 text-rose-200/80" /><button type="button" onClick={() => void loadSourcePlaylists()} className="mt-4 min-h-11 rounded-xl border border-rose-200/25 px-4 py-2 text-xs font-bold text-rose-100 transition hover:bg-rose-300/10">{t('library.retrySync')}</button></section> : null}
+
+        {openError ? <section role="alert" className="rounded-2xl border border-rose-300/25 bg-rose-300/10 p-5"><p className="font-bold text-rose-100">{t('library.openErrorTitle')}</p><YouTubeFailureMessage failure={openError} className="mt-1 text-sm leading-6 text-rose-200/80" /><button type="button" onClick={() => setOpenError(null)} className="mt-4 min-h-11 rounded-xl border border-rose-200/25 px-4 py-2 text-xs font-bold text-rose-100 transition hover:bg-rose-300/10">{t('library.dismiss')}</button></section> : null}
 
         <section aria-labelledby="playlists-heading" className="scroll-mt-24">
           <div className="mb-4 flex items-end justify-between"><div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#62f5c4]">{t('library.connectedPlaylistsEyebrow')}</p><h2 id="playlists-heading" className="mt-1 text-2xl font-extrabold text-white">{t('library.myPlaylists')}</h2></div>{isSyncingLibrary ? <span className="text-xs font-semibold text-[#b8ffe2]">{t('library.loading')}</span> : null}</div>
-          {userPlaylists.length ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{userPlaylists.map(playlist => <button key={playlist.id} type="button" onClick={() => void openPlaylist(playlist.id)} className="group flex min-h-24 items-center gap-4 rounded-3xl border border-white/10 bg-white/[0.035] p-4 text-left transition hover:-translate-y-0.5 hover:border-[#62f5c4]/40 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F9F871]"><img src={playlist.coverUrl || createCoverPlaceholder(playlist.name)} alt="" className="h-16 w-16 rounded-2xl object-cover shadow-lg" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-extrabold text-white group-hover:text-[#62f5c4]">{playlist.name}</span><span className="mt-1 block text-xs text-slate-400">{t('library.trackCount', { count: playlist.trackCount || 0 })}</span></span><ArrowRight aria-hidden="true" className="h-4 w-4 text-[#62f5c4]" />
+          {userPlaylists.length ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{userPlaylists.map(playlist => <button key={playlist.id} type="button" disabled={openingPlaylistId === playlist.id} aria-busy={openingPlaylistId === playlist.id} onClick={() => void openPlaylist(playlist.id)} className="group flex min-h-24 disabled:opacity-60 items-center gap-4 rounded-3xl border border-white/10 bg-white/[0.035] p-4 text-left transition hover:-translate-y-0.5 hover:border-[#62f5c4]/40 hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F9F871]"><img src={playlist.coverUrl || createCoverPlaceholder(playlist.name)} alt="" className="h-16 w-16 rounded-2xl object-cover shadow-lg" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-extrabold text-white group-hover:text-[#62f5c4]">{playlist.name}</span><span className="mt-1 block text-xs text-slate-400">{openingPlaylistId === playlist.id ? t('library.openingPlaylist') : t('library.trackCount', { count: playlist.trackCount || 0 })}</span></span><ArrowRight aria-hidden="true" className="h-4 w-4 text-[#62f5c4]" />
 </button>)}</div> : !isSyncingLibrary && youtubeConnected && !libraryError ? <div className="rounded-3xl border border-dashed border-white/15 bg-white/[0.025] p-8 text-center"><p className="font-bold text-slate-200">{t('library.noPlaylistsTitle')}</p><p className="mt-2 text-sm text-slate-500">{t('library.noPlaylistsHint')}</p></div> : !youtubeConnected ? <div className="rounded-3xl border border-dashed border-white/15 bg-white/[0.025] p-6 text-center"><p className="font-bold text-slate-200">{t('library.connectToSeePlaylists')}</p><p className="mt-2 text-sm text-slate-500">{t('library.connectToSeePlaylistsHint')}</p></div> : null}
         </section>
 

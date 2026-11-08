@@ -167,7 +167,10 @@
     "connectGooglePrivacyLink": "Google 隱私權政策",
     "enterFullscreen": "全螢幕",
     "enterFullscreenAria": "進入全螢幕播放",
-    "obsPublishing": "輸出中"
+    "obsPublishing": "輸出中",
+    "stateConnected": "已連線",
+    "stateSyncing": "同步中…",
+    "stateExpired": "授權已過期，請重新登入"
   },
   "panel": {
     "toggleAria": "展開控制面板",
@@ -289,7 +292,12 @@
       "showAll": "顯示全部命令",
       "ariaLabel": "命令面板",
       "resultCount": "找到 {{count}} 個命令"
-    }
+    },
+    "stateAuthorizing": "等待 Google 授權…",
+    "stateError": "連線發生錯誤",
+    "reconnect": "重新登入",
+    "stateExpired": "授權已過期，請重新登入",
+    "stateSyncing": "同步中…"
   },
   "ui": {
     "backToHome": "返回首頁",

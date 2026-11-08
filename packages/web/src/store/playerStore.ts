@@ -21,6 +21,7 @@ import { beginYouTubeLogin, clearYouTubeSession, getStoredYouTubeSession, revoke
 import { getBundledDemoLyrics } from './demoLyrics';
 import { LOCAL_DEMO_LYRICS, LOCAL_DEMO_SONGS } from './localDemoSongs';
 import { recordDiagnostic } from '../lib/diagnostics';
+import type { YouTubeFailure } from '../lib/youtubeFailure';
 import { isYouTubeVideo } from '../utils/youtubePlayback';
 import { IDLE_MEDIA_COMMAND, nextMediaCommand, type MediaCommand } from '../playback/mediaCommand';
 import { parseUploadedLyrics, readUploadedLyrics, writeUploadedLyrics } from '../playback/lyricsImport';
@@ -45,7 +46,7 @@ const refreshLocalDemoArtwork = (song: Song): Song => (
 const refreshLocalDemoArtworkList = (songs: Song[]): Song[] => songs.map(refreshLocalDemoArtwork);
 
 type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'buffering' | 'ended' | 'error';
-type YouTubeConnectionState = 'disconnected' | 'authorizing' | 'syncing' | 'synced' | 'expired' | 'error';
+export type YouTubeConnectionState = 'disconnected' | 'authorizing' | 'syncing' | 'synced' | 'expired' | 'error';
 
 const readRecentSongs = (): Song[] => {
   if (typeof window === 'undefined') return [];
@@ -143,14 +144,6 @@ const schedulePlaybackSnapshot = (state: PlayerState) => {
   }, wait);
 };
 
-// Google Data API 403 reasons mapped to actionable guidance. The generic 403
-// copy covers every other rejection (policy, disabled service, etc.).
-const YOUTUBE_403_REASONS: Array<{ match: RegExp; message: string }> = [
-  { match: /accessNotConfigured/i, message: 'YouTube API 拒絕存取（403 accessNotConfigured）：Google Cloud 專案尚未啟用 YouTube Data API v3。請到 Google Cloud Console →「API 和服務 → 媒體庫」啟用 YouTube Data API v3（選擇 OAuth 用戶端所屬的專案），儲存後重新連線。' },
-  { match: /quotaExceeded|rateLimitExceeded|dailyLimitExceeded/i, message: 'YouTube API 拒絕存取（403 quotaExceeded）：此 Google Cloud 專案的每日 API 配額已用盡，請隔天再試，或到 Google Cloud Console 申請提高配額。' },
-  { match: /forbidden/i, message: 'YouTube API 拒絕存取（403 forbidden）：這個帳號無法使用 YouTube Data API（常見於受管理的 Workspace 帳號）。請改用一般 Google 個人帳號重新連線。' },
-];
-
 /**
  * Whether a failure means "this token is dead and only a fresh sign-in fixes it".
  *
@@ -165,18 +158,42 @@ export const isYouTubeAuthFailure = (error: unknown): boolean => {
   return parsed?.status === 401 || parsed?.reason === 'invalid_grant';
 };
 
-export const getYouTubeErrorMessage = (error: unknown, prefix = 'YouTube 連線失敗') => {
-  const message = error instanceof Error ? error.message : String(error || '未知錯誤');
-  // Prefer the structured facts; fall back to the historical message shape for anything without them.
+/**
+ * Classifies a failure.
+ *
+ * Returns a code, not a sentence. The sentence is composed at render time from the i18n bundle, so
+ * it can be translated, shortened for a phone, and corrected without touching this function - and
+ * so that nothing in the store has to know how long the text will be. `detail` carries only the
+ * piece of raw evidence worth showing (a status, Google's reason); it is never a full message.
+ */
+export const classifyYouTubeFailure = (error: unknown): YouTubeFailure => {
+  const message = error instanceof Error ? error.message : String(error || '');
+  if (!message) return { code: 'unknown' };
+
+  if (error instanceof Error && error.name === 'AbortError') return { code: 'upstream_unavailable', detail: 'timeout' };
+
   const status = isYouTubeApiError(error) ? error.status : parseYouTubeApiErrorMessage(message)?.status;
-  const reason = isYouTubeApiError(error) ? error.reason : parseYouTubeApiErrorMessage(message)?.reason ?? null;
-  if (status === 401) return 'YouTube 授權已失效，請解除連線後重新使用 Google 登入。';
+  const reason = (isYouTubeApiError(error) ? error.reason : parseYouTubeApiErrorMessage(message)?.reason ?? null) || null;
+
+  if (status === 401 || reason === 'invalid_grant') return { code: 'auth_expired' };
   if (status === 403) {
-    const haystack = reason ? `${message} ${reason}` : message;
-    const advice = YOUTUBE_403_REASONS.find(item => item.match.test(haystack));
-    return advice?.message || 'YouTube API 拒絕存取（403）：請確認 OAuth 用戶端所屬的 Google Cloud 專案已啟用 YouTube Data API v3，且 OAuth 同意畫面在「測試中」狀態時已將此帳號加入測試使用者（或已發布成正式版）。';
+    // The reason is the only reliable discriminator: Google returns 403 for a disabled API, an
+    // exhausted quota and a Workspace restriction, and the remedy differs for all three.
+    const haystack = `${message} ${reason || ''}`;
+    if (/accessNotConfigured|SERVICE_DISABLED/i.test(haystack)) return { code: 'api_disabled', detail: reason || undefined };
+    if (/quotaExceeded|rateLimitExceeded|dailyLimitExceeded/i.test(haystack)) return { code: 'quota_exceeded', detail: reason || undefined };
+    if (/forbidden|insufficientPermissions/i.test(haystack)) return { code: 'account_forbidden', detail: reason || undefined };
+    return { code: 'access_denied', detail: reason || undefined };
   }
-  return `${prefix}：${message}`;
+  // The search proxy's own limiter, not Google's quota: shorter and self-clearing.
+  if (status === 429 || /次數過多|search_limited/i.test(message)) return { code: 'search_limited' };
+  if (status === 404) return { code: 'no_playable_video' };
+  if (status && status >= 500) return { code: 'upstream_unavailable', detail: String(status) };
+  if (/尚未登入|no access token/i.test(message)) return { code: 'not_connected' };
+  if (/無法載入|無法開啟|載入逾時|net::|Failed to fetch/i.test(message)) return { code: 'upstream_unavailable' };
+  if (/找不到可嵌入|no playable/i.test(message)) return { code: 'no_playable_video' };
+
+  return { code: 'unknown', detail: status ? String(status) : undefined };
 };
 
 export type DisplayMode = 'stage' | 'full';
@@ -206,7 +223,7 @@ interface PlayerState {
   spotifyError: string | null;
   youtubeToken: string | null;
   youtubeConnected: boolean;
-  youtubeError: string | null;
+  youtubeError: YouTubeFailure | null;
   /**
    * When search may be attempted again.
    *
@@ -215,6 +232,8 @@ interface PlayerState {
    * not an authoritative quota ledger - the proxy is the only thing that knows that.
    */
   youtubeSearchBlockedUntil: number | null;
+  /** A video search is in flight. A status, deliberately not an error. */
+  youtubeResolving: boolean;
   youtubeConnectionState: YouTubeConnectionState;
   youtubeProfile: { name: string; avatarUrl?: string; channelId?: string } | null;
   spotifyProvider: SpotifyProvider;
@@ -225,7 +244,7 @@ interface PlayerState {
   recentSongs: Song[];
   favoriteSongs: Song[];
   isSyncingLibrary: boolean;
-  libraryError: string | null;
+  libraryError: YouTubeFailure | null;
   lastLibrarySyncAt: number | null;
   activeSource: 'spotify' | 'ytmusic' | 'local';
   localError: string | null;
@@ -296,6 +315,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   youtubeConnected: false,
   youtubeError: null,
   youtubeSearchBlockedUntil: null,
+  youtubeResolving: false,
   youtubeConnectionState: 'disconnected',
   youtubeProfile: null,
   spotifyProvider: new SpotifyProvider(),
@@ -371,23 +391,25 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         //      same song again should not spend another call to learn the same answer.
         const searchQuery = `${song.title} ${artist}`.trim();
         if (!searchQuery) {
-          set({ isPlaying: false, playbackState: 'error', youtubeError: '這首歌缺少可搜尋的歌名，請改從私人歌單選取。' });
+          set({ isPlaying: false, playbackState: 'error', youtubeError: { code: 'missing_query' } });
           return;
         }
         const quotaBlockedUntil = get().youtubeSearchBlockedUntil;
         if (quotaBlockedUntil && quotaBlockedUntil > Date.now()) {
           const minutes = Math.max(1, Math.ceil((quotaBlockedUntil - Date.now()) / 60_000));
-          set({ isPlaying: false, playbackState: 'error', youtubeError: `YouTube 搜尋額度已用完，約 ${minutes} 分鐘後再試，或改從私人歌單選取。` });
+          set({ isPlaying: false, playbackState: 'error', youtubeError: { code: 'search_limited', detail: String(minutes) } });
           return;
         }
-        set({ isPlaying: false, playbackState: 'loading', youtubeError: '正在查找可播放的 YouTube 影片…' });
+        // A search in progress is not a failure, so it does not go in `youtubeError` - that would
+        // make every screen show an error style for a second. `youtubeResolving` is the status.
+        set({ isPlaying: false, playbackState: 'loading', youtubeError: null, youtubeResolving: true });
         void get().ytProvider.searchTracks(searchQuery).then(results => {
           const resolved = extractYouTubeVideoId(results[0]?.audioUrl || results[0]?.id);
           if (resolved) {
-            set({ currentSong: { ...song, audioUrl: resolved }, isPlaying: false, playbackState: 'loading', youtubeError: null });
+            set({ currentSong: { ...song, audioUrl: resolved }, isPlaying: false, playbackState: 'loading', youtubeError: null, youtubeResolving: false });
             set({ youtubeCommand: nextMediaCommand(get().youtubeCommand, { action: 'load', url: resolved, autoplay: true }) });
           } else {
-            set({ isPlaying: false, playbackState: 'error', youtubeError: '找不到可嵌入播放的 YouTube 影片。請改選你的私人歌單曲目，或稍後再試。' });
+            set({ isPlaying: false, playbackState: 'error', youtubeError: { code: 'no_playable_video' }, youtubeResolving: false });
           }
         }).catch(error => {
           // A quota rejection is not a transient error, so it is remembered rather than retried on
@@ -397,7 +419,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           set({
             isPlaying: false,
             playbackState: 'error',
-            youtubeError: getYouTubeErrorMessage(error, '搜尋 YouTube 影片失敗'),
+            youtubeError: classifyYouTubeFailure(error),
+            youtubeResolving: false,
             ...(quotaExhausted ? { youtubeSearchBlockedUntil: Date.now() + 10 * 60_000 } : {}),
           });
         });
@@ -577,7 +600,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         return;
       }
       if (result.status === 'error' || !result.session) {
-        set({ youtubeConnectionState: 'error', youtubeError: result.message || 'YouTube 登入設定不完整' });
+        set({ youtubeConnectionState: 'error', youtubeError: { code: result.message ? 'unknown' : 'misconfigured', detail: result.message } });
         return;
       }
       // The popup never navigates, so nothing reloads the app for us: adopt the token, then run the
@@ -586,7 +609,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       set({ youtubeToken: result.session.accessToken, youtubeConnectionState: 'syncing' });
       await get().restoreYouTubeSession();
     } catch (error) {
-      set({ youtubeConnectionState: 'error', youtubeError: error instanceof Error ? error.message : 'YouTube 登入設定不完整' });
+      set({ youtubeConnectionState: 'error', youtubeError: classifyYouTubeFailure(error) });
     }
   },
 
@@ -613,16 +636,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       set({ youtubeToken: session.accessToken, youtubeConnected: true, youtubeConnectionState: 'syncing', youtubeError: null, youtubeProfile: profile, activeSource: 'ytmusic', libraryError: null });
       await get().loadSourcePlaylists();
     } catch (error) {
-      const message = getYouTubeErrorMessage(error);
+      const failure = classifyYouTubeFailure(error);
       // Only a genuine authorization failure may drop the token. A timeout, a network blip or a
       // quota 403 leaves the session intact - the plan's P1: one flaky moment used to sign the user
       // out, and `expired` was unreachable because this branch also cleared `youtubeConnected`.
       if (isYouTubeAuthFailure(error)) {
         clearYouTubeSession();
         ytProvider.setAccessToken(null);
-        set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: 'expired', youtubeProfile: null, userPlaylists: [], selectedPlaylistId: null, loadedPlaylistId: null, libraryError: message, isSyncingLibrary: false, youtubeError: message });
+        set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: 'expired', youtubeProfile: null, userPlaylists: [], selectedPlaylistId: null, loadedPlaylistId: null, libraryError: failure, isSyncingLibrary: false, youtubeError: failure });
       } else {
-        set({ youtubeConnected: Boolean(get().youtubeToken), youtubeConnectionState: 'error', isSyncingLibrary: false, libraryError: message, youtubeError: message });
+        set({ youtubeConnected: Boolean(get().youtubeToken), youtubeConnectionState: 'error', isSyncingLibrary: false, libraryError: failure, youtubeError: failure });
       }
     }
   },
@@ -737,7 +760,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         const nextSelectedPlaylistId = selectedPlaylistId && playlists.some(playlist => playlist.id === selectedPlaylistId)
           ? selectedPlaylistId
           : playlists[0]?.id || null;
-        set({ userPlaylists: playlists, selectedPlaylistId: nextSelectedPlaylistId, isSyncingLibrary: false, libraryError: playlists.length ? null : 'YouTube 已登入，但 API 沒有回傳可用歌單。請確認這些歌單存在於同一個 YouTube 帳戶。', lastLibrarySyncAt: Date.now(), youtubeConnectionState: 'synced', youtubeError: playlists.length ? null : 'YouTube 已登入，但 API 沒有回傳可用歌單。請確認這些歌單存在於同一個 YouTube 帳戶。' });
+        set({ userPlaylists: playlists, selectedPlaylistId: nextSelectedPlaylistId, isSyncingLibrary: false, libraryError: playlists.length ? null : { code: 'empty_library' }, lastLibrarySyncAt: Date.now(), youtubeConnectionState: 'synced', youtubeError: playlists.length ? null : { code: 'empty_library' } });
         if (nextSelectedPlaylistId) {
           await get().loadYouTubePlaylist(nextSelectedPlaylistId, { autoplay: false });
         }
@@ -745,13 +768,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         set({ userPlaylists: [], isSyncingLibrary: false, libraryError: null });
       }
     } catch (error) {
-      const message = getYouTubeErrorMessage(error, '歌單讀取失敗');
+      const failure = classifyYouTubeFailure(error);
       if (isYouTubeAuthFailure(error)) {
         clearYouTubeSession();
         ytProvider.setAccessToken(null);
-        set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: 'expired', youtubeProfile: null, userPlaylists: [], selectedPlaylistId: null, loadedPlaylistId: null, isSyncingLibrary: false, libraryError: message, youtubeError: message });
+        set({ youtubeToken: null, youtubeConnected: false, youtubeConnectionState: 'expired', youtubeProfile: null, userPlaylists: [], selectedPlaylistId: null, loadedPlaylistId: null, isSyncingLibrary: false, libraryError: failure, youtubeError: failure });
       } else {
-        set({ isSyncingLibrary: false, libraryError: message, youtubeConnectionState: 'error', youtubeError: message });
+        set({ isSyncingLibrary: false, libraryError: failure, youtubeConnectionState: 'error', youtubeError: failure });
       }
     }
   },
@@ -764,11 +787,30 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (tracks[0]) get().play(tracks[0], tracks);
   },
 
+  /**
+   * Loads one playlist into the queue.
+   *
+   * Throws on failure, deliberately. The caller is a navigation decision - "open this playlist"
+   * means "go to the player" - and a caller that cannot tell success from failure navigates anyway,
+   * onto a player with nothing in it. `Library` catches this and shows the reason in place.
+   */
   loadYouTubePlaylist: async (playlistId, options = {}) => {
     const { ytProvider, youtubeToken } = get();
-    if (!youtubeToken) return;
-    const tracks = await ytProvider.getPlaylistTracks(playlistId);
-    set({ playlist: tracks, currentIndex: 0, selectedPlaylistId: playlistId, loadedPlaylistId: playlistId });
+    if (!youtubeToken) {
+      const failure: YouTubeFailure = { code: 'not_connected' };
+      set({ youtubeError: failure });
+      throw new Error('YouTube 尚未連線');
+    }
+    let tracks;
+    try {
+      tracks = await ytProvider.getPlaylistTracks(playlistId);
+    } catch (error) {
+      // Recorded as well as thrown: the player's own UI reads this state, so a failure that the
+      // caller swallows still leaves an explanation where the user will look for it.
+      set({ youtubeError: classifyYouTubeFailure(error) });
+      throw error;
+    }
+    set({ playlist: tracks, currentIndex: 0, selectedPlaylistId: playlistId, loadedPlaylistId: playlistId, youtubeError: null });
     if (tracks[0] && options.autoplay !== false) get().play(tracks[0], tracks);
   },
 

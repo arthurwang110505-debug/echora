@@ -74,6 +74,7 @@ export default function Player() {
     loadSpotifyPlaylist,
     youtubeConnected,
     youtubeError,
+    youtubeConnectionState,
     connectYouTube,
     switchYouTubeAccount,
     disconnectYouTube,
@@ -762,7 +763,8 @@ export default function Player() {
               favoriteCount: favoriteSongs.length,
               recentCount: recentSongs.length,
               onSetActiveSource: setActiveSource,
-              onConnectYouTube: () => { void connectYouTube(); },
+              youtubeConnectionState,
+            onConnectYouTube: () => { void connectYouTube(); },
               onSwitchYouTube: () => { void switchYouTubeAccount(); },
               onDisconnectYouTube: disconnectYouTube,
               onConnectSpotify: () => { void connectSpotify(); },
@@ -795,6 +797,7 @@ export default function Player() {
           activeSource={activeSource}
           spotifyError={spotifyError}
           youtubeError={youtubeError}
+          youtubeConnectionState={youtubeConnectionState}
           youtubeConnected={youtubeConnected}
           spotifyConnected={spotifyConnected}
           onClose={closeConnectModal}
