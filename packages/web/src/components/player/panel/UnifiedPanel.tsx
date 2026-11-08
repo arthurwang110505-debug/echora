@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Disc, FileText, Home, ListMusic, MirrorRectangular, Settings, SlidersHorizontal, Star, User as UserIcon } from 'lucide-react';
+import { Disc, FileText, Home, ListMusic, MirrorRectangular, Settings, SlidersHorizontal, Sparkles, Star, User as UserIcon } from 'lucide-react';
 import type { Song, ThemeConfig } from '@echora/core';
 import { CoverImage } from '../../LoadingSkeletons';
 import SongInfoTab from './SongInfoTab';
@@ -36,6 +36,8 @@ type UnifiedPanelProps = {
   onToggleLike: () => void;
   transparentBackground: boolean;
   onToggleTransparentBackground: () => void;
+  lyricsIsland: boolean;
+  onToggleLyricsIsland: () => void;
   onOpenSettings: () => void;
   onBackHome: () => void;
   lyrics: LyricsTabProps;
@@ -59,6 +61,8 @@ export default function UnifiedPanel({
   onToggleLike,
   transparentBackground,
   onToggleTransparentBackground,
+  lyricsIsland,
+  onToggleLyricsIsland,
   onOpenSettings,
   onBackHome,
   lyrics,
@@ -123,6 +127,19 @@ export default function UnifiedPanel({
                 aria-label={t('panel.transparentBackground')}
               >
                 <MirrorRectangular aria-hidden="true" size={18} />
+              </button>
+            </div>
+
+            <div className="pointer-events-none absolute right-3 top-[3.75rem] translate-x-3 -translate-y-3 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:translate-x-0 group-hover:translate-y-0 group-hover:opacity-100 focus-within:pointer-events-auto focus-within:translate-x-0 focus-within:translate-y-0 focus-within:opacity-100">
+              <button
+                type="button"
+                onClick={onToggleLyricsIsland}
+                aria-pressed={lyricsIsland}
+                className={`${CORNER_BUTTON} ${lyricsIsland ? 'border-white/30 bg-white/85 text-zinc-900 hover:bg-white' : ''}`}
+                title={lyricsIsland ? t('panel.lyricsIslandOn') : t('panel.lyricsIslandOff')}
+                aria-label={t('panel.lyricsIsland')}
+              >
+                <Sparkles aria-hidden="true" size={18} />
               </button>
             </div>
 

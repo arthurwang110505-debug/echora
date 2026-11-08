@@ -297,14 +297,18 @@
     "stateError": "連線發生錯誤",
     "reconnect": "重新登入",
     "stateExpired": "授權已過期，請重新登入",
-    "stateSyncing": "同步中…"
+    "stateSyncing": "同步中…",
+    "lyricsIsland": "靈動詞島",
+    "lyricsIslandOn": "關閉靈動詞島",
+    "lyricsIslandOff": "開啟靈動詞島"
   },
   "ui": {
     "backToHome": "返回首頁",
     "noTrack": "沒有曲目",
     "waitingForMusic": "等待音樂…",
     "default": "預設",
-    "livePreview": "即時預覽"
+    "livePreview": "即時預覽",
+    "visualizerIsland": "靈動詞島"
   },
   "options": {
     "temperaAddLayerImage": "新增圖片",

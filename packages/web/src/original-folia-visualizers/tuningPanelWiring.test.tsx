@@ -92,6 +92,7 @@ describe('OriginalFoliaTuningPanel', () => {
       'claddagh',
       'diorama',
       'tilt',
+      'island',
     ]);
   });
 

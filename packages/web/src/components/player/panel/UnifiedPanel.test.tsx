@@ -129,6 +129,8 @@ const render = async (props: Partial<Parameters<typeof UnifiedPanel>[0]> = {}) =
     onToggleLike: vi.fn(),
     transparentBackground: false,
     onToggleTransparentBackground: vi.fn(),
+    lyricsIsland: false,
+    onToggleLyricsIsland: vi.fn(),
     onOpenSettings: vi.fn(),
     onBackHome: vi.fn(),
     lyrics: makeLyrics(),
@@ -207,16 +209,25 @@ describe('UnifiedPanel', () => {
     expect(text).toContain('Album 1');
   });
 
-  it('offers the four cover corner actions', async () => {
+  it('offers the five cover corner actions', async () => {
     await render();
     for (const label of [
       t('panel.openSettings'),
       t('panel.transparentBackground'),
+      t('panel.lyricsIsland'),
       t('panel.backHome'),
       t('panel.addToFavorites'),
     ]) {
       expect(buttonByLabel(label), `missing corner action ${label}`).toBeTruthy();
     }
+  });
+
+  it('reports the island toggle and its current state', async () => {
+    const props = await render({ lyricsIsland: true });
+    const button = buttonByLabel(t('panel.lyricsIsland'));
+    expect(button?.getAttribute('aria-pressed')).toBe('true');
+    await click(button!);
+    expect(props.onToggleLyricsIsland).toHaveBeenCalledTimes(1);
   });
 
   it('switches tabs and renders the 播放佇列 rows', async () => {

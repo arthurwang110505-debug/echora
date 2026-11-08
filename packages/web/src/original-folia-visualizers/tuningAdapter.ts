@@ -1,4 +1,5 @@
 import type {
+    IslandTuning,
     CappellaTuning,
     CadenzaTuning,
     ClassicTuning,
@@ -47,6 +48,7 @@ export interface VisualizerTuningMap {
     sonnet: SonnetTuning;
     tempera: TemperaTuning;
     lumiere: LumiereTuning;
+    island: IslandTuning;
 }
 
 export type VisualizerTuningMode = keyof VisualizerTuningMap;

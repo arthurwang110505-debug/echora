@@ -19,6 +19,7 @@ export const VISUALIZER_OPTIONS: readonly StageOption[] = [
   { value: 'claddagh', label: 'Claddagh' },
   { value: 'diorama', label: 'Diorama' },
   { value: 'tilt', label: 'Tilt' },
+  { value: 'island', label: 'Island' },
 ] as const;
 
 export const BACKGROUND_OPTIONS: readonly StageOption[] = [

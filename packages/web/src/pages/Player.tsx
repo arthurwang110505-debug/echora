@@ -18,6 +18,9 @@ import { useLineSplitPreview, useLyricSegmentation, useSegmentedLyrics } from '.
 import { sampleLocalAudioBands } from '../playback/localAudioAnalyser';
 import { getPlaybackClockReading } from '../playback/playbackClock';
 import { readExtrapolatedClock } from '../playback/extrapolatedClock';
+import { useStageMotionTime } from '../playback/useStageMotionTime';
+import LyricsIsland from '../original-folia-visualizers/island/LyricsIsland';
+import { toOriginalTheme } from '../original-folia-visualizers/themeAdapter';
 import { VOLUME_STEP } from '../playback/volumeState';
 import { isYouTubeVideo } from '../utils/youtubePlayback';
 import { songOffsetKey, useStageStore } from '../store/stageStore';
@@ -112,6 +115,8 @@ export default function Player() {
   const setStoredLyricsOffset = useStageStore(state => state.setLyricsOffset);
   const transparentBackground = useStageStore(state => state.transparentBackground);
   const setTransparentBackground = useStageStore(state => state.setTransparentBackground);
+  const lyricsIsland = useStageStore(state => state.lyricsIsland);
+  const setLyricsIsland = useStageStore(state => state.setLyricsIsland);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showPlaylistDrawer, setShowPlaylistDrawer] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
   const connectModalRef = useRef<HTMLDivElement>(null);
@@ -301,6 +306,7 @@ export default function Player() {
 
   const lyricsOffsetSeconds = lyricsOffsets[songOffsetKey(currentSong)] || 0;
 
+
   useEffect(() => {
     if (displayMode !== 'stage' && !showPlaylistDrawer) return;
     const onPopState = () => {
@@ -318,6 +324,9 @@ export default function Player() {
   // this level rather than inside each mode.
   const segmentedLyrics = useSegmentedLyrics();
   const stageLines = segmentedLyrics?.lines || [];
+  // Same adapter the stage uses; the island renders under the visualizer graph's Theme contract.
+  // Keyed on the theme: a theme switch has to reach the overlay too.
+  const islandTheme = useMemo(() => toOriginalTheme(currentTheme), [currentTheme]);
   const segmentation = useLyricSegmentation();
 
   // Use the same offset-aware clock for the player chrome and every visualizer mode.
@@ -420,6 +429,15 @@ export default function Player() {
     const reading = getPlaybackClockReading() ?? readExtrapolatedClock();
     return reading === null ? null : Math.max(0, reading + lyricsOffsetRef.current);
   }, []);
+
+  // The overlay's clock. Same provider the stage draws against, so the island and the stage can
+  // never disagree about which line is current - including the extrapolated YouTube clock and the
+  // per-song offset, both of which live inside that provider.
+  const islandTime = useStageMotionTime({
+    provider: stageClockProvider,
+    fallbackSeconds: displayedLyricsTime,
+    isPlaying,
+  });
 
   // Publish the live stage for an OBS overlay / captured window. Off unless enabled in Settings;
   // `displayedLyricsTime` already has the lyrics offset applied, so the overlay is told offset 0.
@@ -631,6 +649,24 @@ export default function Player() {
               />
             </Suspense>
           )}
+          {/* 靈動詞島: an opt-in readout over the stage. Bottom-left because the chrome lives
+              bottom-centre and the panel hotspot owns the bottom-right corner. Only over the
+              stage - in 'full' the lyric column is right there, and two copies of the same line
+              is worse than one. Hidden while the tuning panel is open, so it never sits under a
+              settings slider. */}
+          {lyricsIsland && displayMode === 'stage' && !showTuning && !isChromeHidden && stageLines.length > 0 && (
+            <div className="pointer-events-none absolute bottom-24 left-4 z-30 hidden sm:block">
+              <LyricsIsland
+                currentTime={islandTime}
+                currentLineIndex={activeLineIndex}
+                lines={stageLines}
+                theme={islandTheme}
+                size="compact"
+                paused={!isPlaying}
+                onSeekLine={seek}
+              />
+            </div>
+          )}
           {/* 全螢幕只有這一列：播放控制 │ 面板按鈕 │ 退出全螢幕。全部併在一起，
               不會再有浮動按鈕疊在上面。 */}
           {displayMode === 'stage' && !showTuning && !isChromeHidden && (
@@ -727,6 +763,8 @@ export default function Player() {
             onToggleLike={toggleCurrentSongLike}
             transparentBackground={transparentBackground}
             onToggleTransparentBackground={() => setTransparentBackground(!transparentBackground)}
+            lyricsIsland={lyricsIsland}
+            onToggleLyricsIsland={() => setLyricsIsland(!lyricsIsland)}
             onOpenSettings={() => navigate('/settings')}
             onBackHome={() => navigate('/app')}
             lyrics={{

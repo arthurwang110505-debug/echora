@@ -44,6 +44,7 @@ const MODE_PALETTES: Record<string, [accent: string, primary: string, secondary:
   claddagh: ['#86efac', '#2dd4bf', '#fbbf24'],
   diorama: ['#38bdf8', '#f472b6', '#fde68a'],
   tilt: ['#f0abfc', '#62f5c4', '#60a5fa'],
+  island: ['#a5b4fc', '#e8c88a', '#62f5c4'],
 };
 
 /**

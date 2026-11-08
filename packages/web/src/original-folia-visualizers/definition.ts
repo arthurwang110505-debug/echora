@@ -11,6 +11,7 @@ import {
     type DioramaTuning,
     type FumeTuning,
     type LumiereTuning,
+    type IslandTuning,
     type Line,
     type MonetPortraitImage,
     type MonetTuning,
@@ -28,7 +29,7 @@ import type { VisualizerBackgroundConfig } from './backgrounds/definition';
 
 // src/components/visualizer/definition.ts
 // Shared contracts for discoverable visualizer modes.
-export type VisualizerTuningKind = 'none' | 'classic' | 'cadenza' | 'partita' | 'fume' | 'claddagh' | 'cappella' | 'tilt' | 'monet' | 'diorama' | 'pendolo' | 'sonnet' | 'tempera' | 'lumiere';
+export type VisualizerTuningKind = 'none' | 'classic' | 'cadenza' | 'partita' | 'fume' | 'claddagh' | 'cappella' | 'tilt' | 'monet' | 'diorama' | 'pendolo' | 'sonnet' | 'tempera' | 'lumiere' | 'island';
 
 export interface VisualizerSharedProps {
     currentTime: MotionValue<number>;
@@ -97,6 +98,8 @@ export interface VisualizerSharedProps {
     onTemperaTuningChange?: (patch: Partial<TemperaTuning>) => void;
     lumiereTuning?: LumiereTuning;
     onLumiereTuningChange?: (patch: Partial<LumiereTuning>) => void;
+    islandTuning?: IslandTuning;
+    onIslandTuningChange?: (patch: Partial<IslandTuning>) => void;
 }
 
 export interface VisualizerSettingsPanelProps {
@@ -144,6 +147,8 @@ export interface VisualizerSettingsPanelProps {
     onTemperaTuningChange?: (patch: Partial<TemperaTuning>) => void;
     lumiereTuning?: LumiereTuning;
     onLumiereTuningChange?: (patch: Partial<LumiereTuning>) => void;
+    islandTuning?: IslandTuning;
+    onIslandTuningChange?: (patch: Partial<IslandTuning>) => void;
     /** Mark slider drag start so onChange only updates draft. */
     onSliderPointerDown?: () => void;
     /** Commit draft values to persistent store on slider release. */

@@ -13,6 +13,7 @@ import { resolveStageAudioBands } from "../playback/audioBands";
 import { sampleLocalAudioBands } from "../playback/localAudioAnalyser";
 import { beginStageProbe, endStageProbe, installStageProbeGlobals } from "../utils/stageProbe";
 import OriginalVisualizerRenderer from "./OriginalVisualizerRendererProxy";
+import { toOriginalTheme } from '../original-folia-visualizers/themeAdapter';
 
 type OriginalMode =
   | "classic"
@@ -214,17 +215,6 @@ class SceneErrorBoundary extends Component<
     return this.props.children;
   }
 }
-
-const toOriginalTheme = (theme: ThemeConfig) => ({
-  name: theme.name,
-  backgroundColor: theme.backgroundColor || "#07090e",
-  primaryColor: theme.primaryColor || "#62f5c4",
-  accentColor: theme.accentColor || "#62f5c4",
-  secondaryColor: theme.secondaryColor || "#6366f1",
-  fontStyle: theme.fontStyle || "sans",
-  animationIntensity: "normal" as const,
-  fontWeight: 700,
-});
 
 export default function OriginalFoliaVisualizerStage({
   lines,

@@ -101,6 +101,12 @@ YouTube Music 使用官方 Data API 讀取私人歌單，歌曲以嵌入播放�
 
 Spotify 程式仍保留，但在 Client ID 設定完成前不會出現在 Landing、來源列或 README 賣點。
 
+### 關於「靈動詞島」
+
+第 14 個舞台模式（`island`）參考了 [Lyricify](https://github.com/WXRIW/Lyricify-App) 的**靈動詞島 / Dynamic Lyrics Island**（首創於 2022.09）。原創概念由 Lyricify 作者 WXRIW（XY Wang）提出，以 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) 授權。
+
+Echora 的實作是獨立重寫的（Lyricify 是 WPF，這裡是 React + DOM），並非程式碼移植：共用的只有「一小條常駐歌詞讀數」這個設計概念。同一個元件提供兩種用法——舞台模式，以及播放頁的常駐小元件（面板右上角星形按鈕開關，偏好存在 `echora.stage-prefs`）。
+
 ### Spotify：每位使用者帶自己的 Client ID
 
 Spotify 自 2026 年 3 月起，開發模式的 app 只允許 **5 位已授權使用者**，而且 Extended Quota Mode 只接受組織申請（需 25 萬 MAU），個人拿不到。因此一個共用的 app 無法服務一群人。

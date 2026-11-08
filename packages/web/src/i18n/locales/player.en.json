@@ -297,14 +297,18 @@
     "stateError": "Connection error",
     "reconnect": "Sign in again",
     "stateExpired": "Authorization expired — sign in again",
-    "stateSyncing": "Syncing…"
+    "stateSyncing": "Syncing…",
+    "lyricsIsland": "Lyrics island",
+    "lyricsIslandOn": "Turn off the lyrics island",
+    "lyricsIslandOff": "Turn on the lyrics island"
   },
   "ui": {
     "backToHome": "Back to home",
     "noTrack": "No track",
     "waitingForMusic": "Waiting for music…",
     "default": "Default",
-    "livePreview": "Live preview"
+    "livePreview": "Live preview",
+    "visualizerIsland": "Lyrics island"
   },
   "options": {
     "temperaAddLayerImage": "Add image",

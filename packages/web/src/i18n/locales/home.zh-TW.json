@@ -83,7 +83,8 @@
     "mode_sonnet": "像一首十四行詩般排版、逐行呼吸。",
     "mode_claddagh": "環環相扣的光紋，圍著歌詞旋轉。",
     "mode_diorama": "立體景箱，歌詞置身場景之中。",
-    "mode_tilt": "隨視角傾斜的立體舞台。"
+    "mode_tilt": "隨視角傾斜的立體舞台。",
+    "mode_island": "安靜的一行歌詞，加上一圈走完這句就結束的進度環。"
   },
   "appHome": {
     "ytSource": "YouTube Music",

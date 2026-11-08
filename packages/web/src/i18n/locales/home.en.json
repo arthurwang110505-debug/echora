@@ -83,7 +83,8 @@
     "mode_sonnet": "Typeset like a sonnet, breathing line by line.",
     "mode_claddagh": "Interlocking rings of light circling the lyric.",
     "mode_diorama": "A 3D diorama with the lyrics inside the scene.",
-    "mode_tilt": "A stage that tilts with your perspective."
+    "mode_tilt": "A stage that tilts with your perspective.",
+    "mode_island": "One quiet lyric line, with a ring that closes exactly as the line ends."
   },
   "appHome": {
     "ytSource": "YouTube Music",

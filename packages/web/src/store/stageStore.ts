@@ -10,6 +10,12 @@ export type StagePrefs = {
   visualizerTunings: Record<string, unknown>;
   /** Hides the player page's blurred cover/glow backdrop (the panel's top-right cover button). */
   transparentBackground: boolean;
+  /**
+   * The 靈動詞島 overlay in the player: the current line in a small pill over the stage.
+   * Off by default - it is a second lyric surface on top of one that is already showing the same
+   * line, so it has to be asked for.
+   */
+  lyricsIsland: boolean;
 };
 
 const DEFAULT_PREFS: StagePrefs = {
@@ -18,6 +24,7 @@ const DEFAULT_PREFS: StagePrefs = {
   autoVisualizer: false,
   visualizerTunings: {},
   transparentBackground: false,
+  lyricsIsland: false,
 };
 
 const readJson = <T,>(key: string, fallback: T): T => {
@@ -49,6 +56,7 @@ type StageState = StagePrefs & {
   setBackgroundMode: (backgroundMode: string) => void;
   setAutoVisualizer: (autoVisualizer: boolean) => void;
   setTransparentBackground: (transparentBackground: boolean) => void;
+  setLyricsIsland: (lyricsIsland: boolean) => void;
   setVisualizerTunings: (visualizerTunings: Record<string, unknown> | ((current: Record<string, unknown>) => Record<string, unknown>)) => void;
   setLyricsOffset: (key: string, offsetSeconds: number) => void;
   getLyricsOffset: (key: string) => number;
@@ -61,6 +69,7 @@ const persistPrefs = (state: StageState) => {
     autoVisualizer: state.autoVisualizer,
     visualizerTunings: state.visualizerTunings,
     transparentBackground: state.transparentBackground,
+    lyricsIsland: state.lyricsIsland,
   });
 };
 
@@ -85,6 +94,10 @@ export const useStageStore = create<StageState>((set, get) => {
     },
     setTransparentBackground: (transparentBackground) => {
       set({ transparentBackground });
+      persistPrefs(get());
+    },
+    setLyricsIsland: (lyricsIsland) => {
+      set({ lyricsIsland });
       persistPrefs(get());
     },
     setAutoVisualizer: (autoVisualizer) => {
