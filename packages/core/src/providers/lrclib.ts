@@ -1,6 +1,8 @@
 // LRCLib Provider - Zero-config free lyrics API (https://lrclib.net)
 import type { LyricData, Line } from '../types';
 import { parseLRC } from '../lyrics/parser';
+import { buildLyricSearchQuery } from '../lyrics/songTitle';
+import { pickBestCandidate, type LyricCandidate } from '../lyrics/matchScore';
 
 export interface LrcLibTrack {
   id: number;
@@ -30,6 +32,17 @@ const fetchLrcLib = async (url: string, attempt = 0): Promise<Response> => {
   }
 };
 
+/**
+ * Fetches lyrics for one song.
+ *
+ * Two changes from the previous version, both about the same failure: returning the *wrong* lyrics
+ * confidently. The query is cleaned first (`buildLyricSearchQuery` strips video packaging that
+ * guaranteed a miss), and the search results are scored rather than taken in order
+ * (`pickBestCandidate` prefers the recording whose duration and title agree).
+ *
+ * `duration` is in seconds, matching the API. Not every caller has one; without it, scoring falls
+ * back to title and artist, which is weaker but still better than position in a list.
+ */
 export async function fetchLrcLibLyrics(params: {
   trackName: string;
   artistName: string;
@@ -37,31 +50,50 @@ export async function fetchLrcLibLyrics(params: {
   duration?: number;
 }): Promise<LyricData | null> {
   try {
+    const cleaned = buildLyricSearchQuery({
+      title: params.trackName,
+      artist: params.artistName,
+      durationMs: params.duration ? params.duration * 1000 : undefined,
+    });
+
     const query = new URLSearchParams();
-    query.set('track_name', params.trackName);
-    query.set('artist_name', params.artistName);
+    query.set('track_name', cleaned.title);
+    // The exact-match endpoint requires an artist; omitting it would 400 rather than search.
+    query.set('artist_name', cleaned.artist || params.artistName || '');
     if (params.albumName) query.set('album_name', params.albumName);
     if (params.duration) query.set('duration', Math.round(params.duration).toString());
 
-    let res = await fetchLrcLib(`https://lrclib.net/api/get?${query.toString()}`);
-    
-    if (!res.ok) {
-      const searchQuery = new URLSearchParams({
-        q: `${params.trackName} ${params.artistName}`.trim(),
-      });
-      const searchRes = await fetchLrcLib(`https://lrclib.net/api/search?${searchQuery.toString()}`);
-      if (searchRes.ok) {
-        const searchResults: LrcLibTrack[] = await searchRes.json();
-        if (searchResults && searchResults.length > 0) {
-          const candidate = searchResults.find(t => t.syncedLyrics) || searchResults[0];
-          return processLrcLibTrack(candidate);
-        }
-      }
+    const res = await fetchLrcLib(`https://lrclib.net/api/get?${query.toString()}`);
+    if (res.ok) {
+      const data: LrcLibTrack = await res.json();
+      return processLrcLibTrack(data);
+    }
+
+    // `/api/get` is an exact-match endpoint: it answers 404 whenever any of the four fields differs,
+    // which for a YouTube-derived title is most of the time. Search, then choose deliberately.
+    const searchQuery = new URLSearchParams({
+      q: [cleaned.title, cleaned.artist].filter(Boolean).join(' ').trim(),
+    });
+    const searchRes = await fetchLrcLib(`https://lrclib.net/api/search?${searchQuery.toString()}`);
+    if (!searchRes.ok) return null;
+
+    const searchResults: LrcLibTrack[] = await searchRes.json();
+    if (!Array.isArray(searchResults) || searchResults.length === 0) return null;
+
+    const best = pickBestCandidate(searchResults as LyricCandidate[], {
+      title: cleaned.title,
+      artist: cleaned.artist,
+      duration: params.duration,
+    });
+
+    if (!best) {
+      // No confident match. Reporting `unavailable` is honest; the old fallback here showed the
+      // first result's lyrics, which for a common title is routinely a different song.
+      console.warn('[LrcLib] No confident lyric match', { candidates: searchResults.length });
       return null;
     }
 
-    const data: LrcLibTrack = await res.json();
-    return processLrcLibTrack(data);
+    return processLrcLibTrack(best.candidate as LrcLibTrack);
   } catch (error) {
     console.warn('[LrcLib] Failed to fetch lyrics:', error);
     return null;

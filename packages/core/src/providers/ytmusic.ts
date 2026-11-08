@@ -360,13 +360,21 @@ export class YouTubeMusicProvider {
         throw new Error(message);
       }
       const data = await res.json();
+      // The proxy asks Google for `videoCategoryId=10`, which is the *request* filter. Google applies
+      // it as a hint, not a guarantee, and the response carries no category per item. Stamping
+      // `'music'` on every result therefore asserted something unknown: a podcast, a lecture or a
+      // livestream that slipped through was treated as music, given lyric matching and the music
+      // stage.
+      //
+      // `'unknown'` is the honest value, and `youtubePlayback.ts` already routes it to the direct
+      // video player - the safer of the two, since it assumes nothing about lyrics.
       return (data.items || []).map((item: any) => ({
         id: item.id.videoId,
         title: item.snippet.title,
         artists: [{ id: item.snippet.channelId, name: item.snippet.channelTitle || 'YouTube Music' }],
         coverUrl: item.snippet.thumbnails?.high?.url || `https://i.ytimg.com/vi/${item.id.videoId}/hqdefault.jpg`,
         source: 'ytmusic' as const,
-        youtubeVideoKind: 'music' as const,
+        youtubeVideoKind: 'unknown' as const,
         // IFrame Player requires the 11-character video ID, not a full watch URL.
         audioUrl: item.id.videoId,
       }));

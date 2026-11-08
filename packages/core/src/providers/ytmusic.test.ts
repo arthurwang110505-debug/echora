@@ -301,3 +301,19 @@ describe('YouTubeMusicProvider diagnostics', () => {
     expect(onDiagnostic).toHaveBeenCalledWith(expect.objectContaining({ name: 'youtube_tracks_truncated' }));
   });
 });
+
+describe('YouTubeMusicProvider search classification', () => {
+  it('does not claim a search result is music', async () => {
+    // `videoCategoryId=10` is a request *hint*; the response carries no category at all. Stamping
+    // 'music' on every hit treated a podcast that slipped through as a song - it got lyric matching
+    // and the music stage. 'unknown' routes to the direct-video player instead, which assumes nothing.
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      items: [{ id: { videoId: 'by4SYYWlhEs' }, snippet: { title: '夜に駆ける', channelId: 'c1', channelTitle: 'YOASOBI' } }],
+    }))));
+
+    const provider = new YouTubeMusicProvider();
+    const results = await provider.searchTracks('夜に駆ける');
+
+    expect(results[0].youtubeVideoKind).toBe('unknown');
+  });
+});

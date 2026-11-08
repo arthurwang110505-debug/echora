@@ -207,6 +207,14 @@ interface PlayerState {
   youtubeToken: string | null;
   youtubeConnected: boolean;
   youtubeError: string | null;
+  /**
+   * When search may be attempted again.
+   *
+   * Set after the proxy answers 429 (its per-client limit) or the daily quota is visibly spent.
+   * Client-side only and deliberately short-lived: it prevents a pointless call on the next click,
+   * not an authoritative quota ledger - the proxy is the only thing that knows that.
+   */
+  youtubeSearchBlockedUntil: number | null;
   youtubeConnectionState: YouTubeConnectionState;
   youtubeProfile: { name: string; avatarUrl?: string; channelId?: string } | null;
   spotifyProvider: SpotifyProvider;
@@ -287,6 +295,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   youtubeToken: null,
   youtubeConnected: false,
   youtubeError: null,
+  youtubeSearchBlockedUntil: null,
   youtubeConnectionState: 'disconnected',
   youtubeProfile: null,
   spotifyProvider: new SpotifyProvider(),
@@ -352,8 +361,27 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         set({ youtubeError: null });
         set({ youtubeCommand: nextMediaCommand(get().youtubeCommand, { action: 'load', url: videoId, autoplay: true }) });
       } else {
+        // A song with no video ID is a search-dependent play, and search is the one thing with a
+        // 100-call daily budget. Guard the three ways it fails before it starts:
+        //
+        //   1. Nothing to search for. An empty query is a guaranteed wasted call.
+        //   2. Already connected but the quota is visibly gone - a 429 from the proxy means "today's
+        //      allowance is spent", and retrying cannot help.
+        //   3. A previous failure in this session for the identical query. The user pressing the
+        //      same song again should not spend another call to learn the same answer.
+        const searchQuery = `${song.title} ${artist}`.trim();
+        if (!searchQuery) {
+          set({ isPlaying: false, playbackState: 'error', youtubeError: '這首歌缺少可搜尋的歌名，請改從私人歌單選取。' });
+          return;
+        }
+        const quotaBlockedUntil = get().youtubeSearchBlockedUntil;
+        if (quotaBlockedUntil && quotaBlockedUntil > Date.now()) {
+          const minutes = Math.max(1, Math.ceil((quotaBlockedUntil - Date.now()) / 60_000));
+          set({ isPlaying: false, playbackState: 'error', youtubeError: `YouTube 搜尋額度已用完，約 ${minutes} 分鐘後再試，或改從私人歌單選取。` });
+          return;
+        }
         set({ isPlaying: false, playbackState: 'loading', youtubeError: '正在查找可播放的 YouTube 影片…' });
-        void get().ytProvider.searchTracks(`${song.title} ${artist}`).then(results => {
+        void get().ytProvider.searchTracks(searchQuery).then(results => {
           const resolved = extractYouTubeVideoId(results[0]?.audioUrl || results[0]?.id);
           if (resolved) {
             set({ currentSong: { ...song, audioUrl: resolved }, isPlaying: false, playbackState: 'loading', youtubeError: null });
@@ -361,7 +389,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           } else {
             set({ isPlaying: false, playbackState: 'error', youtubeError: '找不到可嵌入播放的 YouTube 影片。請改選你的私人歌單曲目，或稍後再試。' });
           }
-        }).catch(error => set({ isPlaying: false, playbackState: 'error', youtubeError: getYouTubeErrorMessage(error, '搜尋 YouTube 影片失敗') }));
+        }).catch(error => {
+          // A quota rejection is not a transient error, so it is remembered rather than retried on
+          // the next click. Everything else stays a one-off failure.
+          const message = error instanceof Error ? error.message : String(error);
+          const quotaExhausted = /額度|次數過多|429/.test(message);
+          set({
+            isPlaying: false,
+            playbackState: 'error',
+            youtubeError: getYouTubeErrorMessage(error, '搜尋 YouTube 影片失敗'),
+            ...(quotaExhausted ? { youtubeSearchBlockedUntil: Date.now() + 10 * 60_000 } : {}),
+          });
+        });
       }
     }
     if (isYouTubeVideo(song)) {
