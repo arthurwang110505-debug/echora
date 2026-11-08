@@ -290,7 +290,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   youtubeConnectionState: 'disconnected',
   youtubeProfile: null,
   spotifyProvider: new SpotifyProvider(),
-  ytProvider: new YouTubeMusicProvider(),
+  // Core cannot import the web diagnostics store, so the sink is injected here. Swallowed data-layer
+  // failures become visible in the diagnostic summary instead of only in a debugger.
+  ytProvider: new YouTubeMusicProvider({
+    onDiagnostic: event => recordDiagnostic(event.name, event.details),
+  }),
   userPlaylists: [],
   selectedPlaylistId: null,
   loadedPlaylistId: null,

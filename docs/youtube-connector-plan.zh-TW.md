@@ -478,9 +478,35 @@ YouTube 那堆髒標題就吃得進 LRCLIB 了。
 3. **隱私政策／服務條款**：現在寫「只讀取」，要改成包含寫入；`legal.*.json` 與
    `docs/google-oauth-brand-verification.md` 的 `youtube.readonly` 敘述全部要改。
 
-### D5 → 尚未回答
+### D5 → **L1 + L2 + L3-a**（不需要 L3-b）
 
-線上歌詞匹配要做到哪一層（L1+L2 或再加 L3）仍待確認。不影響 W0–W4 的動工。
+使用者確認（2026-11-07）：線上歌詞匹配做 L1（標題清洗）+ L2（搜尋後評分），
+另外加 **L3-a：只接 AMLLDB**。
+
+**L3-a 與 L3-b 的差別，是這次決定最重要的一件事：**
+
+| | 來源 | 授權 | 做法 |
+|---|---|---|---|
+| **L3-a**（要做） | AMLL TTML DB（`amll-ttml-db`） | **CC0-1.0**，作者明確開放給下游使用 | 直接取 TTML 逐字歌詞 |
+| **L3-b**（**不做**） | QQ 音樂、酷狗 | 無授權；逆向私有格式 | 冒充官方 App 的 header + 解密 `qrcDecrypt` / `krcDecrypt` |
+
+**L3-b 明確排除，理由不是成本：**
+
+1. **法務**：`qqLyricProvider.ts` 偽裝成 Android 客戶端（`tmeAppID: qqmusiclight`、
+   假的 `phonetype` / `rom`、`Cookie: tmeLoginType=-1`）；`kugouLyricProvider.ts` 偽裝
+   `User-Agent: Android14-1070-...`、自算 `signature`、`appid: 3116`。這不是「用公開 API」，
+   是冒充官方 App 去要對方沒有開放的資料再解密。folia 是桌面單機 App（每個使用者用自己的 IP），
+   Echora 是公開 PWA——一代理就變成**伺服器在散布未授權的商業內容**。
+2. **SSRF**：`/api/lyric-proxy` 接受任意 `url` 代為請求，寫壞就是打內網與雲端 metadata 的洞。
+3. **維護**：逆向格式沒有任何測試覆蓋，對方改版就斷，且不會有錯誤訊息。
+4. `packages/web/src/utils/lyrics/providers/` 這三個 provider 目前**不在任何 tsconfig 內、
+   沒有任何 import 進線**，是死碼。這代表「不做 L3-b」不需要拆任何東西——
+   只要不去接它就好。L1/L2 會把需要的部分（標題清洗、評分）**重寫進 `packages/core`**，
+   不從 `src/utils` 拉。
+
+**L3-a 的實作邊界**：AMLLDB 是第三方服務，取用要經過一支**只有一個用途**的 API
+（只接受 `platform` + `musicId` 兩個受限參數，由伺服器組 URL），**不是通用 proxy**。
+來源標註與快取策略一併寫進 `docs/`。
 
 ## 6. 非目標（這次不做）
 

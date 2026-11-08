@@ -44,7 +44,86 @@ export const resolveYouTubeVideoKind = (categoryId?: string | null): YouTubeVide
 // Safety caps for pagination. Paging stops early when the API stops returning
 // pages; these only guard against an accidental unbounded loop.
 const MAX_PLAYLIST_PAGES = 20; // 50 per page → up to 1000 playlists
-const MAX_TRACK_PAGES = 100; // 50 per page → up to 5000 tracks
+const MAX_TRACK_PAGES = 20; // 50 per page → up to 1000 tracks
+
+/**
+ * How many tracks one playlist load brings back by default.
+ *
+ * The previous code paged to 5,000 tracks, one request every 50, strictly in series, before the
+ * player could show anything. 300 is six requests: enough that scrolling a normal playlist never
+ * hits the end, few enough that opening one does not burn a noticeable slice of the daily quota.
+ * `hasMore` tells the caller the list is truncated instead of silently lying about its length.
+ */
+export const DEFAULT_TRACK_LIMIT = 300;
+
+/** Playlist list changes rarely and is the first thing a reconnect re-fetches. */
+const PLAYLISTS_TTL_MS = 60_000;
+/** Tracks change more often (a song added on the phone), but not by the second. */
+const TRACKS_TTL_MS = 5 * 60_000;
+/** `videos.list` accepts 50 ids per call; three calls in flight is polite and ~3x faster. */
+const METADATA_CONCURRENCY = 3;
+
+interface CacheEntry<T> { expiresAt: number; value: T; }
+
+/**
+ * A short fingerprint of the access token.
+ *
+ * Used only as a cache key component: caching playlists under a bare `mine=true` means the next
+ * account sees the previous one's library until the TTL expires. A hash rather than the token
+ * itself so a token cannot leak through a debugger view of the cache or an error report.
+ */
+const tokenFingerprint = (token: string | null): string => {
+  if (!token) return 'anonymous';
+  let hash = 2166136261;
+  for (let index = 0; index < token.length; index += 1) {
+    hash ^= token.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+};
+
+/**
+ * Runs `task` over `items` with at most `limit` in flight, preserving input order.
+ *
+ * `Promise.all` over the whole list would open one request per 50 tracks - a 1,000-track playlist
+ * would fire twenty at once and trip Google's per-user rate limit, which is a slower failure than
+ * being polite. A hand-rolled worker pool keeps the batching behaviour and just widens it.
+ */
+const mapWithConcurrency = async <T, R>(items: T[], limit: number, task: (item: T, index: number) => Promise<R>): Promise<R[]> => {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      results[index] = await task(items[index], index);
+    }
+  }));
+  return results;
+};
+
+/** A non-fatal data-layer failure, for diagnostics. */
+export interface YouTubeDataDiagnostic {
+  name: 'youtube_metadata_unavailable' | 'youtube_tracks_truncated';
+  details: Record<string, string | number | boolean>;
+}
+
+export interface YouTubeMusicProviderOptions {
+  /**
+   * Where a swallowed failure goes.
+   *
+   * Injected rather than imported: `packages/core` must not reach into `packages/web` for its
+   * diagnostics store, and a test can assert the report without a browser.
+   */
+  onDiagnostic?: (event: YouTubeDataDiagnostic) => void;
+}
+
+/** One playlist load: the tracks, plus whether the player is looking at all of them. */
+export interface PlaylistTracksResult {
+  tracks: Song[];
+  hasMore: boolean;
+}
 
 export interface YTTrack {
   videoId: string;
@@ -66,8 +145,49 @@ interface YouTubeVideoMetadata {
 
 export class YouTubeMusicProvider {
   private accessToken: string | null = null;
+  private readonly playlistsCache = new Map<string, CacheEntry<Playlist[]>>();
+  private readonly tracksCache = new Map<string, CacheEntry<PlaylistTracksResult>>();
+  private readonly onDiagnostic?: (event: YouTubeDataDiagnostic) => void;
 
-  setAccessToken(token: string | null) { this.accessToken = token; }
+  constructor(options: YouTubeMusicProviderOptions = {}) {
+    this.onDiagnostic = options.onDiagnostic;
+  }
+
+  /**
+   * Points the provider at a different account (or none).
+   *
+   * Caches are keyed by a token fingerprint as well, but clearing here is the belt to that braces:
+   * a re-connect issues a new token, and the first thing the user does is open the library - they
+   * must not see the previous account's playlists for the next sixty seconds.
+   */
+  setAccessToken(token: string | null) {
+    if (token !== this.accessToken) {
+      this.playlistsCache.clear();
+      this.tracksCache.clear();
+    }
+    this.accessToken = token;
+  }
+
+  /** Test seam: forget every cached response. */
+  clearCache() {
+    this.playlistsCache.clear();
+    this.tracksCache.clear();
+  }
+
+  private cacheKey(scope: string) {
+    return `${tokenFingerprint(this.accessToken)}:${scope}`;
+  }
+
+  private readCache<T>(cache: Map<string, CacheEntry<T>>, key: string, now = Date.now()): T | null {
+    const entry = cache.get(key);
+    if (!entry) return null;
+    if (entry.expiresAt <= now) { cache.delete(key); return null; }
+    return entry.value;
+  }
+
+  private writeCache<T>(cache: Map<string, CacheEntry<T>>, key: string, value: T, ttlMs: number, now = Date.now()) {
+    cache.set(key, { expiresAt: now + ttlMs, value });
+  }
 
   /**
    * One authenticated Data API request.
@@ -84,6 +204,10 @@ export class YouTubeMusicProvider {
   }
 
   async getUserPlaylists(): Promise<Playlist[]> {
+    const key = this.cacheKey('playlists');
+    const cached = this.readCache(this.playlistsCache, key);
+    if (cached) return cached;
+
     type PlaylistResponse = { nextPageToken?: string; items?: Array<{ id: string; snippet: { title: string; thumbnails?: { medium?: { url: string } } }; contentDetails?: { itemCount: number } }> };
     const items: NonNullable<PlaylistResponse['items']> = [];
     let pageToken: string | undefined;
@@ -96,7 +220,9 @@ export class YouTubeMusicProvider {
       if (!pageToken) break;
     }
 
-    return items.map(item => ({ id: item.id, name: item.snippet.title, coverUrl: item.snippet.thumbnails?.medium?.url, trackCount: item.contentDetails?.itemCount, source: 'ytmusic' as const }));
+    const playlists = items.map(item => ({ id: item.id, name: item.snippet.title, coverUrl: item.snippet.thumbnails?.medium?.url, trackCount: item.contentDetails?.itemCount, source: 'ytmusic' as const }));
+    this.writeCache(this.playlistsCache, key, playlists, PLAYLISTS_TTL_MS);
+    return playlists;
   }
 
   async getProfile(): Promise<YouTubeProfile | null> {
@@ -106,12 +232,22 @@ export class YouTubeMusicProvider {
   }
 
   private async getVideoMetadata(videoIds: string[]): Promise<Map<string, YouTubeVideoMetadata>> {
-    const metadata = new Map<string, YouTubeVideoMetadata>();
+    type VideosResponse = { items?: Array<{ id: string; snippet?: { categoryId?: string }; contentDetails?: { duration?: string }; status?: { embeddable?: boolean } }> };
+
+    const batches: string[][] = [];
     for (let start = 0; start < videoIds.length; start += 50) {
       const ids = videoIds.slice(start, start + 50);
-      if (ids.length === 0) continue;
-      type VideosResponse = { items?: Array<{ id: string; snippet?: { categoryId?: string }; contentDetails?: { duration?: string }; status?: { embeddable?: boolean } }> };
-      const data = await this.authorized<VideosResponse>(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,status&id=${encodeURIComponent(ids.join(','))}`);
+      if (ids.length > 0) batches.push(ids);
+    }
+
+    // Bounded concurrency, not `Promise.all`: a 1,000-track playlist is twenty batches, and twenty
+    // simultaneous requests is how a per-user rate limit gets tripped.
+    const responses = await mapWithConcurrency(batches, METADATA_CONCURRENCY, ids => (
+      this.authorized<VideosResponse>(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,status&id=${encodeURIComponent(ids.join(','))}`)
+    ));
+
+    const metadata = new Map<string, YouTubeVideoMetadata>();
+    for (const data of responses) {
       for (const item of data.items || []) {
         metadata.set(item.id, {
           videoId: item.id,
@@ -124,20 +260,37 @@ export class YouTubeMusicProvider {
     return metadata;
   }
 
-  async getPlaylistTracks(playlistId: string): Promise<Song[]> {
+  /**
+   * The tracks in one playlist, up to `limit`, with metadata.
+   *
+   * Returns `hasMore` rather than pretending the list is complete: a 5,000-track playlist used to
+   * page all the way in series before the player could start, and the caller had no way to know it
+   * had been handed a partial view. Prefer `loadPlaylistTracks` when only the tracks are wanted.
+   */
+  async getPlaylistTracksPage(playlistId: string, options: { limit?: number } = {}): Promise<PlaylistTracksResult> {
+    const limit = Math.max(1, Math.floor(options.limit ?? DEFAULT_TRACK_LIMIT));
+    const key = this.cacheKey(`tracks:${playlistId}:${limit}`);
+    const cached = this.readCache(this.tracksCache, key);
+    if (cached) return cached;
+
     type PlaylistItemsResponse = { nextPageToken?: string; items?: Array<{ snippet: { title: string; channelTitle?: string; thumbnails?: { high?: { url: string }; medium?: { url: string } }; resourceId: { videoId: string } } }> };
     const items: NonNullable<PlaylistItemsResponse['items']> = [];
     let pageToken: string | undefined;
+    let hasMore = false;
 
     for (let page = 0; page < MAX_TRACK_PAGES; page += 1) {
       const token = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '';
       const data = await this.authorized<PlaylistItemsResponse>(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${encodeURIComponent(playlistId)}&maxResults=50${token}`);
       items.push(...(data.items || []));
       pageToken = data.nextPageToken;
+      // Stop as soon as the cap is covered. The remaining pages are not "missing" - they exist, and
+      // `hasMore` says so.
+      if (items.length >= limit) { hasMore = Boolean(pageToken); break; }
       if (!pageToken) break;
     }
 
-    const baseTracks = items.filter(item => item.snippet.resourceId?.videoId).map(item => ({
+    const selected = items.slice(0, limit);
+    const baseTracks = selected.filter(item => item.snippet.resourceId?.videoId).map(item => ({
       id: item.snippet.resourceId.videoId,
       title: item.snippet.title,
       artists: [{ id: item.snippet.channelTitle || 'youtube', name: item.snippet.channelTitle || 'YouTube Music' }],
@@ -149,19 +302,48 @@ export class YouTubeMusicProvider {
     let metadata = new Map<string, YouTubeVideoMetadata>();
     try {
       metadata = await this.getVideoMetadata(baseTracks.map(track => track.id));
-    } catch {
+    } catch (error) {
       // Playlist items remain usable when the optional metadata request is unavailable.
       // The resulting `unknown` kind intentionally avoids treating an ordinary video as music.
+      // It used to fail in total silence, which made "every track is unknown" impossible to explain
+      // without a debugger; the reason is now reported instead of shown.
+      this.onDiagnostic?.({
+        name: 'youtube_metadata_unavailable',
+        details: {
+          playlistId,
+          trackCount: baseTracks.length,
+          reason: error instanceof Error ? error.name : 'unknown',
+        },
+      });
     }
 
-    return baseTracks.map(track => {
-      const video = metadata.get(track.id);
-      return {
-        ...track,
-        durationMs: parseYouTubeDuration(video?.duration),
-        youtubeVideoKind: resolveYouTubeVideoKind(video?.categoryId),
-      };
-    });
+    const result: PlaylistTracksResult = {
+      tracks: baseTracks.map(track => {
+        const video = metadata.get(track.id);
+        return {
+          ...track,
+          durationMs: parseYouTubeDuration(video?.duration),
+          youtubeVideoKind: resolveYouTubeVideoKind(video?.categoryId),
+        };
+      }),
+      hasMore,
+    };
+
+    if (hasMore) {
+      this.onDiagnostic?.({
+        name: 'youtube_tracks_truncated',
+        details: { playlistId, loaded: result.tracks.length, limit },
+      });
+    }
+
+    this.writeCache(this.tracksCache, key, result, TRACKS_TTL_MS);
+    return result;
+  }
+
+  /** The common case: the tracks, without the truncation flag. */
+  async getPlaylistTracks(playlistId: string, options: { limit?: number } = {}): Promise<Song[]> {
+    const { tracks } = await this.getPlaylistTracksPage(playlistId, options);
+    return tracks;
   }
 
   // YouTube does not expose a public YouTube Music playback/account API.
