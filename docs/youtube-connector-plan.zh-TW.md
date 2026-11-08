@@ -504,9 +504,19 @@ YouTube 那堆髒標題就吃得進 LRCLIB 了。
    只要不去接它就好。L1/L2 會把需要的部分（標題清洗、評分）**重寫進 `packages/core`**，
    不從 `src/utils` 拉。
 
-**L3-a 的實作邊界**：AMLLDB 是第三方服務，取用要經過一支**只有一個用途**的 API
+**L3-a 實作邊界（2026-11-07 完成）**：AMLLDB 是第三方服務，取用走一支**只有一個用途**的 API
 （只接受 `platform` + `musicId` 兩個受限參數，由伺服器組 URL），**不是通用 proxy**。
-來源標註與快取策略一併寫進 `docs/`。
+
+- `api/lyrics/amll.ts`：`?platform=ncm&id=347230`。平台對白名單、id 對 `^\d{1,20}$`，
+  網址由 handler 自己組。`redirect: 'error'`，不轉發任何 header 或 cookie。
+  這不是「驗證得比較好的通用 proxy」——是**一個表達不了惡意請求的介面**。
+- `packages/core/src/lyrics/amllTtml.ts`：逐字 TTML 解析。core 原本的 `parseTTML` 會
+  `replace(/<[^>]+>/g,'')` 把每個 `<span>` 的 `begin` 丟掉，等於把逐字歌詞降級成整行；
+  這個解析器保留每個字的時間，並把 `ttm:role="x-roman"` / `x-translation` 當註解而非歌詞。
+- 取用順序：**LRCLIB 先，AMLLDB 只補空缺**。逐字是「更好」不是「不同答案」，
+  所以便宜的先問；反過來會為每首歌多花一次來回，只為了升級本來就正確的歌詞。
+- **身分比傳輸難**：資料庫以平台 id 為鍵，YouTube 歌單沒有 id。沒有 id 就不查——
+  用標題猜 id 會拿到別首歌的歌詞，那正是 `matchScore.ts` 存在的理由。
 
 ## 6. 非目標（這次不做）
 

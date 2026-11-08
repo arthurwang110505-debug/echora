@@ -6,6 +6,8 @@ import {
   SpotifyProvider,
   YouTubeMusicProvider,
   extractYouTubeVideoId,
+  fetchAmllDbLyrics,
+  readAmllDbIds,
   isYouTubeApiError,
   parseYouTubeApiErrorMessage,
   type Playlist,
@@ -289,6 +291,25 @@ interface PlayerState {
   loadSpotifyPlaylist: (playlistId: string) => Promise<void>;
   loadYouTubePlaylist: (playlistId: string, options?: { autoplay?: boolean }) => Promise<void>;
 }
+
+/**
+ * Word-by-word lyrics from AMLL DB, when the song can be identified there.
+ *
+ * The catch is identity, not transport: the database is keyed by platform ids, and a YouTube library
+ * carries none. `readAmllDbIds` reports whichever ids a song does carry, and a song with none
+ * returns `null` without a request - guessing an id from a title would fetch another song's lyrics,
+ * which is precisely the failure the scorer exists to prevent.
+ */
+const fetchWordByWordLyrics = async (song: Song) => {
+  const lookups = readAmllDbIds(song);
+  for (const lookup of lookups) {
+    const lyrics = await fetchAmllDbLyrics(lookup);
+    // A single-word-per-line document is not an upgrade over LRCLIB's line timing, so only a real
+    // word-timed result replaces the fallback.
+    if (lyrics?.isWordByWord && lyrics.lines.length) return lyrics;
+  }
+  return null;
+};
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentSong: null,
@@ -733,6 +754,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     // Never leave the previous song's lines on screen while a new request is pending.
     set({ currentLyrics: null, isLoadingLyrics: true, lyricsStatus: 'loading' });
     try {
+      // Two sources, in this order, and the order is the cost model:
+      //
+      //   1. LRCLIB - line-timed, free, no proxy, works for every song.
+      //   2. AMLL DB - word-timed, CC0, only for songs that carry a platform id.
+      //
+      // Word-by-word lyrics are a *nicer* result, not a different answer, so the cheap source is
+      // asked first and the expensive one only fills a miss. Doing it the other way round would
+      // spend a network round trip on every song to upgrade lyrics that were already right.
       const lyrics = await fetchLrcLibLyrics({
         trackName: song.title,
         artistName,
@@ -740,7 +769,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         duration: song.durationMs ? song.durationMs / 1000 : undefined,
       });
 
-      const resolved = lyrics || { title: song.title, artist: artistName, isWordByWord: false, lines: [], availability: 'unavailable' as const };
+      const wordByWord = lyrics?.lines?.length ? null : await fetchWordByWordLyrics(song);
+      const resolved = wordByWord || lyrics || { title: song.title, artist: artistName, isWordByWord: false, lines: [], availability: 'unavailable' as const };
       if (get().currentSong?.id === requestedSongId) set({ currentLyrics: { ...resolved, origin: resolved.origin || 'lrclib' }, isLoadingLyrics: false, lyricsStatus: resolved.availability || 'available' });
     } catch {
       if (get().currentSong?.id === requestedSongId) set({ currentLyrics: { title: song.title, artist: artistName, isWordByWord: false, lines: [], availability: 'error' }, isLoadingLyrics: false, lyricsStatus: 'error' });

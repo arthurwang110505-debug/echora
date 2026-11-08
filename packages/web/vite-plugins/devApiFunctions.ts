@@ -24,6 +24,9 @@ const FUNCTIONS: { route: string; file: string }[] = [
     { route: '/api/ai/theme', file: 'api/ai/theme.ts' },
     { route: '/api/ai/status', file: 'api/ai/status.ts' },
     { route: '/api/youtube/search', file: 'api/youtube/search.ts' },
+    // Word-by-word lyrics. Deliberately one route per source rather than a generic
+    // `/api/lyric-proxy?url=…`: the narrow shape is what keeps arbitrary hosts unreachable.
+    { route: '/api/lyrics/amll', file: 'api/lyrics/amll.ts' },
 ];
 
 export const devApiFunctionsPlugin = (workspaceRoot: string): Plugin => ({
