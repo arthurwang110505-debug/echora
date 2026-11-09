@@ -78,7 +78,11 @@ describe('readClientId / missing configuration', () => {
 });
 
 describe('beginYouTubeLogin - success', () => {
-  it('requests a popup token client with the read-write YouTube scope', async () => {
+  // Read-only, and this spec is the guard on that: the app never writes to a user's account, so
+  // asking for write access would contradict the privacy policy and hold up Google verification.
+  // If playlist writing is ever built, it asks for the wider scope at that moment instead
+  // (incremental authorization), and this expectation changes in the same commit.
+  it('requests a popup token client with the read-only YouTube scope', async () => {
     const { api, state } = createFakeApi();
     loadGoogleIdentity.mockResolvedValue(api);
     const { beginYouTubeLogin } = await importAuth();
@@ -87,7 +91,7 @@ describe('beginYouTubeLogin - success', () => {
     await vi.waitFor(() => expect(state.config).toBeDefined());
 
     expect(state.config?.client_id).toBe('test-client-id.apps.googleusercontent.com');
-    expect(state.config?.scope).toBe('https://www.googleapis.com/auth/youtube');
+    expect(state.config?.scope).toBe('https://www.googleapis.com/auth/youtube.readonly');
     // A popup must never navigate: that is the whole reason the callback route could be deleted.
     expect(state.config?.ux_mode).toBe('popup');
   });

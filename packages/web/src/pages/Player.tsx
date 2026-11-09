@@ -8,6 +8,7 @@ import { useTheme } from '../contexts/ThemeProvider';
 import YouTubePlayer from '../components/YouTubePlayer';
 import { useSpotifyCredentialStore } from '../store/spotifyCredentialStore';
 import { useDialogFocus } from '../hooks/useDialogFocus';
+import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import LyriclessSoundscapeStage from '../components/LyriclessSoundscapeStage';
 import { CoverImage, PanelSkeleton, PlayerSkeleton, StageSkeleton } from '../components/LoadingSkeletons';
 import { adjustLyricsOffset, getActiveLyricIndex, LYRICS_OFFSET_STEP_SECONDS, offsetForLineStart } from '../utils/lyrics/activeLine';
@@ -133,6 +134,11 @@ export default function Player() {
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isThemeQuickEditorOpen, setIsThemeQuickEditorOpen] = useState(false);
   const stageRootRef = useRef<HTMLDivElement>(null);
+
+  // The stage is meant to be watched hands-off for a whole song, so the screen must not dim
+  // underneath it. Held only on the stage while playing: on the normal player page the user is
+  // interacting, and keeping the display awake there would just drain the battery.
+  useScreenWakeLock({ enabled: displayMode === 'stage' && isPlaying });
   const spotifyAvailable = useSpotifyCredentialStore((state) => Boolean(state.clientId));
   const demoMode = location.state?.demo === true || new URLSearchParams(location.search).get('demo') === '1';
   const isYouTubeVideoMode = isYouTubeVideo(currentSong);

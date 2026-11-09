@@ -6,6 +6,7 @@ import { ThemeProvider } from './contexts/ThemeProvider';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import PersistentMiniPlayer from './components/PersistentMiniPlayer';
 import { RouteSkeleton } from './components/LoadingSkeletons';
+import NotFound from './pages/NotFound';
 import './App.css';
 import { isChunkLoadError, lazyWithRetry, recoverFromStaleBuild } from './utils/recovery';
 import { withLocaleBundle } from './i18n';
@@ -96,6 +97,9 @@ const router = createBrowserRouter([
       { path: '/privacy', element: <Privacy /> },
       { path: '/terms', element: <Terms /> },
       { path: '/obs', element: <ObsStage /> },
+      // Catch-all last: without it an unknown path reached the error boundary, which is written
+      // for a failed chunk load and tells the user to clear their cache.
+      { path: '*', element: <NotFound /> },
     ],
   },
 ]);

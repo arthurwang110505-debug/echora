@@ -27,9 +27,14 @@ const makeResponse = (): FakeResponse & { setHeader: (k: string, v: string) => v
     return response;
 };
 
+// A browser POST always carries Origin, and the host it is talking to. Supplying both here keeps
+// every spec below exercising the handler the way the app calls it; the origin policy itself has
+// its own specs in src/api/origin.test.ts.
+const BROWSER_HEADERS = { origin: 'http://localhost:3000', host: 'localhost:3000' };
+
 const makeRequest = (lines: string[], headers: Record<string, string> = {}) => ({
     method: 'POST',
-    headers: { 'content-type': 'application/json', ...headers },
+    headers: { 'content-type': 'application/json', ...BROWSER_HEADERS, ...headers },
     body: { lines },
     socket: { remoteAddress: '203.0.113.7' },
 });

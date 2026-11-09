@@ -1,16 +1,11 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { IncomingMessage } from 'node:http';
 import { SearchCache, RateLimiter, buildSearchCacheKey } from '../../packages/web/src/lib/searchCache';
-
-type ApiResponse = ServerResponse;
+import { respond, methodNotAllowed, type ApiResponse } from '../_lib/http';
+import { DailyCeiling } from '../_lib/limits';
+import { isAllowedRequest, requestHostname } from '../_lib/origin';
 
 type ApiRequest = IncomingMessage & {
   method?: string;
-};
-
-const sendJson = (response: ApiResponse, status: number, payload: unknown) => {
-  response.statusCode = status;
-  response.setHeader('Content-Type', 'application/json; charset=utf-8');
-  response.end(JSON.stringify(payload));
 };
 
 const YOUTUBE_SEARCH_URL = 'https://www.googleapis.com/youtube/v3/search';
@@ -26,6 +21,17 @@ const UPSTREAM_TIMEOUT_MS = 8000;
  */
 const cache = new SearchCache();
 const limiter = new RateLimiter();
+
+/**
+ * A hard stop for the shared daily quota.
+ *
+ * `search.list` allows 100 calls a day. The cache and the per-client limiter above both assume a
+ * caller who is merely enthusiastic; neither survives a caller who is not. This is the number that
+ * means a spent budget costs an attacker real requests rather than one loop, and that the app still
+ * has search tomorrow. Set well under 100 so a burst cannot take the whole day in one instance.
+ */
+const DAILY_UPSTREAM_CEILING = 60;
+const ceiling = new DailyCeiling(DAILY_UPSTREAM_CEILING);
 
 /**
  * Best-effort client identity for rate limiting.
@@ -49,16 +55,19 @@ const getClientKey = (request: ApiRequest): string => {
  * needs a valid 11-character video id.
  */
 export default async function handler(request: ApiRequest, response: ApiResponse) {
-  if (request.method !== 'GET') {
-    response.setHeader('Allow', 'GET');
-    sendJson(response, 405, { error: '只支援 GET。' });
-    return;
+  if (request.method !== 'GET') return methodNotAllowed(response, 'GET');
+
+  // This route had no origin check at all, which is what let a script spend the day's 100 calls
+  // before anyone else searched. It returns public data, so a headerless caller is allowed - a
+  // plain link or a prefetcher is not the threat - but a browser page on another site is refused.
+  const headers = request.headers as Record<string, string | string[] | undefined>;
+  if (!isAllowedRequest(headers.origin, { sameOrigin: requestHostname(headers), allowMissingOrigin: true })) {
+    return respond(response, 403, { error: '不允許的來源。' });
   }
 
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) {
-    sendJson(response, 503, { error: '尚未設定 YouTube 搜尋服務，請改從已同步的私人歌單選取曲目。' });
-    return;
+    return respond(response, 503, { error: '尚未設定 YouTube 搜尋服務，請改從已同步的私人歌單選取曲目。' });
   }
 
   let query = '';
@@ -70,12 +79,10 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
 
   if (!query) {
-    sendJson(response, 400, { error: '缺少搜尋關鍵字。' });
-    return;
+    return respond(response, 400, { error: '缺少搜尋關鍵字。' });
   }
   if (query.length > MAX_QUERY_LENGTH) {
-    sendJson(response, 400, { error: '搜尋關鍵字太長。' });
-    return;
+    return respond(response, 400, { error: '搜尋關鍵字太長。' });
   }
 
   // Serve from cache before touching the quota. A cache hit costs nothing and is indistinguishable
@@ -83,8 +90,9 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   const cacheKey = buildSearchCacheKey(query);
   const cached = cache.get(cacheKey);
   if (cached) {
-    sendJson(response, 200, { items: cached, cached: true });
-    return;
+    // A cache hit costs no quota, so it is served even when the ceiling is spent: the whole point
+    // of the cache is that repeated searches keep working after the upstream budget is gone.
+    return respond(response, 200, { items: cached, cached: true });
   }
 
   // Only *misses* are rate limited. Charging the limiter for a cache hit would punish the exact
@@ -92,8 +100,12 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   const { allowed, retryAfterSeconds } = limiter.take(getClientKey(request));
   if (!allowed) {
     response.setHeader('Retry-After', String(retryAfterSeconds));
-    sendJson(response, 429, { error: `搜尋次數過多，請 ${retryAfterSeconds} 秒後再試。` });
-    return;
+    return respond(response, 429, { error: `搜尋次數過多，請 ${retryAfterSeconds} 秒後再試。` });
+  }
+
+  if (!ceiling.take()) {
+    console.warn('[YouTube Search] daily upstream ceiling reached', { ceiling: DAILY_UPSTREAM_CEILING });
+    return respond(response, 429, { error: '今天的搜尋額度已用完，請明天再試或改用已同步的私人歌單。' });
   }
 
   const controller = new AbortController();
@@ -107,8 +119,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
 
     if (!upstream.ok) {
       console.error('[YouTube Search] upstream request failed', { status: upstream.status });
-      sendJson(response, 502, { error: `YouTube 搜尋服務暫時無法使用（HTTP ${upstream.status}），請稍後再試。` });
-      return;
+      return respond(response, 502, { error: `YouTube 搜尋服務暫時無法使用（HTTP ${upstream.status}），請稍後再試。` });
     }
 
     const data = await upstream.json();
@@ -116,11 +127,11 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     // Only successful answers are cached: caching a 502 would make a transient upstream failure
     // sticky for a minute.
     cache.set(cacheKey, items);
-    sendJson(response, 200, { items });
+    return respond(response, 200, { items });
   } catch (error) {
     const aborted = error instanceof Error && error.name === 'AbortError';
     console.error('[YouTube Search] proxy error', error instanceof Error ? error.message : error);
-    sendJson(response, aborted ? 504 : 502, { error: aborted ? 'YouTube 搜尋服務逾時，請稍後再試。' : 'YouTube 搜尋服務暫時無法使用。' });
+    return respond(response, aborted ? 504 : 502, { error: aborted ? 'YouTube 搜尋服務逾時，請稍後再試。' : 'YouTube 搜尋服務暫時無法使用。' });
   } finally {
     clearTimeout(timer);
   }

@@ -27,15 +27,19 @@ import {
 } from './googleIdentity';
 
 /**
- * Read-write YouTube scope.
+ * Read-only YouTube scope.
  *
- * Widened from `youtube.readonly` so the provider can create and edit playlists (D2). This is a
- * sensitive-scope change: the consent screen's justification, the privacy policy and the recorded
- * demo video all currently say "read-only", and Google re-verification is required before this is
- * served to anyone who is not a test user. Callers must not write to a user's library without an
- * explicit confirmation step.
+ * This was widened to the full `.../auth/youtube` scope so the provider could create and edit
+ * playlists (D2), and narrowed back because nothing ever used it: every call in the app is a GET
+ * through `requestYouTubeJson`, and no playlist write was ever implemented. Asking for write
+ * access to a user's account to read their library is a bad trade on its own terms, and it put the
+ * consent screen at odds with the privacy policy - which is the single most common reason Google
+ * rejects OAuth verification.
+ *
+ * If playlist writing is ever built, ask for the write scope *then*, with Google's incremental
+ * authorization (`include_granted_scopes`), so the normal consent screen stays read-only.
  */
-const SCOPE = 'https://www.googleapis.com/auth/youtube';
+const SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
 
 const EXPIRY_SKEW_MS = 30_000;
 

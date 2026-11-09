@@ -4,6 +4,8 @@ import App from './App'
 import './i18n'
 import { initObservability } from './lib/observability'
 import { cleanupStaleAudioCaches } from './utils/staleCacheCleanup'
+import { createUpdateGate } from './lib/swUpdateGate'
+import { usePlayerStore } from './store/playerStore'
 import './index.css'
 
 initObservability()
@@ -18,12 +20,17 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 )
 
 if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-  let refreshingForUpdate = false
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!refreshingForUpdate) {
-      refreshingForUpdate = true
-      window.location.reload()
-    }
+  // A deploy takes over the open tab immediately (skipWaiting + clientsClaim). Reloading at that
+  // instant would stop whatever is playing and sign the user out of YouTube, whose token is
+  // memory-only - so the reload waits for the player to be idle. See swUpdateGate.ts.
+  const updateGate = createUpdateGate({
+    getState: () => {
+      const state = usePlayerStore.getState()
+      return { isPlaying: state.isPlaying, playbackState: state.playbackState }
+    },
+    subscribe: listener => usePlayerStore.subscribe(listener),
+    reload: () => window.location.reload(),
   })
+  navigator.serviceWorker.addEventListener('controllerchange', () => updateGate.markPending())
   navigator.serviceWorker.ready.then(registration => registration.update()).catch(() => undefined)
 }

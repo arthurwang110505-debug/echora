@@ -139,7 +139,7 @@ Client ID 存放於 `localStorage['echora.spotify.client-id']`。沒填時會退
 
 - 同網域、`blob:`（使用者本機檔案）→ 直接接管，聲音與真實頻譜都有。
 - 跨網域 → 必須同時滿足「元素設定 `crossorigin="anonymous"`」與「主機回 `Access-Control-Allow-Origin`」，
-  否則依 Web Audio 規格，被標記為 CORS-cross-origin 的媒體经 `createMediaElementSource()` 後**必須輸出靜音**。
+  否則依 Web Audio 規格，被標記為 CORS-cross-origin 的媒體經 `createMediaElementSource()` 後**必須輸出靜音**。
   因此未通過檢查的來源會保留原生輸出（有聲音、畫面改用節奏脈衝），不會再出現「看似播放、其實無聲」。
 - 展示曲放在 `https://cdn.jsdelivr.net/gh/<owner>/<repo>@main/*.mp3`：jsDelivr 回 `Access-Control-Allow-Origin: *`
   且支援 Range（拖條可用），所以聲音與真實頻譜都正常。更換來源只需改 `store/localDemoSongs.ts` 的 `DEMO_AUDIO_BASE`。
@@ -155,7 +155,7 @@ Client ID 存放於 `localStorage['echora.spotify.client-id']`。沒填時會退
 
 ## 功能
 
-- 11 種歌詞視覺舞台，本機展示曲會跟著真實頻譜動
+- 14 種歌詞視覺舞台，本機展示曲會跟著真實頻譜動
 - AI 主題生成
 - YouTube Music 官方歌單連線
 - Responsive 歌詞舞台

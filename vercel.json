@@ -4,6 +4,35 @@
   "buildCommand": "pnpm --filter=@echora/web build",
   "outputDirectory": "packages/web/dist",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "comment": "SPA fallback, minus the paths that must never receive HTML. Without the negative lookahead a mistyped /api/... answered 200 with the app shell, so a broken endpoint looked like a working page to every client and to Search Console. Static assets are excluded for the same reason: a missing .js should 404, not return index.html with a JavaScript content type.",
+      "source": "/((?!api/|assets/|.*\\..*).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "comment": "Hashed build output: the filename changes with the content, so it can be cached forever.",
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "comment": "The app shell and the service worker must never be browser-cached, or a deploy stays invisible until the user clears storage. The worker is also what discovers new builds.",
+      "source": "/(index.html|sw.js|registerSW.js|manifest.webmanifest)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "comment": "nosniff stops a browser guessing a content type from the body; the referrer policy keeps lyric and OAuth paths out of third-party logs; the permissions policy turns off hardware this app never requests. Deliberately no CSP yet: the app needs fonts.googleapis.com, youtube.com iframes and blob: workers, and a policy written without testing them would break playback. Deliberately no X-Frame-Options either - the /obs overlay is meant to be embedded.",
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=()" }
+      ]
+    }
   ]
 }

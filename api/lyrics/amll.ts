@@ -1,6 +1,8 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { IncomingMessage } from 'node:http';
+import { respond as sendJson, respondRaw, methodNotAllowed, type ApiResponse } from '../_lib/http';
+import { RateLimiter, clientKey } from '../_lib/limits';
+import { isAllowedRequest, requestHostname } from '../_lib/origin';
 
-type ApiResponse = ServerResponse;
 type ApiRequest = IncomingMessage & { method?: string };
 
 // api/lyrics/amll.ts
@@ -30,10 +32,38 @@ const ALLOWED_PLATFORMS = new Set(['ncm', 'qq', 'spotify', 'am']);
 /** Platform ids are plain integers; anchoring the charset keeps `../` out of the URL. */
 const PLATFORM_ID = /^\d{1,20}$/;
 
-const sendJson = (response: ApiResponse, status: number, payload: unknown) => {
-  response.statusCode = status;
-  response.setHeader('Content-Type', 'application/json; charset=utf-8');
-  response.end(JSON.stringify(payload));
+// Rate limiting, per client. The database is a community service run by one person, not a paid
+// API: the limit here is about not being the reason it falls over, not about our bill.
+const limiter = new RateLimiter(60, 60_000);
+
+/**
+ * The largest lyric document this will read into memory.
+ *
+ * `upstream.text()` used to have no bound at all, so a hostile or broken upstream could stream
+ * until the function ran out of memory. TTML is text: a dense, long song is well under 200 kB.
+ */
+const MAX_DOCUMENT_BYTES = 1_000_000;
+
+/**
+ * Cache headers for a found document.
+ *
+ * `max-age` alone is a browser cache; Vercel's CDN keys on `s-maxage`, so without it every request
+ * for the same song reached the database. `stale-while-revalidate` lets the CDN answer instantly
+ * while it refreshes, which is what keeps a popular song from being a repeated upstream hit.
+ */
+const HIT_CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800',
+};
+
+/**
+ * Cache headers for "this song is not in the database".
+ *
+ * A miss is also answerable and also stable - the database does not gain the song by being asked
+ * again in ten seconds - but shorter, because it does get updated over time and a wrong 404 is more
+ * damaging than a slow 200.
+ */
+const MISS_CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
 };
 
 /**
@@ -52,10 +82,19 @@ export const buildUpstreamUrl = (platform: string, id: string): string | null =>
 };
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {
-  if (request.method !== 'GET') {
-    response.setHeader('Allow', 'GET');
-    sendJson(response, 405, { error: '只支援 GET。' });
-    return;
+  if (request.method !== 'GET') return methodNotAllowed(response, 'GET');
+
+  const headers = request.headers as Record<string, string | string[] | undefined>;
+  // Public, cacheable lyric documents: a headerless caller is fine (this is a read of a CC0
+  // corpus), but a page on another site must not be able to drive it.
+  if (!isAllowedRequest(headers.origin, { sameOrigin: requestHostname(headers), allowMissingOrigin: true })) {
+    return sendJson(response, 403, { error: '不允許的來源。' });
+  }
+
+  const { allowed, retryAfterSeconds } = limiter.take(clientKey(headers, request.socket?.remoteAddress || 'unknown'));
+  if (!allowed) {
+    response.setHeader('Retry-After', String(retryAfterSeconds));
+    return sendJson(response, 429, { error: '請求過於頻繁，請稍後再試。' });
   }
 
   let platform = '';
@@ -91,8 +130,8 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     // A missing document is a normal answer - the database simply does not have this song - so it is
     // 404 and not an error, and the client treats it as "this source has nothing".
     if (upstream.status === 404) {
-      sendJson(response, 404, { error: '這個來源沒有這首歌的歌詞。' });
-      return;
+      response.setHeader('Cache-Control', MISS_CACHE_HEADERS['Cache-Control']);
+      return sendJson(response, 404, { error: '這個來源沒有這首歌的歌詞。' });
     }
     if (!upstream.ok) {
       console.error('[AMLL DB] upstream failed', { status: upstream.status });
@@ -100,15 +139,29 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       return;
     }
 
-    const text = await upstream.text();
-    // Passed through as text, not JSON: it is XML, and wrapping it would add a parse/encode round
-    // trip on the server for nothing.
-    response.statusCode = 200;
-    response.setHeader('Content-Type', 'application/ttml+xml; charset=utf-8');
-    // A lyric document does not change once published, and the client caches by itself; this only
-    // spares the database a repeat request for the same song.
-    response.setHeader('Cache-Control', 'public, max-age=86400, immutable');
-    response.end(text);
+    const declared = Number(upstream.headers.get('content-length') || 0);
+    if (Number.isFinite(declared) && declared > MAX_DOCUMENT_BYTES) {
+      console.error('[AMLL DB] upstream document too large', { declared });
+      return sendJson(response, 502, { error: '歌詞檔案過大，無法載入。' });
+    }
+
+    // Read with a cap rather than `.text()`: a missing or lying Content-Length still gets bounded,
+    // because the stream is counted as it arrives and abandoned once it passes the limit.
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    if (upstream.body) {
+      for await (const chunk of upstream.body as unknown as AsyncIterable<Uint8Array>) {
+        received += chunk.byteLength;
+        if (received > MAX_DOCUMENT_BYTES) {
+          console.error('[AMLL DB] upstream document exceeded the size cap', { received });
+          return sendJson(response, 502, { error: '歌詞檔案過大，無法載入。' });
+        }
+        chunks.push(chunk);
+      }
+    }
+    const text = Buffer.concat(chunks).toString('utf8');
+    // Passed through as XML, not JSON: wrapping it would add a parse/encode round trip for nothing.
+    return respondRaw(response, 200, 'application/ttml+xml; charset=utf-8', text, HIT_CACHE_HEADERS);
   } catch (error) {
     const aborted = error instanceof Error && error.name === 'AbortError';
     console.error('[AMLL DB] proxy error', error instanceof Error ? error.message : error);
