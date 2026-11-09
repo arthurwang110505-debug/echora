@@ -53,3 +53,30 @@
 在這次修正之前，`isAllowedOrigin` 的預設規則是 `/(^|\.)vercel\.app$/`，也就是**任何**部署在 Vercel 上的網站都能從瀏覽器呼叫這些付費端點。而且沒有 `Origin` 標頭時一律放行。
 
 現在改成：只允許 `ECHORA_ALLOWED_ORIGINS` 與 Vercel 注入的自家網域，加上「同源」判定；沒有 Origin 的請求只有公開資料端點放行。回歸測試在 `packages/web/src/api/origin.test.ts`。
+
+## `vercel.json` 的設定說明
+
+Vercel 的 schema **不接受註解欄位**，所以理由寫在這裡。
+
+**rewrites** — SPA fallback 排除了 `api/`、`assets/` 與任何帶副檔名的路徑：
+
+```
+/((?!api/|assets/|.*\..*).*)
+```
+
+沒有這個負向先行斷言時，打錯的 `/api/xxx` 會回傳 HTTP 200 加一份 HTML，對所有用戶端與
+Search Console 都是「軟 404」。缺一個 `.js` 也會拿到 index.html，只是內容型別是 JavaScript。
+
+**headers** — 三組：
+
+| 路徑 | 用意 |
+|---|---|
+| `/assets/*` | 檔名帶內容雜湊，可以永久快取 |
+| `index.html`、`sw.js`、`registerSW.js`、`manifest.webmanifest` | 絕不瀏覽器快取，否則部署在使用者清快取前都看不到；`sw.js` 更是發現新版的入口 |
+| 全部 | `nosniff`、`Referrer-Policy`、`Permissions-Policy` |
+
+**刻意沒有加的兩個**：
+
+- **CSP** — 這個 app 需要 `fonts.googleapis.com`、YouTube iframe 與 blob worker。沒實測就寫的政策
+  會直接弄壞播放，所以等有瀏覽器可測時再加。
+- **`X-Frame-Options`** — `/obs` 疊層本來就是要被嵌入到 OBS 的，加上去會讓它失效。
