@@ -45,5 +45,27 @@
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
     "backToApp": "Back to app"
+  },
+  "youtubeFailure": {
+    "not_connected": "YouTube is not connected",
+    "auth_expired": "Your YouTube authorization expired. Please sign in again.",
+    "api_disabled": "The YouTube Data API is not enabled for this project.",
+    "quota_exceeded": "Today's YouTube API quota is used up.",
+    "account_forbidden": "This account cannot use the YouTube Data API.",
+    "access_denied": "YouTube refused this request.",
+    "search_limited": "Too many searches. Please wait a moment.",
+    "upstream_unavailable": "YouTube is not responding right now.",
+    "player_error": "The player could not play this video.",
+    "no_playable_video": "No playable video was found.",
+    "missing_query": "This song has no title to search with.",
+    "empty_library": "This account returned no playlists.",
+    "misconfigured": "The YouTube connection is not fully configured.",
+    "unknown": "YouTube returned an unexpected error.",
+    "hintApiDisabled": "Enable YouTube Data API v3 in Google Cloud Console under APIs & Services → Library, then reconnect.",
+    "hintQuota": "The quota resets at midnight Pacific time, or you can request more in the Cloud Console.",
+    "hintForbidden": "This usually means a managed Workspace account. Try a personal Google account.",
+    "hintSearchLimited": "Try again shortly, or pick a track from your synced library.",
+    "hintEmptyLibrary": "Check that the playlists belong to the same YouTube account.",
+    "timeout": "The connection timed out. Check your network and try again."
   }
 }

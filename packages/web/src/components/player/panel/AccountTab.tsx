@@ -7,11 +7,14 @@ import { Heart, History, Settings2, User as UserIcon } from 'lucide-react';
 // (streams come from the provider or the local file), so that control has no backing state
 // and is intentionally left out rather than faked.
 
+import type { YouTubeConnectionState } from '../../../store/playerStore';
+
 export type AccountSource = 'spotify' | 'ytmusic' | 'local';
 
 export type AccountTabProps = {
   activeSource: AccountSource;
   youtubeConnected: boolean;
+  youtubeConnectionState: YouTubeConnectionState;
   youtubeProfile: { name: string; avatarUrl?: string } | null;
   spotifyConnected: boolean;
   spotifyAvailable: boolean;
@@ -29,6 +32,7 @@ export type AccountTabProps = {
 export default function AccountTab({
   activeSource,
   youtubeConnected,
+  youtubeConnectionState,
   youtubeProfile,
   spotifyConnected,
   spotifyAvailable,
@@ -66,8 +70,21 @@ export default function AccountTab({
             <p className="truncate text-xs font-bold text-white">
               {youtubeConnected && youtubeProfile?.name ? youtubeProfile.name : t('panel.notConnected')}
             </p>
-            <p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-slate-500">
-              {youtubeConnected ? t('panel.connectedAs') : t('panel.sourceYouTube')}
+            {/* Four states, not two. `expired` is the one that mattered: the panel said "已連接"
+                for a token Google was already rejecting, so the only symptom was that nothing
+                worked. */}
+            <p className={`mt-0.5 text-[10px] uppercase tracking-[0.14em] ${
+              youtubeConnectionState === 'expired' ? 'text-rose-300'
+                : youtubeConnectionState === 'syncing' || youtubeConnectionState === 'authorizing' ? 'text-amber-300'
+                  : youtubeConnectionState === 'error' ? 'text-rose-300'
+                    : 'text-slate-500'
+            }`}>
+              {youtubeConnectionState === 'expired' ? t('panel.stateExpired')
+                : youtubeConnectionState === 'syncing' ? t('panel.stateSyncing')
+                  : youtubeConnectionState === 'authorizing' ? t('panel.stateAuthorizing')
+                    : youtubeConnectionState === 'error' ? t('panel.stateError')
+                      : youtubeConnected ? t('panel.connectedAs')
+                        : t('panel.sourceYouTube')}
             </p>
           </div>
         </div>
@@ -78,6 +95,10 @@ export default function AccountTab({
           )}
           {youtubeConnected && (
             <>
+              {/* A dead token needs the same button as a first connect: signing in again. */}
+              {youtubeConnectionState === 'expired' && (
+                <button type="button" onClick={onConnectYouTube} className={actionButton}>{t('panel.reconnect')}</button>
+              )}
               <button type="button" onClick={onSwitchYouTube} className={actionButton}>{t('panel.switchAccount')}</button>
               <button type="button" onClick={onDisconnectYouTube} className={actionButton}>{t('panel.disconnect')}</button>
             </>

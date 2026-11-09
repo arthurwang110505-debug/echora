@@ -105,24 +105,31 @@ git push      # Vercel 自動部署
 | 服務條款 | `https://echora-three.vercel.app/terms` |
 | Authorized domains | `echora-three.vercel.app` |
 | 已授權的 JavaScript 來源（Credentials → OAuth client） | `https://echora-three.vercel.app`（本機再加 `http://localhost:3000`） |
-| 已授權的重新導向 URI | `https://echora-three.vercel.app/oauth/youtube/callback` |
+| 已授權的重新導向 URI | **不需要**（登入使用 Google Identity Services 權杖模式，全程在彈出視窗內完成，不會把頁面導轉出去，因此沒有導回網址） |
 
 > 注意：Branding 的修改會先存成 **Draft**，要按 **Publish branding** 才會生效；
 > 且驗證進行中不能改 branding，要改必須先按 Cancel 取消該次驗證。
+>
+> 這次改版把登入從隱含流程（`response_type=token`，導向 `{origin}/oauth/youtube/callback`）
+> 換成 GIS 權杖模式。原本填在「已授權的重新導向 URI」的網址可以直接刪掉，
+> 留著也不會被使用。
 
 ### 步驟 4：送出品牌驗證 / 敏感範圍驗證
 
-`https://www.googleapis.com/auth/youtube.readonly` 是 **sensitive scope**：除了品牌驗證，
+`https://www.googleapis.com/auth/youtube` 是 **sensitive scope**（讀寫帳號的 YouTube 資源）：除了品牌驗證，
 還要送 **敏感範圍驗證**（Google 公告約 10 個工作天），需要：
 
 - 範圍用途說明（可直接用下面這段的英文版）：
 
   > Echora is a browser-based lyrics player for the user's own music. We request
-  > `https://www.googleapis.com/auth/youtube.readonly` solely to list the signed-in user's own
-  > playlists (`playlists.list`) and the videos inside them (`playlistItems.list`) so the app can
-  > display and play them through the official YouTube IFrame Player. We never write data, never
-  > request additional scopes, do not use the data for advertising, do not sell or transfer it to
-  > third parties, and do not allow humans to read it. Access tokens and playlist caches stay in the
+  > `https://www.googleapis.com/auth/youtube` to list the signed-in user's own playlists
+  > (`playlists.list`) and the videos inside them (`playlistItems.list`), so the app can display and
+  > play them through the official YouTube IFrame Player. The read-write (`youtube`) scope rather than
+  > `youtube.readonly` is required because Echora also supports saving a track to one of the user's
+  > own playlists (`playlistItems.insert`) on an explicit user action; nothing is ever edited or
+  > deleted without that action. The app does not request additional scopes, does not use the data
+  > for advertising, does not sell or transfer it to third parties, and does not allow humans to
+  > read it. Access tokens and playlist caches stay in the
   > browser (localStorage) of the device that signed in; Echora's servers never receive Google user data.
 
 - **示範影片**（上傳到 YouTube，設為「不公開 Unlisted」），要一鏡到底看到：

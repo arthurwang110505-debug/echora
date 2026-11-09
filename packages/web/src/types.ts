@@ -583,6 +583,21 @@ export interface LumiereTuning {
     renderQuality: LumiereRenderQuality;
 }
 
+export interface IslandTuning {
+    /** Size of the current line, as a multiplier on the island's own scale. */
+    lineSize: number;
+    /** Show the translation under the line. */
+    showTranslation: boolean;
+    /** Opacity of the words that have not been sung yet. */
+    upcomingWordOpacity: number;
+}
+
+export const DEFAULT_ISLAND_TUNING: IslandTuning = {
+    lineSize: 1,
+    showTranslation: true,
+    upcomingWordOpacity: 0.42,
+};
+
 export const DEFAULT_LUMIERE_TUNING: LumiereTuning = {
     lightIntensity: 1,
     audioResponse: 1,

@@ -70,6 +70,111 @@ const readInitialStageTier = (): StagePerformanceTier => {
 };
 
 /**
+ * Frames this many times over the tier's own budget count as a miss. 1.5 rather than 1 lets a
+ * device sit at 40 fps on the 60 fps tier without being demoted on vsync jitter alone.
+ */
+export const STAGE_TIER_SLOW_FACTOR = 1.5;
+
+/**
+ * Frames this far under the *next* tier's budget count as evidence it is worth retrying. The
+ * comparison is deliberately against the destination and not the current tier: after a demotion
+ * the current budget is the looser one, so judging by it would immediately promote the device
+ * back into the tier it just failed.
+ */
+export const STAGE_TIER_GOOD_FACTOR = 1.15;
+
+/** Consecutive slow frames before a demotion (~130 ms at 60 fps). */
+const DEMOTION_STREAK = 8;
+/** Consecutive good frames before a promotion (~3 s at 60 fps), extended per earlier demotion. */
+const PROMOTION_STREAK = 180;
+
+const TIER_ORDER: StagePerformanceTier[] = ['compact', 'balanced', 'full'];
+
+const nextTierBelow = (tier: StagePerformanceTier): StagePerformanceTier => {
+    const index = TIER_ORDER.indexOf(tier);
+    return TIER_ORDER[Math.max(0, index - 1)];
+};
+
+const nextTierAbove = (tier: StagePerformanceTier): StagePerformanceTier | null => {
+    const index = TIER_ORDER.indexOf(tier);
+    return index >= 0 && index < TIER_ORDER.length - 1 ? TIER_ORDER[index + 1] : null;
+};
+
+/** Budget for a tier, in ms per frame. Local so this block does not depend on declaration order. */
+const frameBudgetMs = (tier: StagePerformanceTier): number => 1000 / PROFILE_BY_TIER[tier].targetFps;
+
+export interface StageTierState {
+    tier: StagePerformanceTier;
+    /** Consecutive frames over the tier budget. */
+    slowFrames: number;
+    /** Consecutive frames fast enough for the tier above. */
+    goodFrames: number;
+    /** How many times this mount has been demoted; also the promotion backoff exponent. */
+    demotions: number;
+}
+
+/**
+ * How long the device must hold the next tier's budget before it is given another try.
+ *
+ * The previous rule was a hard stop after two demotions ("a device that has proven it cannot hold
+ * a tier twice does not get it back"), which made one transient event permanent: a background tab
+ * compiling, a GC storm, or a single heavy scene build demoted the stage for the rest of the mount,
+ * and the only recovery was reloading the page. Growing the proof window instead keeps the
+ * anti-oscillation intent - every retry costs more evidence than the last - without a device that
+ * blipped once paying for it forever.
+ */
+export const stagePromotionStreakFor = (demotions: number): number => (
+    PROMOTION_STREAK * (1 + 2 * Math.max(0, demotions))
+);
+
+/**
+ * Classifies one frame against the tier ladder and applies the streaks.
+ *
+ * Both thresholds come from the tier profile rather than from a fixed millisecond count. The
+ * number this replaces was `frameMs > 42` for every tier, which is 2.5x the 60 fps budget: a device
+ * rendering the full tier at a steady 30 fps (33 ms frames) never crossed it, so it never demoted
+ * and simply stayed slow. Relative to the budget, 33 ms is a clear miss on `full` and would be a
+ * pass on `compact`, which is what the tier is for.
+ *
+ * Mutates and returns `state` rather than producing a new object: this runs once per frame, and a
+ * five-field allocation per frame at 60 fps is GC pressure the observer is trying to avoid. It
+ * touches no globals, so the ladder can still be tested without a browser.
+ */
+export const advanceStageTier = (state: StageTierState, frameMs: number): StageTierState => {
+    if (!Number.isFinite(frameMs) || frameMs <= 0) return state;
+
+    const above = nextTierAbove(state.tier);
+
+    if (frameMs > frameBudgetMs(state.tier) * STAGE_TIER_SLOW_FACTOR) {
+        state.slowFrames += 1;
+        state.goodFrames = 0;
+    } else if (above && frameMs < frameBudgetMs(above) * STAGE_TIER_GOOD_FACTOR) {
+        state.goodFrames += 1;
+        state.slowFrames = 0;
+    } else {
+        // Within the current budget but not proof of headroom: neither a miss nor progress.
+        state.slowFrames = 0;
+        state.goodFrames = 0;
+    }
+
+    if (state.slowFrames >= DEMOTION_STREAK && state.tier !== 'compact') {
+        state.tier = nextTierBelow(state.tier);
+        state.slowFrames = 0;
+        state.goodFrames = 0;
+        state.demotions += 1;
+        return state;
+    }
+
+    if (above && state.goodFrames >= stagePromotionStreakFor(state.demotions)) {
+        state.tier = above;
+        state.slowFrames = 0;
+        state.goodFrames = 0;
+    }
+
+    return state;
+};
+
+/**
  * One shared frame-budget observer for the mounted visualizer. It only changes
  * tier after a streak of slow/good frames, so quality cannot oscillate around a
  * single missed frame.
@@ -78,42 +183,28 @@ export const useStagePerformanceProfile = (paused = false): StagePerformanceProf
     const [tier, setTier] = useState<StagePerformanceTier>(readInitialStageTier);
     const tierRef = useRef(tier);
     tierRef.current = tier;
-    // How many times this mount has already been demoted. A device that has proven it cannot hold a
-    // tier twice does not get it back: without this cap the observer oscillates forever (8 slow
-    // frames demote, 3s of good frames promote, the promotion itself - a canvas/shader/scene rebuild -
-    // supplies the next 8 slow frames). Every one of those flips used to tear down and re-create the
-    // Sonnet Pixi runtime and re-configure the Diorama canvas.
-    const demotionsRef = useRef(0);
+    const stateRef = useRef<StageTierState>({
+        tier,
+        slowFrames: 0,
+        goodFrames: 0,
+        demotions: 0,
+    });
+    stateRef.current.tier = tier;
 
     useEffect(() => {
         if (paused) return undefined;
         let raf = 0;
         let previous = performance.now();
-        let slowFrames = 0;
-        let goodFrames = 0;
 
         const sample = (now: number) => {
             const frameMs = now - previous;
             previous = now;
-            if (frameMs > 42) {
-                slowFrames += 1;
-                goodFrames = 0;
-            } else if (frameMs < 25) {
-                goodFrames += 1;
-                slowFrames = 0;
-            } else {
-                slowFrames = 0;
-                goodFrames = 0;
-            }
-
-            const current = tierRef.current;
-            if (slowFrames >= 8 && current !== 'compact') {
-                demotionsRef.current += 1;
-                setTier(current === 'full' ? 'balanced' : 'compact');
-                slowFrames = 0;
-            } else if (goodFrames >= 180 && current !== 'full' && demotionsRef.current < 2) {
-                setTier(current === 'compact' ? 'balanced' : 'full');
-                goodFrames = 0;
+            // The sampled tier is read from the ref, not from the closure: the decision may have
+            // changed the rendered tier since this callback was scheduled.
+            const next = advanceStageTier(stateRef.current, frameMs);
+            if (next.tier !== tierRef.current) {
+                tierRef.current = next.tier;
+                setTier(next.tier);
             }
             raf = requestAnimationFrame(sample);
         };

@@ -38,6 +38,9 @@
     "favoritesTitle": "收藏曲目",
     "favoritesHint": "把想再聽的歌留在這裡。",
     "unknownArtist": "Unknown artist",
-    "removeFavorite": "取消收藏 {{title}}"
+    "removeFavorite": "取消收藏 {{title}}",
+    "openErrorTitle": "無法開啟這個歌單",
+    "dismiss": "知道了",
+    "openingPlaylist": "正在開啟…"
   }
 }

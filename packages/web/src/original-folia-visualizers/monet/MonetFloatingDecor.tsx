@@ -1,12 +1,33 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import * as LucideIcons from 'lucide-react';
+import { useLucideIcon } from '../../utils/useLucideIcon';
 import type { Theme } from '../../types';
 import { colorWithAlpha } from '../colorMix';
 
 // src/components/visualizer/monet/MonetFloatingDecor.tsx
 // Renders gentle floating decorative particles for the Monet visualizer.
 // Uses theme lyricsIcons (lucide) when available; falls back to cherry-blossom petals.
+
+/**
+ * One particle's drawing.
+ *
+ * Split out as a component so each particle can resolve its own theme icon through `useLucideIcon`
+ * (one lazily loaded icon module) instead of the whole lucide catalogue being imported to index it
+ * by name. A name that is unknown or still loading falls through to the petal, which is the same
+ * result an unknown name always produced.
+ */
+const ParticleContent: React.FC<{
+    iconName: string | null;
+    size: number;
+    color: string;
+    fallbackColor: string;
+}> = ({ iconName, size, color, fallbackColor }) => {
+    const Icon = useLucideIcon(iconName);
+    if (Icon) {
+        return <Icon size={size} strokeWidth={1} absoluteStrokeWidth color={color} />;
+    }
+    return <SakuraPetal size={size} color={fallbackColor} />;
+};
 
 /** Simple SVG cherry-blossom petal used as fallback when no theme icons are provided. */
 const SakuraPetal: React.FC<{ size: number; color: string }> = ({ size, color }) => (
@@ -79,17 +100,14 @@ const MonetFloatingDecor: React.FC<MonetFloatingDecorProps> = ({
     const petalColor = colorWithAlpha(theme.secondaryColor, 0.55);
 
     /** Resolves the visual element for a single particle. */
-    const renderParticleContent = (p: FloatingParticle) => {
-        if (p.iconName) {
-            const Icon = LucideIcons[p.iconName as keyof typeof LucideIcons] as
-                | LucideIcons.LucideIcon
-                | undefined;
-            if (Icon) {
-                return <Icon size={p.size} strokeWidth={1} absoluteStrokeWidth color={theme.secondaryColor} />;
-            }
-        }
-        return <SakuraPetal size={p.size} color={petalColor} />;
-    };
+    const renderParticleContent = (p: FloatingParticle) => (
+        <ParticleContent
+            iconName={p.iconName}
+            size={p.size}
+            color={theme.secondaryColor}
+            fallbackColor={petalColor}
+        />
+    );
 
     if (staticMode) {
         return (

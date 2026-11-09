@@ -143,7 +143,14 @@ export interface LineRenderHints {
   animationIntensity?: number;
 }
 
-export type LyricOrigin = 'lrclib' | 'demo-transcript' | 'upload' | 'bundled';
+/**
+ * Where a lyric sheet came from.
+ *
+ * `amll-db` is word-by-word (see `lyrics/amllTtml.ts`); the rest are line-timed. Anything that
+ * displays lyric provenance has to handle every member, which is why this is a closed union rather
+ * than a string.
+ */
+export type LyricOrigin = 'lrclib' | 'amll-db' | 'demo-transcript' | 'upload' | 'bundled';
 
 export interface LyricData {
   lines: Line[];

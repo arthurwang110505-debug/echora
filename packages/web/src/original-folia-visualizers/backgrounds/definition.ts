@@ -103,7 +103,20 @@ export interface VisualizerBackgroundRegistryEntry {
     order: number;
     labelKey: string;
     labelFallback: string;
-    render: (props: VisualizerBackgroundRenderProps) => React.ReactNode;
+    /**
+     * Lazily loads the component that draws this background, if it has one.
+     *
+     * Kept separate from the entry's metadata on purpose. Everything in this object is imported
+     * eagerly by `registry.tsx`, so whatever `render` needs lands in the stage chunk and is
+     * downloaded by every `/player` visit whether or not that background is ever selected - which
+     * is how 388 kB of twgl (Sora's starfield) ended up in front of the first frame.
+     */
+    loadRender?: () => Promise<{ default: React.ComponentType<VisualizerBackgroundRenderProps> }>;
+    /**
+     * Synchronous renderer, for backgrounds small enough to keep in the shell and for the
+     * eager/default mode. Exactly one of `render` / `loadRender` is expected; `render` wins.
+     */
+    render?: (props: VisualizerBackgroundRenderProps) => React.ReactNode;
     renderSettingsPanel?: (props: VisualizerBackgroundSettingsProps) => React.ReactNode;
     resetSettings?: (actions?: VisualizerBackgroundActions) => void;
 }

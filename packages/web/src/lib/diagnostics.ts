@@ -1,4 +1,4 @@
-export type DiagnosticEventName = 'song_selected' | 'play_requested' | 'pause_requested' | 'youtube_error' | 'render_error' | 'web_vital' | 'audio_routing';
+export type DiagnosticEventName = 'song_selected' | 'play_requested' | 'pause_requested' | 'youtube_error' | 'render_error' | 'web_vital' | 'audio_routing' | 'youtube_metadata_unavailable' | 'youtube_tracks_truncated';
 
 const diagnosticLabels: Record<DiagnosticEventName, string> = {
   song_selected: '已選取歌曲',
@@ -8,6 +8,8 @@ const diagnosticLabels: Record<DiagnosticEventName, string> = {
   youtube_error: 'YouTube 播放器錯誤',
   render_error: '畫面載入錯誤',
   web_vital: '網頁效能指標',
+  youtube_metadata_unavailable: 'YouTube 影片資訊無法取得',
+  youtube_tracks_truncated: 'YouTube 歌單僅載入部分歌曲',
 };
 
 export interface DiagnosticEvent {

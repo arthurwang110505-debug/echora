@@ -38,6 +38,9 @@
     "favoritesTitle": "Favorite tracks",
     "favoritesHint": "Keep the songs you want to hear again here.",
     "unknownArtist": "Unknown artist",
-    "removeFavorite": "Remove {{title}} from favorites"
+    "removeFavorite": "Remove {{title}} from favorites",
+    "openErrorTitle": "Could not open this playlist",
+    "dismiss": "Dismiss",
+    "openingPlaylist": "Opening…"
   }
 }

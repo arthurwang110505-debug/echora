@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { motion, useSpring, useTransform } from 'framer-motion';
 import { Star, type LucideIcon } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
+import { useLucideIcon } from '../../utils/useLucideIcon';
 import { DEFAULT_PENDOLO_TUNING } from '../../types';
 import { colorWithAlpha } from '../colorMix';
 import { type VisualizerSharedProps } from '../definition';
@@ -412,12 +412,11 @@ const VisualizerPendolo: React.FC<VisualizerSharedProps> = (props) => {
     const primaryTextColor = theme.primaryColor || '#FFFFFF';
     const accentTextColor = theme.accentColor || '#3B82F6';
     const secondaryTextColor = theme.secondaryColor || '#9CA3AF';
-    const BalanceIcon = useMemo<LucideIcon>(() => {
-        const iconName = theme.lyricsIcons?.[0];
-        return (iconName
-            ? LucideIcons[iconName as keyof typeof LucideIcons]
-            : undefined) as LucideIcon | undefined ?? Star;
-    }, [theme.lyricsIcons]);
+    // A theme names one icon for the balance wheel. Resolved through the shared loader rather than
+    // indexed out of `import * as LucideIcons`, which pulled every icon (878 kB) into this mode to
+    // read one of them. `Star` is the documented fallback and covers the loading frame too.
+    const themeIcon = useLucideIcon(theme.lyricsIcons?.[0]);
+    const BalanceIcon = (themeIcon ?? Star) as LucideIcon;
     const balanceGearX = centerX + baseRadius * 0.2;
     const balanceGearY = centerY - baseRadius * 0.75;
 

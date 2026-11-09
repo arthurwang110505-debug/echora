@@ -1,4 +1,3 @@
-import React from 'react';
 import { DEFAULT_LATENT_BACKGROUND_TUNING } from '../../../types';
 import LatentBackground from './LatentBackground';
 import LatentBackgroundSettingsCard from './LatentBackgroundSettingsCard';

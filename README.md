@@ -86,25 +86,51 @@ node scripts/google-search-console-verify.mjs file google1a2b3c4d5e6f.html
 
 ## 音樂服務連線
 
-自己的歌請連接 **YouTube Music**（官方 OAuth）。未設定 `VITE_SPOTIFY_CLIENT_ID` 時，介面不會把 Spotify 當成現有功能。
+自己的歌請連接 **YouTube Music**（官方 OAuth）。Spotify 需要一組 Client ID（設定頁或 `VITE_SPOTIFY_CLIENT_ID`）；兩者都沒有時，介面不會把 Spotify 當成現有功能。
 
 YouTube Music 使用官方 Data API 讀取私人歌單，歌曲以嵌入播放器播放。官方沒有提供可讓第三方 PWA 讀取個人 YouTube Music 播放狀態的公開 API，因此 Echora 不會依賴 Piped／Invidious 這類不穩定的非官方鏡像。
 
 ### YouTube Music OAuth 設定清單
 
 1. 在 [Google Cloud Console](https://console.cloud.google.com/) 建立專案，到「API 和服務 → 媒體庫」**啟用 YouTube Data API v3**（未啟用時可完成 Google 登入，但讀取頻道／歌單會回 403）。
-2. 「API 和服務 → 憑證」建立 **OAuth 用戶端 ID（Web 應用程式）」，「已授權的 JavaScript 來源」加入部署網址 origin：本機 `http://localhost:3000`、正式環境 `https://你的網域.vercel.app`（Echora 使用隱含流程，導回網址固定為 `{origin}/oauth/youtube/callback`，由來源設定涵蓋）。
-3. 「OAuth 同意畫面」新增 `https://www.googleapis.com/auth/youtube.readonly` scope；若發布狀態為「測試中」，請把要登入的 Google 帳號**加入測試使用者**（正式版則不用）。
+2. 「API 和服務 → 憑證」建立 **OAuth 用戶端 ID（Web 應用程式）」，「已授權的 JavaScript 來源」加入部署網址 origin：本機 `http://localhost:3000`、正式環境 `https://你的網域.vercel.app`（登入使用 Google Identity Services 權杖模式的彈出視窗，不會把頁面導轉出去，所以只需要 JavaScript 來源，**不需要**「已授權的重新導向 URI」）。
+3. 「OAuth 同意畫面」新增 `https://www.googleapis.com/auth/youtube` scope（讀寫，含把歌曲存進自己的歌單）；若發布狀態為「測試中」，請把要登入的 Google 帳號**加入測試使用者**（正式版則不用）。
 4. 把用戶端 ID 填入 `packages/web/.env` 的 `VITE_GOOGLE_CLIENT_ID`，重新啟動／重新部署。
 
 連線後若顯示「YouTube API 拒絕存取（403 …）」，錯誤訊息會標明原因：`accessNotConfigured` 表示專案未啟用 YouTube Data API v3；`quotaExceeded` 表示每日配額用盡；`forbidden` 通常代表該帳號（如 Workspace 帳號）無法使用 YouTube Data API。
 
-Spotify 程式仍保留，但在 Client ID 設定完成前不會出現在 Landing、來源列或 README 賣點。若要啟用：
+Spotify 程式仍保留，但在 Client ID 設定完成前不會出現在 Landing、來源列或 README 賣點。
+
+### 關於「靈動詞島」
+
+第 14 個舞台模式（`island`）參考了 [Lyricify](https://github.com/WXRIW/Lyricify-App) 的**靈動詞島 / Dynamic Lyrics Island**（首創於 2022.09）。原創概念由 Lyricify 作者 WXRIW（XY Wang）提出，以 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) 授權。
+
+Echora 的實作是獨立重寫的（Lyricify 是 WPF，這裡是 React + DOM），並非程式碼移植：共用的只有「一小條常駐歌詞讀數」這個設計概念。同一個元件提供兩種用法——舞台模式，以及播放頁的常駐小元件（面板右上角星形按鈕開關，偏好存在 `echora.stage-prefs`）。
+
+### Spotify：每位使用者帶自己的 Client ID
+
+Spotify 自 2026 年 3 月起，開發模式的 app 只允許 **5 位已授權使用者**，而且 Extended Quota Mode 只接受組織申請（需 25 萬 MAU），個人拿不到。因此一個共用的 app 無法服務一群人。
+
+解法與 [Lyricify](https://github.com/WXRIW/Lyricify-App) 相同：**每位使用者自己建一個 app**。限制是「每個 app 5 人」，不是「每個人 5 人」，所以一萬個人就是各自 1 人，全部合法。app 擁有者的 Spotify 帳號需要有 Premium。
+
+Echora 的 Client ID 因此可以在執行期設定，不必重新部署：
+
+1. 使用者開啟 **設定 → Spotify 連線**，頁面會顯示自己該填的 Redirect URI（預設 `<origin>/app`）。
+2. 到 [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) 建立 app，把該 Redirect URI 加進去。**必須是 `127.0.0.1` 或 `https` 網址**，Spotify 已不接受 `localhost`。
+3. 複製 Client ID 貼回設定頁即可，**不需要 Client Secret**（本專案使用 PKCE，secret 永遠不會離開使用者的 Dashboard）。
+
+Client ID 存放於 `localStorage['echora.spotify.client-id']`。沒填時會退回建置期的 `VITE_SPOTIFY_CLIENT_ID`，所以單人自架仍可用環境變數一勞永逸：
 
 1. 在 Spotify Developer Dashboard 建立一個 app。
-2. 本機請將 `http://127.0.0.1:3000/` 加入 Redirect URI（正式環境使用 HTTPS 網址）。
+2. 本機請將 `http://127.0.0.1:3000/app` 加入 Redirect URI（正式環境使用 HTTPS 網址）。
 3. 複製 `packages/web/.env.example` 為 `packages/web/.env`，填入 `VITE_SPOTIFY_CLIENT_ID`。
 4. 重新啟動 `pnpm dev`。
+
+授權工作階段會記錄發給它的 Client ID：換一個 Client ID 等同換一個 app，必須重新授權，舊的 refresh token 不會被誤用。
+
+**搜尋與歌單連結**：連接後，探索頁的搜尋框會直接查 Spotify 目錄（按 Enter 送出，避免每次按鍵都消耗 rate limit）。同一頁可貼上歌單連結（`open.spotify.com/playlist/…`、`spotify:playlist:…` 或純 ID），自己的或共同編輯的歌單會直接載入播放。
+
+**已知限制（Spotify 2026 年改制）**：Web API 現在只提供「自己的」或「共同編輯」歌單的曲目內容，別人的公開歌單只回傳中繼資料。Echora 開啟這類歌單時會顯示原因，而不是留一個空佇列。搜尋每頁上限也從 50 降為 10，程式已自動套用。
 
 ## 疑難排解：畫面在動但沒聲音
 

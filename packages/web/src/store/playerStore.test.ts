@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Playlist, Song } from '@echora/core';
-import { getYouTubeErrorMessage, usePlayerStore } from './playerStore';
+import { classifyYouTubeFailure, isYouTubeAuthFailure, usePlayerStore } from './playerStore';
 
 const musicTrack: Song = {
   id: 'by4SYYWlhEs',
@@ -74,26 +74,229 @@ describe('YouTube playlist loading', () => {
   });
 });
 
-describe('getYouTubeErrorMessage', () => {
-  it('maps the 403 accessNotConfigured rejection to the enable-API guidance', () => {
-    const message = getYouTubeErrorMessage(new Error('YouTube API failed: 403 (accessNotConfigured)'));
-    expect(message).toContain('YouTube Data API v3');
-    expect(message).not.toContain('YouTube 連線失敗');
+describe('classifyYouTubeFailure', () => {
+  // The classifier returns a *code*, so these assertions are about behaviour rather than wording:
+  // the same failure must pick the same remedy no matter how the copy is later rewritten.
+  it('separates a disabled API from an exhausted quota, because the remedies differ', () => {
+    expect(classifyYouTubeFailure(new Error('YouTube API failed: 403 (accessNotConfigured)')).code).toBe('api_disabled');
+    expect(classifyYouTubeFailure(new Error('YouTube API failed: 403 (quotaExceeded)')).code).toBe('quota_exceeded');
+    expect(classifyYouTubeFailure(new Error('YouTube API failed: 403 (dailyLimitExceeded)')).code).toBe('quota_exceeded');
   });
 
-  it('maps quota 403 rejections to the daily-quota guidance', () => {
-    const message = getYouTubeErrorMessage(new Error('YouTube API failed: 403 (quotaExceeded)'));
-    expect(message).toContain('配額');
+  it('recognises a Workspace restriction', () => {
+    expect(classifyYouTubeFailure(new Error('YouTube API failed: 403 (forbidden)')).code).toBe('account_forbidden');
   });
 
-  it('keeps a generic actionable hint for other 403 rejections', () => {
-    const message = getYouTubeErrorMessage(new Error('YouTube API failed: 403'));
-    expect(message).toContain('403');
-    expect(message).toContain('YouTube Data API v3');
+  it('falls back to a generic access denial for an unclassified 403', () => {
+    expect(classifyYouTubeFailure(new Error('YouTube API failed: 403')).code).toBe('access_denied');
   });
 
-  it('still maps 401 to the re-login guidance and prefixes other errors', () => {
-    expect(getYouTubeErrorMessage(new Error('YouTube API failed: 401'))).toContain('授權已失效');
-    expect(getYouTubeErrorMessage(new Error('network down'), '歌單讀取失敗')).toBe('歌單讀取失敗：network down');
+  it('treats 401 as an expired authorization', () => {
+    const failure = classifyYouTubeFailure(new Error('YouTube API failed: 401'));
+    expect(failure.code).toBe('auth_expired');
+    expect(isYouTubeAuthFailure(new Error('YouTube API failed: 401'))).toBe(true);
+  });
+
+  it('distinguishes the proxy rate limit from the daily quota', () => {
+    // Different recoveries: one clears in a minute, the other at midnight Pacific.
+    expect(classifyYouTubeFailure(new Error('搜尋次數過多，請 30 秒後再試。')).code).toBe('search_limited');
+    expect(classifyYouTubeFailure(new Error('YouTube API failed: 429')).code).toBe('search_limited');
+  });
+
+  it('classifies transient upstream failures as retryable', () => {
+    expect(classifyYouTubeFailure(new Error('YouTube API failed: 502')).code).toBe('upstream_unavailable');
+    expect(classifyYouTubeFailure(new Error('Failed to fetch')).code).toBe('upstream_unavailable');
+    expect(classifyYouTubeFailure(new Error('Google Identity Services 載入逾時')).code).toBe('upstream_unavailable');
+  });
+
+  it('carries the status as detail without composing a sentence', () => {
+    const failure = classifyYouTubeFailure(new Error('YouTube API failed: 502'));
+    expect(failure.detail).toBe('502');
+    // Never a translated sentence: detail is evidence, and copy lives in the i18n bundle.
+    expect(failure.detail).not.toMatch(/[一-龥]/);
+  });
+
+  it('never returns an empty code for an unknown error', () => {
+    expect(classifyYouTubeFailure(new Error('something odd')).code).toBe('unknown');
+    expect(classifyYouTubeFailure(null).code).toBe('unknown');
+    expect(classifyYouTubeFailure('').code).toBe('unknown');
+  });
+
+  it('does not mistake a timeout for an authorization failure', () => {
+    // This is the bug the P1 item was about: a transient failure used to sign the user out.
+    expect(isYouTubeAuthFailure(new Error('YouTube API failed: 502'))).toBe(false);
+    expect(isYouTubeAuthFailure(new Error('搜尋次數過多'))).toBe(false);
+  });
+});
+
+describe('loadYouTubePlaylist failure contract', () => {
+  /**
+   * The bug this pins down: `loadYouTubePlaylist` used to swallow its own errors, so `Library`
+   * awaited it, saw success, and navigated to the player - where nothing was loaded and the
+   * explanation had been left behind on the page the user just left. A caller cannot decide whether
+   * to navigate if it cannot tell success from failure.
+   */
+  it('rejects instead of resolving when the provider fails', async () => {
+    const failing = { getPlaylistTracks: vi.fn().mockRejectedValue(new Error('YouTube API failed: 403 (quotaExceeded)')) };
+    usePlayerStore.setState({ ytProvider: failing as never, youtubeToken: 'token' });
+
+    await expect(usePlayerStore.getState().loadYouTubePlaylist('playlist-1')).rejects.toThrow();
+
+    // The reason is still recorded where the player's own UI reads it.
+    expect(usePlayerStore.getState().youtubeError).toMatchObject({ code: 'quota_exceeded' });
+  });
+
+  it('rejects when there is no token rather than silently doing nothing', async () => {
+    usePlayerStore.setState({ youtubeToken: null });
+    await expect(usePlayerStore.getState().loadYouTubePlaylist('playlist-1')).rejects.toThrow();
+    expect(usePlayerStore.getState().youtubeError).toMatchObject({ code: 'not_connected' });
+  });
+
+  it('resolves and clears the error when the load succeeds', async () => {
+    const empty = { getPlaylistTracks: vi.fn().mockResolvedValue([]) };
+    usePlayerStore.setState({ ytProvider: empty as never, youtubeToken: 'token', youtubeError: { code: 'quota_exceeded' } });
+
+    await usePlayerStore.getState().loadYouTubePlaylist('playlist-1', { autoplay: false });
+
+    expect(usePlayerStore.getState().youtubeError).toBeNull();
+    expect(usePlayerStore.getState().loadedPlaylistId).toBe('playlist-1');
+  });
+
+  it('explains an empty Spotify queue instead of showing one without a reason', async () => {
+    // Since February 2026 the Web API only serves a playlist's contents to its owner or a
+    // collaborator; opening anyone else's playlist comes back as an empty array, not an error.
+    const spotifyProvider = { getPlaylistTracks: vi.fn().mockResolvedValue([]) };
+    usePlayerStore.setState({ activeSource: 'spotify', spotifyToken: 'token', spotifyProvider: spotifyProvider as never, spotifyError: null });
+
+    await usePlayerStore.getState().loadSpotifyPlaylist('someone-elses-playlist');
+
+    expect(usePlayerStore.getState().playlist).toEqual([]);
+    expect(usePlayerStore.getState().spotifyError).toContain('只提供');
+  });
+
+  it('clears the previous reason when a readable Spotify playlist loads', async () => {
+    const spotifyTrack: Song = { ...musicTrack, id: 'track-1', source: 'spotify', audioUrl: 'spotify:track:track-1' };
+    // A non-empty playlist also starts playback, so the provider needs its playback call too.
+    const spotifyProvider = {
+      getPlaylistTracks: vi.fn().mockResolvedValue([spotifyTrack]),
+      play: vi.fn().mockResolvedValue(true),
+    };
+    usePlayerStore.setState({
+      activeSource: 'spotify',
+      spotifyToken: 'token',
+      spotifyProvider: spotifyProvider as never,
+      spotifyError: '這個歌單讀不到曲目。',
+    });
+
+    await usePlayerStore.getState().loadSpotifyPlaylist('my-own-playlist');
+
+    expect(usePlayerStore.getState().playlist).toEqual([spotifyTrack]);
+    expect(usePlayerStore.getState().spotifyError).toBeNull();
+  });
+
+  describe('Spotify catalogue search', () => {
+    const hit: Song = { ...musicTrack, id: 'sp-1', title: 'Night Signals', source: 'spotify', audioUrl: 'spotify:track:sp-1' };
+
+    it('asks the provider for the term and keeps the results', async () => {
+      const spotifyProvider = { searchTracks: vi.fn().mockResolvedValue([hit]) };
+      usePlayerStore.setState({ spotifyToken: 'token', spotifyProvider: spotifyProvider as never, spotifySearchResults: [], spotifySearchQuery: '' });
+
+      const results = await usePlayerStore.getState().searchSpotifySongs('  night signals  ');
+
+      // Trimmed: a stray space would otherwise be part of the query Spotify ranks.
+      expect(spotifyProvider.searchTracks).toHaveBeenCalledWith('night signals');
+      expect(results).toEqual([hit]);
+      expect(usePlayerStore.getState().spotifySearchResults).toEqual([hit]);
+      expect(usePlayerStore.getState().spotifySearchQuery).toBe('night signals');
+      expect(usePlayerStore.getState().spotifySearching).toBe(false);
+    });
+
+    it('never calls the API for an empty term', async () => {
+      const spotifyProvider = { searchTracks: vi.fn() };
+      usePlayerStore.setState({ spotifyToken: 'token', spotifyProvider: spotifyProvider as never, spotifySearchResults: [hit] });
+
+      const results = await usePlayerStore.getState().searchSpotifySongs('   ');
+
+      expect(spotifyProvider.searchTracks).not.toHaveBeenCalled();
+      expect(results).toEqual([]);
+      expect(usePlayerStore.getState().spotifySearchResults).toEqual([]);
+    });
+
+    it('explains a search made without a connection instead of returning nothing silently', async () => {
+      const spotifyProvider = { searchTracks: vi.fn() };
+      usePlayerStore.setState({ spotifyToken: null, spotifyProvider: spotifyProvider as never, spotifyError: null });
+
+      await usePlayerStore.getState().searchSpotifySongs('night');
+
+      expect(spotifyProvider.searchTracks).not.toHaveBeenCalled();
+      expect(usePlayerStore.getState().spotifyError).toContain('連接 Spotify');
+    });
+
+    it('surfaces a failed search and stops the spinner', async () => {
+      const spotifyProvider = { searchTracks: vi.fn().mockRejectedValue(new Error('Spotify API Error [429]')) };
+      usePlayerStore.setState({ spotifyToken: 'token', spotifyProvider: spotifyProvider as never, spotifyError: null });
+
+      await usePlayerStore.getState().searchSpotifySongs('night');
+
+      expect(usePlayerStore.getState().spotifySearching).toBe(false);
+      expect(usePlayerStore.getState().spotifyError).toContain('429');
+    });
+  });
+
+  describe('pasting a Spotify playlist link', () => {
+    const PLAYLIST_ID = '37i9dQZF1DXcBWIGoYBM5M';
+    const spTrack: Song = { ...musicTrack, id: 'sp-1', title: 'Night Signals', source: 'spotify', audioUrl: 'spotify:track:sp-1' };
+
+    it('opens a link whose contents are readable and starts playing', async () => {
+      const spotifyProvider = {
+        getPlaylist: vi.fn().mockResolvedValue({
+          playlist: { id: PLAYLIST_ID, name: '我的歌單', source: 'spotify', trackCount: 1 },
+          tracks: [spTrack],
+        }),
+        play: vi.fn().mockResolvedValue(true),
+      };
+      usePlayerStore.setState({ spotifyToken: 'token', spotifyProvider: spotifyProvider as never, playlist: [], spotifyError: null });
+
+      const result = await usePlayerStore.getState().importSpotifyPlaylistLink(`https://open.spotify.com/playlist/${PLAYLIST_ID}?si=x`);
+
+      expect(result).toEqual({ ok: true, name: '我的歌單', trackCount: 1 });
+      expect(spotifyProvider.getPlaylist).toHaveBeenCalledWith(PLAYLIST_ID);
+      expect(usePlayerStore.getState().playlist).toEqual([spTrack]);
+    });
+
+    it('distinguishes an unreadable playlist from a bad link', async () => {
+      // Metadata came back, so the link was understood; the contents simply are not on offer.
+      const spotifyProvider = {
+        getPlaylist: vi.fn().mockResolvedValue({
+          playlist: { id: PLAYLIST_ID, name: '別人的歌單', source: 'spotify', trackCount: 120 },
+          tracks: [],
+        }),
+      };
+      usePlayerStore.setState({ spotifyToken: 'token', spotifyProvider: spotifyProvider as never, spotifyError: null });
+
+      const result = await usePlayerStore.getState().importSpotifyPlaylistLink(`spotify:playlist:${PLAYLIST_ID}`);
+
+      expect(result).toEqual({ ok: false, reason: 'contents_unavailable', name: '別人的歌單' });
+      // The name is kept in the message so the listener knows the link itself was fine.
+      expect(usePlayerStore.getState().spotifyError).toContain('別人的歌單');
+    });
+
+    it('rejects a non-playlist link without touching the network', async () => {
+      const spotifyProvider = { getPlaylist: vi.fn() };
+      usePlayerStore.setState({ spotifyToken: 'token', spotifyProvider: spotifyProvider as never });
+
+      const result = await usePlayerStore.getState().importSpotifyPlaylistLink('https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT');
+
+      expect(result).toEqual({ ok: false, reason: 'not_a_playlist_link' });
+      expect(spotifyProvider.getPlaylist).not.toHaveBeenCalled();
+    });
+
+    it('reports a missing connection rather than a bad link', async () => {
+      usePlayerStore.setState({ spotifyToken: null, spotifyError: null });
+
+      const result = await usePlayerStore.getState().importSpotifyPlaylistLink(`spotify:playlist:${PLAYLIST_ID}`);
+
+      expect(result).toEqual({ ok: false, reason: 'not_connected' });
+    });
   });
 });

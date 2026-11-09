@@ -6,16 +6,21 @@ import { ArrowLeft, ArrowRight, Minimize2, Sparkles } from 'lucide-react';
 import { usePlayer } from '../contexts/PlayerContext';
 import { useTheme } from '../contexts/ThemeProvider';
 import YouTubePlayer from '../components/YouTubePlayer';
-import { spotifyClientId } from '../integrations/spotifyAuth';
+import { useSpotifyCredentialStore } from '../store/spotifyCredentialStore';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import LyriclessSoundscapeStage from '../components/LyriclessSoundscapeStage';
 import { CoverImage, PanelSkeleton, PlayerSkeleton, StageSkeleton } from '../components/LoadingSkeletons';
-import { adjustLyricsOffset, getActiveLyricIndex, LYRICS_OFFSET_STEP_SECONDS } from '../utils/lyrics/activeLine';
+import { adjustLyricsOffset, getActiveLyricIndex, LYRICS_OFFSET_STEP_SECONDS, offsetForLineStart } from '../utils/lyrics/activeLine';
 import { lazyWithRetry } from '../utils/recovery';
 import { pickAutoVisualizerMode, resolveStageAudioBands, visualizerEnergy } from '../playback/audioBands';
 import { useObsStagePublisher } from '../obs/useObsStagePublisher';
 import { useLineSplitPreview, useLyricSegmentation, useSegmentedLyrics } from '../hooks/useLyricSegmentation';
 import { sampleLocalAudioBands } from '../playback/localAudioAnalyser';
+import { getPlaybackClockReading } from '../playback/playbackClock';
+import { readExtrapolatedClock } from '../playback/extrapolatedClock';
+import { useStageMotionTime } from '../playback/useStageMotionTime';
+import LyricsIsland from '../original-folia-visualizers/island/LyricsIsland';
+import { toOriginalTheme } from '../original-folia-visualizers/themeAdapter';
 import { VOLUME_STEP } from '../playback/volumeState';
 import { isYouTubeVideo } from '../utils/youtubePlayback';
 import { songOffsetKey, useStageStore } from '../store/stageStore';
@@ -73,6 +78,7 @@ export default function Player() {
     loadSpotifyPlaylist,
     youtubeConnected,
     youtubeError,
+    youtubeConnectionState,
     connectYouTube,
     switchYouTubeAccount,
     disconnectYouTube,
@@ -109,6 +115,8 @@ export default function Player() {
   const setStoredLyricsOffset = useStageStore(state => state.setLyricsOffset);
   const transparentBackground = useStageStore(state => state.transparentBackground);
   const setTransparentBackground = useStageStore(state => state.setTransparentBackground);
+  const lyricsIsland = useStageStore(state => state.lyricsIsland);
+  const setLyricsIsland = useStageStore(state => state.setLyricsIsland);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showPlaylistDrawer, setShowPlaylistDrawer] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
   const connectModalRef = useRef<HTMLDivElement>(null);
@@ -125,20 +133,13 @@ export default function Player() {
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isThemeQuickEditorOpen, setIsThemeQuickEditorOpen] = useState(false);
   const stageRootRef = useRef<HTMLDivElement>(null);
-  const spotifyAvailable = Boolean(spotifyClientId);
+  const spotifyAvailable = useSpotifyCredentialStore((state) => Boolean(state.clientId));
   const demoMode = location.state?.demo === true || new URLSearchParams(location.search).get('demo') === '1';
   const isYouTubeVideoMode = isYouTubeVideo(currentSong);
   const [hasHydrated, setHasHydrated] = useState(false);
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('youtube') !== 'error') return;
-    setActiveSource('ytmusic');
-    setShowConnectModal(true);
-    params.delete('youtube');
-    const nextQuery = params.toString();
-    window.history.replaceState({}, document.title, `${location.pathname}${nextQuery ? `?${nextQuery}` : ''}${location.hash}`);
-  }, [location.hash, location.pathname, location.search]);
+  // The `?youtube=error` branch that used to open the connect modal here is gone with the redirect
+  // flow. A failed connect now resolves inside `connectYouTube`, which is where the error is shown.
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setHasHydrated(true));
@@ -305,6 +306,7 @@ export default function Player() {
 
   const lyricsOffsetSeconds = lyricsOffsets[songOffsetKey(currentSong)] || 0;
 
+
   useEffect(() => {
     if (displayMode !== 'stage' && !showPlaylistDrawer) return;
     const onPopState = () => {
@@ -322,6 +324,9 @@ export default function Player() {
   // this level rather than inside each mode.
   const segmentedLyrics = useSegmentedLyrics();
   const stageLines = segmentedLyrics?.lines || [];
+  // Same adapter the stage uses; the island renders under the visualizer graph's Theme contract.
+  // Keyed on the theme: a theme switch has to reach the overlay too.
+  const islandTheme = useMemo(() => toOriginalTheme(currentTheme), [currentTheme]);
   const segmentation = useLyricSegmentation();
 
   // Use the same offset-aware clock for the player chrome and every visualizer mode.
@@ -350,6 +355,15 @@ export default function Player() {
     setStoredLyricsOffset(offsetKey, adjustLyricsOffset(lyricsOffsetSeconds, deltaSeconds));
   };
   const resetStageLyricsOffset = () => setStoredLyricsOffset(offsetKey, 0);
+  // Shift-click a lyric line: that line is the one that should be under the playhead, so the
+  // offset that makes it true is `line − now`. Reuses the same per-song memory the arrows write.
+  const resyncLyricLine = (lineStartSeconds: number) => {
+    if (!offsetKey) return;
+    // Where the playhead is *now*: the seek preview while a drag is in flight, otherwise the
+    // clock. Same rule the stage uses, so the correction matches what the user is looking at.
+    const now = (isSeeking && seekPreviewTime !== null) ? seekPreviewTime : currentTime;
+    setStoredLyricsOffset(offsetKey, offsetForLineStart(lineStartSeconds, now));
+  };
 
   if (!currentSong) {
     return (
@@ -387,6 +401,43 @@ export default function Player() {
 
   const displayedTime = (isSeeking && seekPreviewTime !== null) ? seekPreviewTime : currentTime;
   const displayedLyricsTime = Math.max(0, displayedTime + lyricsOffsetSeconds);
+
+  // The 60 Hz clock for the stage, when a local `<audio>` element is driving playback.
+  //
+  // `displayedLyricsTime` above is rebuilt by React on every store write, and for local playback
+  // those writes ride `<audio>`'s `timeupdate` at ~4x/s - so a stage fed only the prop advances
+  // every glyph animation in 250 ms steps while drawing at 60 fps. This reader asks the element
+  // for its own position each frame instead (playback/playbackClock.ts).
+  //
+  // What it has to get right, after the offset regression this was written to fix:
+  //   * it answers null for a source with no element of ours (YouTube, Spotify), so the stage
+  //     keeps using the prop there;
+  //   * it applies the lyrics offset and honours a scrub preview, so this stays the ONE place
+  //     that decides what time the stage is showing - the stage itself must not learn about
+  //     offsets, or the two paths would disagree mid-drag.
+  const seekPreviewRef = useRef<{ active: boolean; time: number | null }>({ active: false, time: null });
+  seekPreviewRef.current = { active: isSeeking, time: seekPreviewTime };
+  const lyricsOffsetRef = useRef(lyricsOffsetSeconds);
+  lyricsOffsetRef.current = lyricsOffsetSeconds;
+  const stageClockProvider = useCallback(() => {
+    const preview = seekPreviewRef.current;
+    if (preview.active && preview.time !== null) return Math.max(0, preview.time + lyricsOffsetRef.current);
+    // Local playback reads its own element at 60 Hz; a remote source has no element, so it answers
+    // from the extrapolated clock, which is continuous between the samples the player can take.
+    // Both already include the lyrics offset exactly once - this is the single place that decides
+    // what time the stage is showing.
+    const reading = getPlaybackClockReading() ?? readExtrapolatedClock();
+    return reading === null ? null : Math.max(0, reading + lyricsOffsetRef.current);
+  }, []);
+
+  // The overlay's clock. Same provider the stage draws against, so the island and the stage can
+  // never disagree about which line is current - including the extrapolated YouTube clock and the
+  // per-song offset, both of which live inside that provider.
+  const islandTime = useStageMotionTime({
+    provider: stageClockProvider,
+    fallbackSeconds: displayedLyricsTime,
+    isPlaying,
+  });
 
   // Publish the live stage for an OBS overlay / captured window. Off unless enabled in Settings;
   // `displayedLyricsTime` already has the lyrics offset applied, so the overlay is told offset 0.
@@ -468,6 +519,16 @@ export default function Player() {
           onOpenConnect={() => setShowConnectModal(true)}
           onTogglePlaylist={() => setShowPlaylistDrawer(!showPlaylistDrawer)}
         />
+      )}
+
+      {/* A Spotify failure that belongs to the library rather than to a connection attempt: since
+          February 2026 the Web API only serves a playlist's contents to its owner, so opening
+          someone else's playlist leaves the queue empty. The connect modal is closed by then, so
+          the reason has to be visible here or not at all. */}
+      {spotifyError && !showConnectModal && (
+        <div role="status" className="relative z-30 mx-4 mt-3 rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-2.5 text-[11px] leading-5 text-amber-100 sm:mx-6">
+          {spotifyError}
+        </div>
       )}
 
       {/* Main Content Area */}
@@ -555,6 +616,7 @@ export default function Player() {
                   lines={stageLines}
                   activeLineIndex={activeLineIndex}
                   displayedTime={displayedLyricsTime}
+                  timeProvider={stageClockProvider}
                   isPlaying={isPlaying}
                   theme={currentTheme}
                   visualizerMode={activeVisualizer}
@@ -562,6 +624,7 @@ export default function Player() {
                   songTitle={currentSong.title}
                   songArtist={activeArtist}
                   onSeekLine={seek}
+                  onResyncLine={resyncLyricLine}
                   backgroundMode={backgroundMode}
                   visualizerTunings={visualizerTunings}
                   isPlayerChromeHidden={false}
@@ -585,6 +648,24 @@ export default function Player() {
                 onTuningsChange={(next) => setVisualizerTunings(next)}
               />
             </Suspense>
+          )}
+          {/* 靈動詞島: an opt-in readout over the stage. Bottom-left because the chrome lives
+              bottom-centre and the panel hotspot owns the bottom-right corner. Only over the
+              stage - in 'full' the lyric column is right there, and two copies of the same line
+              is worse than one. Hidden while the tuning panel is open, so it never sits under a
+              settings slider. */}
+          {lyricsIsland && displayMode === 'stage' && !showTuning && !isChromeHidden && stageLines.length > 0 && (
+            <div className="pointer-events-none absolute bottom-24 left-4 z-30 hidden sm:block">
+              <LyricsIsland
+                currentTime={islandTime}
+                currentLineIndex={activeLineIndex}
+                lines={stageLines}
+                theme={islandTheme}
+                size="compact"
+                paused={!isPlaying}
+                onSeekLine={seek}
+              />
+            </div>
           )}
           {/* 全螢幕只有這一列：播放控制 │ 面板按鈕 │ 退出全螢幕。全部併在一起，
               不會再有浮動按鈕疊在上面。 */}
@@ -682,6 +763,8 @@ export default function Player() {
             onToggleLike={toggleCurrentSongLike}
             transparentBackground={transparentBackground}
             onToggleTransparentBackground={() => setTransparentBackground(!transparentBackground)}
+            lyricsIsland={lyricsIsland}
+            onToggleLyricsIsland={() => setLyricsIsland(!lyricsIsland)}
             onOpenSettings={() => navigate('/settings')}
             onBackHome={() => navigate('/app')}
             lyrics={{
@@ -743,7 +826,8 @@ export default function Player() {
               favoriteCount: favoriteSongs.length,
               recentCount: recentSongs.length,
               onSetActiveSource: setActiveSource,
-              onConnectYouTube: () => { void connectYouTube(); },
+              youtubeConnectionState,
+            onConnectYouTube: () => { void connectYouTube(); },
               onSwitchYouTube: () => { void switchYouTubeAccount(); },
               onDisconnectYouTube: disconnectYouTube,
               onConnectSpotify: () => { void connectSpotify(); },
@@ -776,6 +860,7 @@ export default function Player() {
           activeSource={activeSource}
           spotifyError={spotifyError}
           youtubeError={youtubeError}
+          youtubeConnectionState={youtubeConnectionState}
           youtubeConnected={youtubeConnected}
           spotifyConnected={spotifyConnected}
           onClose={closeConnectModal}

@@ -1,140 +1,193 @@
-const STORAGE_KEY = 'echora.youtube.session';
-const OAUTH_STATE_KEY = 'echora.youtube.oauth.state';
-const RETURN_TO_KEY = 'echora.youtube.oauth.return-to';
-const SWITCH_ACCOUNT_KEY = 'echora.youtube.oauth.switch-account';
-const SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
-const EXPIRY_SKEW_MS = 30_000;
+// src/integrations/youtubeAuth.ts
+//
+// YouTube authorization, now on Google Identity Services rather than the implicit flow.
+//
+// What changed and why:
+//
+// The implicit flow (`response_type=token`) navigated the whole tab to Google and handed the access
+// token back in the URL fragment. That meant a full app reload on every connect, the token sitting
+// in browser history, the token written to localStorage where any XSS could read it, and a
+// CSRF `state` check that had to be hand-rolled around a flow Google never designed for one.
+//
+// GIS opens a popup that never leaves the page and delivers the token to a callback. The token lives
+// in memory here and nowhere else. The consequences are deliberate:
+//
+//   - A page reload signs the user out. That is the price of not persisting a bearer token, and it
+//     is the trade the plan chose (W1/D1-C). The alternative - a refresh token held by a backend -
+//     is a later, separate PR.
+//   - `state` and `/oauth/youtube/callback` are gone. A popup has no redirect to correlate, so the
+//     callback URL cannot be confused for one.
+//   - `getStoredYouTubeSession` always resolves to null now; it is kept because the store's restore
+//     path calls it and because a future backend session will fill the same shape.
 
-// Keep OAuth returns inside the app shell; the landing page is marketing-only.
-const LANDING_PATHS = new Set(['/', '/welcome']);
+import {
+  loadGoogleIdentity,
+  resolveConsentPrompt,
+  type GoogleTokenResponse,
+} from './googleIdentity';
+
+/**
+ * Read-write YouTube scope.
+ *
+ * Widened from `youtube.readonly` so the provider can create and edit playlists (D2). This is a
+ * sensitive-scope change: the consent screen's justification, the privacy policy and the recorded
+ * demo video all currently say "read-only", and Google re-verification is required before this is
+ * served to anyone who is not a test user. Callers must not write to a user's library without an
+ * explicit confirmation step.
+ */
+const SCOPE = 'https://www.googleapis.com/auth/youtube';
+
+const EXPIRY_SKEW_MS = 30_000;
 
 export interface YouTubeSession { accessToken: string; expiresAt: number; }
 
 export interface YouTubeLoginOptions {
+  /** Force the account chooser (a "switch account" click); the default is to show it anyway. */
   selectAccount?: boolean;
+  /** Kept for call-site compatibility; a popup never navigates, so nothing is returned to. */
   returnTo?: string;
 }
 
-export interface YouTubeAuthorizationUrlOptions {
-  clientId: string;
-  redirectUri: string;
-  state: string;
-  selectAccount?: boolean;
+export interface YouTubeLoginResult {
+  status: 'connected' | 'cancelled' | 'error';
+  session?: YouTubeSession;
+  message?: string;
 }
 
-const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
-const getRedirectUri = () => (import.meta.env.VITE_GOOGLE_REDIRECT_URI as string | undefined) || `${window.location.origin}/oauth/youtube/callback`;
+/**
+ * The OAuth client id, read on demand.
+ *
+ * Deliberately not a module-level constant: a test suite has to be able to point several cases at
+ * different values, and a value captured at import time can only be changed by re-importing the
+ * module. Vite still inlines the variable at build time, so this costs nothing in production.
+ */
+const readClientId = () => (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined)?.trim() || '';
 
-const normalizeReturnPath = (value?: string) => {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://echora.local';
-  try {
-    const url = new URL(value || '/app', origin);
-    if (url.origin !== origin || url.pathname === '/oauth/youtube/callback') return '/app';
-    // Never return OAuth users to the landing page; /app is the product entrance.
-    return LANDING_PATHS.has(url.pathname) ? '/app' : `${url.pathname}${url.search}${url.hash}` || '/app';
-  } catch {
-    return '/app';
-  }
-};
+/**
+ * The one live session.
+ *
+ * Module scope, not localStorage: this is the memory-only token store the move to GIS buys us.
+ * Kept in a mutable holder so tests can reset it without re-importing the module.
+ */
+let currentSession: YouTubeSession | null = null;
 
-const getCurrentReturnPath = () => {
-  if (typeof window === 'undefined') return '/app';
-  return normalizeReturnPath(`${window.location.pathname}${window.location.search}${window.location.hash}`);
-};
+export const getCurrentYouTubeSession = (): YouTubeSession | null => (
+  isYouTubeSessionValid(currentSession) ? currentSession : null
+);
 
-export const getYouTubeLoginReturnPath = () => {
-  if (typeof window === 'undefined') return '/app';
-  return normalizeReturnPath(window.sessionStorage.getItem(RETURN_TO_KEY) || '/app');
-};
-
-export const buildYouTubeCallbackPath = (returnTo: string, status: 'connected' | 'error') => {
-  const url = new URL(normalizeReturnPath(returnTo), 'https://echora.local');
-  url.searchParams.set('youtube', status);
-  return `${url.pathname}${url.search}${url.hash}`;
-};
-
-export const clearYouTubeLoginIntent = () => {
-  if (typeof window === 'undefined') return;
-  window.sessionStorage.removeItem(OAUTH_STATE_KEY);
-  window.sessionStorage.removeItem(RETURN_TO_KEY);
-  window.sessionStorage.removeItem(SWITCH_ACCOUNT_KEY);
+/** Test seam, and the tail of `clearYouTubeSession`. */
+export const __setYouTubeSessionForTests = (session: YouTubeSession | null) => {
+  currentSession = session;
 };
 
 export const isYouTubeSessionValid = (session: YouTubeSession | null | undefined, now = Date.now()) =>
   Boolean(session?.accessToken && Number.isFinite(session.expiresAt) && session.expiresAt > now + EXPIRY_SKEW_MS);
 
-export const getStoredYouTubeSession = (): YouTubeSession | null => {
+/**
+ * Always null.
+ *
+ * A GIS token is never persisted, so there is nothing to restore across a reload. This exists so the
+ * store's restore path keeps one shape, and so a future backend session can be dropped in here
+ * without every caller changing.
+ */
+export const getStoredYouTubeSession = (): YouTubeSession | null => getCurrentYouTubeSession();
+
+/**
+ * Turns a GIS token response into a session, or explains why it cannot.
+ *
+ * `expires_in` arrives as a string from the API; the 60 s deduction keeps a token from being applied
+ * in the last second before Google starts rejecting it, and the floor keeps a nonsense `expires_in`
+ * from producing an already-expired session.
+ */
+export const toYouTubeSession = (response: GoogleTokenResponse, now = Date.now()): YouTubeSession | null => {
+  const accessToken = response.access_token;
+  if (typeof accessToken !== 'string' || !accessToken) return null;
+  const expiresIn = Number(response.expires_in ?? 3600);
+  const safeSeconds = Number.isFinite(expiresIn) ? Math.max(expiresIn - 60, 30) : 3540;
+  return { accessToken, expiresAt: now + safeSeconds * 1000 };
+};
+
+/**
+ * Opens the Google popup and resolves with the outcome.
+ *
+ * Cancellation is a normal result, not an exception: the user closing the popup is the most common
+ * non-success path, and the store needs to tell it apart from a real failure so it can stay silent
+ * instead of showing an error for something the user chose.
+ */
+export const beginYouTubeLogin = async (options: YouTubeLoginOptions = {}): Promise<YouTubeLoginResult> => {
+  const clientId = readClientId();
+  if (!clientId) {
+    return { status: 'error', message: '缺少 VITE_GOOGLE_CLIENT_ID' };
+  }
+
+  let api;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const session = raw ? JSON.parse(raw) as YouTubeSession : null;
-    if (isYouTubeSessionValid(session)) return session;
-    localStorage.removeItem(STORAGE_KEY);
-    return null;
-  } catch {
-    localStorage.removeItem(STORAGE_KEY);
-    return null;
+    api = await loadGoogleIdentity();
+  } catch (error) {
+    return { status: 'error', message: error instanceof Error ? error.message : 'Google 登入服務無法載入' };
   }
-};
 
-// Google skips the account chooser whenever the browser holds an existing
-// session with a prior grant, silently re-issuing the token and bouncing the
-// user straight back. Always ask for the chooser so users can see which
-// account they are connecting.
-export const buildYouTubeAuthorizationUrl = ({ clientId: authorizationClientId, redirectUri, state, selectAccount = true }: YouTubeAuthorizationUrlOptions) => {
-  const params = new URLSearchParams({
-    client_id: authorizationClientId,
-    redirect_uri: redirectUri,
-    response_type: 'token',
-    scope: `${SCOPE} openid`,
-    state,
-    include_granted_scopes: 'true',
+  return new Promise<YouTubeLoginResult>(resolve => {
+    let settled = false;
+    const settle = (result: YouTubeLoginResult) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+
+    let client;
+    try {
+      client = api.initTokenClient({
+        client_id: clientId,
+        scope: SCOPE,
+        ux_mode: 'popup',
+        callback: (response: GoogleTokenResponse) => {
+          // A settled request must be inert. Without this, a late second callback overwrote the
+          // token of an already-adopted session - a silent swap to a different account.
+          if (settled) return;
+          if (response.error) {
+            settle({ status: 'error', message: `YouTube 授權未完成：${response.error}` });
+            return;
+          }
+          const session = toYouTubeSession(response);
+          if (!session) {
+            settle({ status: 'error', message: 'Google 未回傳可用的存取權杖' });
+            return;
+          }
+          currentSession = session;
+          settle({ status: 'connected', session });
+        },
+        error_callback: (error) => {
+          if (settled) return;
+          // `popup_closed` is a cancel, not a failure. GIS reports both through this channel.
+          const type = error?.type;
+          if (type === 'popup_closed' || type === 'popup_closed_by_user') {
+            settle({ status: 'cancelled' });
+            return;
+          }
+          settle({ status: 'error', message: error?.message || 'Google 授權視窗無法開啟' });
+        },
+      });
+    } catch (error) {
+      settle({ status: 'error', message: error instanceof Error ? error.message : '無法建立 Google 登入用戶端' });
+      return;
+    }
+
+    try {
+      client.requestAccessToken({ prompt: resolveConsentPrompt({ selectAccount: options.selectAccount }) });
+    } catch (error) {
+      settle({ status: 'error', message: error instanceof Error ? error.message : '無法開啟 Google 授權視窗' });
+    }
   });
-  if (selectAccount) params.set('prompt', 'select_account');
-  return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
 };
 
-export const beginYouTubeLogin = async (options: YouTubeLoginOptions = {}) => {
-  if (!clientId) throw new Error('缺少 VITE_GOOGLE_CLIENT_ID');
-  const state = crypto.randomUUID();
-  const returnTo = normalizeReturnPath(options.returnTo || getCurrentReturnPath());
-  window.sessionStorage.setItem(OAUTH_STATE_KEY, state);
-  window.sessionStorage.setItem(RETURN_TO_KEY, returnTo);
-  if (options.selectAccount) window.sessionStorage.setItem(SWITCH_ACCOUNT_KEY, '1');
-  else window.sessionStorage.removeItem(SWITCH_ACCOUNT_KEY);
-
-  window.location.assign(buildYouTubeAuthorizationUrl({
-    clientId,
-    redirectUri: getRedirectUri(),
-    state,
-    selectAccount: options.selectAccount,
-  }));
-};
-
-export const finishYouTubeLogin = (): YouTubeSession | null => {
-  const hash = new URLSearchParams(window.location.hash.slice(1));
-  const oauthError = hash.get('error');
-  if (oauthError) {
-    clearYouTubeLoginIntent();
-    throw new Error(`YouTube 授權未完成：${oauthError}`);
-  }
-  const accessToken = hash.get('access_token');
-  if (!accessToken) {
-    clearYouTubeLoginIntent();
-    return getStoredYouTubeSession();
-  }
-  const expectedState = window.sessionStorage.getItem(OAUTH_STATE_KEY);
-  if (!expectedState || hash.get('state') !== expectedState) {
-    clearYouTubeLoginIntent();
-    throw new Error('Google OAuth state 驗證失敗');
-  }
-  const expiresIn = Number(hash.get('expires_in') || 3600);
-  const session = { accessToken, expiresAt: Date.now() + Math.max(expiresIn - 60, 30) * 1000 };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-  clearYouTubeLoginIntent();
-  window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-  return session;
-};
-
+/**
+ * Revokes the token at Google, then drops it locally.
+ *
+ * The local clear must not depend on the network: a user pressing "disconnect" is entitled to a
+ * disconnected app even if `oauth2.googleapis.com` is unreachable, so the remote call is attempted
+ * and its failure is swallowed.
+ */
 export const revokeYouTubeAccessToken = async (accessToken: string | null | undefined) => {
   if (!accessToken || typeof fetch !== 'function') return;
   try {
@@ -148,7 +201,7 @@ export const revokeYouTubeAccessToken = async (accessToken: string | null | unde
   }
 };
 
+/** Drops the in-memory session. There is no persistent copy to remove. */
 export const clearYouTubeSession = () => {
-  localStorage.removeItem(STORAGE_KEY);
-  clearYouTubeLoginIntent();
+  currentSession = null;
 };

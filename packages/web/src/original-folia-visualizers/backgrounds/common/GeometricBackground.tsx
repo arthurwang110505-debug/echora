@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { AnimatePresence, motion, MotionValue, useSpring, useTransform } from 'framer-motion';
-import * as LucideIcons from 'lucide-react';
+import { useLucideIcon } from '../../../utils/useLucideIcon';
 import { AudioBands, Theme } from '../../../types';
 import type { StagePerformanceTier } from '../../../utils/stagePerformance';
 
@@ -100,6 +100,18 @@ const VignetteOverlay: React.FC<{ disabled?: boolean }> = ({ disabled = false })
   )
 );
 
+/**
+ * One theme-shaped icon.
+ *
+ * Extracted so each shape resolves its own icon through `useLucideIcon` (a single lazily loaded
+ * module) instead of indexing into `import * as LucideIcons`, which bundled all ~2,000 icons -
+ * 878 kB - into the stage for the handful of shapes a theme names.
+ */
+const ThemeIcon: React.FC<{ name: string; size: number }> = ({ name, size }) => {
+  const Icon = useLucideIcon(name);
+  return Icon ? <Icon size={size} strokeWidth={1} absoluteStrokeWidth /> : null;
+};
+
 const StaticGeometricScene: React.FC<{
   theme: Theme;
   shapes: BackgroundShape[];
@@ -112,27 +124,23 @@ const StaticGeometricScene: React.FC<{
       <>
         {shapes.map((shape) => {
           if (shape.type === 'icon' && shape.iconName) {
-            const IconComponent = LucideIcons[shape.iconName as keyof typeof LucideIcons] as LucideIcons.LucideIcon | undefined;
-
-            if (IconComponent) {
-              return (
-                <div
-                  key={shape.id}
-                  className="absolute flex items-center justify-center"
-                  style={{
-                    left: `${shape.initialX}%`,
-                    top: `${shape.initialY}%`,
-                    width: shape.size,
-                    height: shape.size,
-                    color: theme.secondaryColor,
-                    opacity: shape.opacity,
-                    transform: `rotate(${shape.initialRotation}deg)`,
-                  }}
-                >
-                  <IconComponent size={shape.size} strokeWidth={1} absoluteStrokeWidth />
-                </div>
-              );
-            }
+            return (
+              <div
+                key={shape.id}
+                className="absolute flex items-center justify-center"
+                style={{
+                  left: `${shape.initialX}%`,
+                  top: `${shape.initialY}%`,
+                  width: shape.size,
+                  height: shape.size,
+                  color: theme.secondaryColor,
+                  opacity: shape.opacity,
+                  transform: `rotate(${shape.initialRotation}deg)`,
+                }}
+              >
+                <ThemeIcon name={shape.iconName} size={shape.size} />
+              </div>
+            );
           }
 
           return (
@@ -198,9 +206,7 @@ const AnimatedGeometricScene: React.FC<{
         <>
           {shapes.map((shape) => {
             if (shape.type === 'icon' && shape.iconName) {
-              const IconComponent = LucideIcons[shape.iconName as keyof typeof LucideIcons] as LucideIcons.LucideIcon | undefined;
-
-              if (IconComponent) {
+              {
                 return (
                   <motion.div
                     key={shape.id}
@@ -232,7 +238,7 @@ const AnimatedGeometricScene: React.FC<{
                       },
                     }}
                   >
-                    <IconComponent size={shape.size} strokeWidth={1} absoluteStrokeWidth />
+                    <ThemeIcon name={shape.iconName} size={shape.size} />
                   </motion.div>
                 );
               }

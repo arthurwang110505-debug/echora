@@ -45,6 +45,7 @@ interface MonetLyricsRailProps {
     audioPower?: MotionValue<number>;
     audioBands?: AudioBands;
     onLyricLineSeek?: (lyricTimeSec: number) => void;
+    onLyricLineResync?: (lyricTimeSec: number) => void;
     seekDisabled?: boolean;
 }
 
@@ -624,20 +625,29 @@ const MonetRailLine: React.FC<{
     showSubtitleTranslation: boolean;
     audioPower?: MotionValue<number>;
     onLineSeek?: (line: Line) => void;
+    onLineResync?: (line: Line) => void;
     canSeek?: boolean;
     disableEntryMotion?: boolean;
     renderStaticPassed?: boolean;
-}> = ({ entry, currentTime, theme, lyricFontPx, translationFontPx, fontStack, translationFontStack, translationFontWeight, glowBufferPx, vGlowBufferPx, wordColorMatchers, showSubtitleTranslation, audioPower, onLineSeek, canSeek = false, disableEntryMotion = false, renderStaticPassed = false }) => {
+}> = ({ entry, currentTime, theme, lyricFontPx, translationFontPx, fontStack, translationFontStack, translationFontWeight, glowBufferPx, vGlowBufferPx, wordColorMatchers, showSubtitleTranslation, audioPower, onLineSeek, onLineResync, canSeek = false, disableEntryMotion = false, renderStaticPassed = false }) => {
     const initialOffset = entry.offset >= 0 ? 34 : -34;
     const exitOffset = entry.status === 'passed' || entry.offset < 0 ? -38 : 38;
     const textMask = getLineMask(entry.layout.isTextClipped, Math.max(lyricFontPx * 0.55, 12));
     const translationMask = getLineMask(entry.layout.isTranslationClipped, Math.max(translationFontPx * 0.65, 10));
     const handleSeek = (event: React.MouseEvent | React.KeyboardEvent) => {
+        event.stopPropagation();
+        // Shift-click corrects the sync instead of jumping: "this line is the one that should be
+        // under the playhead right now" is a statement a seek cannot express. Checked before the
+        // `canSeek` gate on purpose - a source that cannot be seeked (a stream, an embedded
+        // player) is exactly where a drifting timeline needs this most.
+        if (event.shiftKey && onLineResync) {
+            onLineResync(entry.line);
+            return;
+        }
         if (!canSeek) {
             return;
         }
 
-        event.stopPropagation();
         onLineSeek?.(entry.line);
     };
     const handleClickSeek = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -656,7 +666,10 @@ const MonetRailLine: React.FC<{
                     handleSeek(event);
                 }
             } : undefined}
+            // Shift is a second gesture on the same target, so the affordance has to change with
+            // the modifier or nobody will find it.
             className={`absolute top-0 min-w-0 will-change-transform ${canSeek ? 'cursor-pointer' : ''}`}
+            title={onLineResync ? 'Shift + click: re-sync the lyrics to this line' : undefined}
             initial={disableEntryMotion ? false : {
                 opacity: 0,
                 y: entry.y + initialOffset,
@@ -796,6 +809,7 @@ const MonetLyricsRail: React.FC<MonetLyricsRailProps> = ({
     audioPower,
     audioBands,
     onLyricLineSeek,
+    onLyricLineResync,
     seekDisabled = false,
 }) => {
     const railRef = useRef<HTMLDivElement | null>(null);
@@ -982,6 +996,13 @@ const MonetLyricsRail: React.FC<MonetLyricsRailProps> = ({
         setManualScrollAnchorIndex(null);
     }, [canSeek, onLyricLineSeek]);
 
+    // Resyncing is deliberately NOT gated on `canSeek`: a source that cannot be seeked can still
+    // have a drifting lyric timeline, and that is exactly when a correction is worth having.
+    const handleLineResync = useCallback((line: Line) => {
+        onLyricLineResync?.(line.startTime);
+        setManualScrollAnchorIndex(null);
+    }, [onLyricLineResync]);
+
     useEffect(() => {
         return () => {
             if (manualScrollResetRef.current !== null) {
@@ -1025,6 +1046,7 @@ const MonetLyricsRail: React.FC<MonetLyricsRailProps> = ({
                             showSubtitleTranslation={showSubtitleTranslation}
                             audioPower={audioPower}
                             onLineSeek={handleLineSeek}
+                            onLineResync={handleLineResync}
                             canSeek={canSeek}
                             disableEntryMotion={isManualScrolling}
                             renderStaticPassed={isManualScrolling && entry.index !== currentLineIndex}

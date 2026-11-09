@@ -5,7 +5,7 @@
 // of work per frame, not in a rewrite. Echora changes are marked with an "Echora note:".
 // Copyright (c) 2026 chthollyphile
 import type { IconNode } from 'lucide-react';
-import { resolveLucideIcon } from '../../../utils/lucideIconResolver';
+import { lucideIconNode } from '../../../utils/lucideIconResolver';
 import type { Point } from './lineArt';
 
 // src/components/visualizer/lumiere/lineart/iconPaths.ts
@@ -315,21 +315,16 @@ export const iconNodeToPolylines = (node: IconNode): IconPolyline[] => (
 );
 
 /**
- * 取 lucide-react 圖標組件裡的 IconNode：組件是 forwardRef，它的 render 只是
- * createElement(Icon, { iconNode, ... })（1.48 起是 { icon: { node, ... } }），不跑 hooks，直接調用即可拿到節點數據，
- * 不必渲染 SVG 再解析。
+ * 取圖標的 IconNode。
+ *
+ * 這裡原本直接調用 lucide-react 組件的 render 拿節點，代價是整個圖示庫都被靜態匯入（878 kB
+ * 的共享 chunk，從舞台、五個模式與兩個 Pixi runtime 都可達）。現在節點資料由
+ * `preloadLucideIcons` 按名字逐個載入，這裡只是同步查表；沒預載到的名字回傳 null，場景就少畫
+ * 那個圖標——與「未知圖標名」原本的行為一致。
  */
-const readIconNode = (name: string): IconNode | null => {
-    const icon = resolveLucideIcon(name) as unknown as { render?: (props: object, ref: null) => unknown } | null;
-    if (!icon || typeof icon.render !== 'function') return null;
-    try {
-        const element = icon.render({}, null) as { props?: { iconNode?: unknown; icon?: { node?: unknown } } } | null;
-        const node = element?.props?.iconNode ?? element?.props?.icon?.node;
-        return Array.isArray(node) ? node as IconNode : null;
-    } catch {
-        return null;
-    }
-};
+const readIconNode = (name: string): IconNode | null => (
+    lucideIconNode(name) as IconNode | null
+);
 
 const cache = new Map<string, IconPolyline[] | null>();
 

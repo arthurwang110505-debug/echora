@@ -5,6 +5,13 @@
  *
  * Budgets are set with headroom above the current production build; bump them
  * deliberately (not silently) when a chunk legitimately grows.
+ *
+ * What this file cannot see: the split used to leave Vite's `vite/preload-helper`
+ * inside the Pixi chunk, so `index.html` preloaded all of Pixi (2.3 MB) on the landing
+ * page while every per-file budget here passed. Startup cost is measured by
+ * `scripts/check-shell-closure.mjs`, which walks the static import graph from the chunks
+ * `index.html` names. Keep both: this one catches a chunk growing, that one catches a
+ * chunk the shell should never have needed.
  */
 import { readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -23,9 +30,11 @@ const BUDGETS = [
   // Measured effect of the split: 394.5 → 325.0 kB, i.e. the shell is 69.5 kB lighter. New page
   // copy belongs in `i18n/locales/<bundle>.*.json`, and `src/i18n/localeBundles.test.ts` fails if
   // a route references a key no bundle it loads carries.
-  { prefix: 'index-', name: 'app shell (index)', maxKb: 335 },
+  { prefix: 'index-', name: 'app shell (index)', maxKb: 165 },
+  { prefix: 'react-vendor-', name: 'react-vendor', maxKb: 500 },
+  { prefix: 'vite-helper-', name: 'vite-helper', maxKb: 5 },
   { prefix: 'three-runtime-', name: 'three-runtime', maxKb: 950 },
-  { prefix: 'sonnet-scene-', name: 'sonnet-scene', maxKb: 2500 },
+  { prefix: 'pixi-runtime-', name: 'pixi-runtime', maxKb: 950 },
   { prefix: 'stage-runtime-', name: 'stage-runtime', maxKb: 200 },
 ];
 
