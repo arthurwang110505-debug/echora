@@ -6,7 +6,6 @@ import { ThemeProvider } from './contexts/ThemeProvider';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import PersistentMiniPlayer from './components/PersistentMiniPlayer';
 import { RouteSkeleton } from './components/LoadingSkeletons';
-import NotFound from './pages/NotFound';
 import './App.css';
 import { isChunkLoadError, lazyWithRetry, recoverFromStaleBuild } from './utils/recovery';
 import { withLocaleBundle } from './i18n';
@@ -18,6 +17,9 @@ const Welcome = lazyWithRetry(withLocaleBundle('home', () => import('./pages/Wel
 const AppHome = lazyWithRetry(withLocaleBundle('home', () => import('./pages/AppHome')), 'route-app-home');
 const Player = lazyWithRetry(withLocaleBundle('player', () => import('./pages/Player')), 'route-player');
 const Settings = lazyWithRetry(withLocaleBundle('settings', () => import('./pages/Settings')), 'route-settings');
+// The 404 page needs the shell's own strings, so it takes no bundle of its own - but it is still a
+// dynamic import: nothing on a working route should ever pay for the page that means "you are lost".
+const NotFound = lazyWithRetry(() => import('./pages/NotFound'), 'route-not-found');
 const Library = lazyWithRetry(withLocaleBundle('library', () => import('./pages/Library')), 'route-library');
 const Privacy = lazyWithRetry(withLocaleBundle('legal', () => import('./pages/Privacy')), 'route-privacy');
 const Terms = lazyWithRetry(withLocaleBundle('legal', () => import('./pages/Terms')), 'route-terms');
