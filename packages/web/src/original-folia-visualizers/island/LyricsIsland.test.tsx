@@ -118,9 +118,16 @@ describe('LyricsIsland', () => {
     expect(litWords()).toHaveLength(0);
   });
 
-  it('renders nothing without lyrics, instead of an empty pill', async () => {
+  it('says why it is empty instead of drawing a silent blank pill', async () => {
+    // This used to assert an empty string. That was the visualizer mode's worst failure: pick
+    // Island on a song with no lyrics and the stage shows a background and nothing else, which
+    // reads as a broken feature rather than a missing input.
     await mount({ lines: [], currentLineIndex: -1 });
-    expect(host.textContent).toBe('');
+    expect(host.textContent).not.toBe('');
+    // An unseeded i18n instance returns the key itself; either way the card must say *something*.
+    expect(host.textContent).toMatch(/islandEmpty|沒有歌詞|no lyrics/i);
+    // It is a notice, not a control: nothing here should catch pointer events.
+    expect(host.querySelector('.pointer-events-none')).not.toBeNull();
   });
 
   it('hides itself when the caller says it is not visible', async () => {

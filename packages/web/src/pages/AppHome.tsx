@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, Check, LayoutGrid, Library, Orbit, Play, Search, Settings2, X } from 'lucide-react';
+import { ArrowRight, Check, LayoutGrid, Library, Link2, Orbit, Play, Search, Settings2, X } from 'lucide-react';
 import { usePlayer } from '../contexts/PlayerContext';
 import YouTubeFailureMessage from '../components/YouTubeFailureMessage';
 import { type Song } from '@echora/core';
@@ -270,7 +270,7 @@ export default function AppHome() {
   const consoleCopy = activeSource === 'ytmusic'
     ? youtubeConnected
       ? { eyebrow: t('appHome.yourYtMusic'), description: selectedPlaylist ? t('appHome.consoleYtPlaying', { name: selectedPlaylist.name }) : t('appHome.consoleYtSyncing'), primary: currentSong ? t('appHome.backToStage') : t('appHome.openMyLibrary'), secondary: t('appHome.syncMyLibrary') }
-      : { eyebrow: t('appHome.tryStageFirst'), description: t('appHome.consoleYtConnect'), primary: t('appHome.playDemoNow'), secondary: t('appHome.playMyMusic') }
+      : { eyebrow: t('appHome.tryStageFirst'), description: t('appHome.consoleYtConnect'), primary: t('appHome.playDemoNow'), secondary: t('appHome.navConnect') }
     : activeSource === 'spotify'
       ? { eyebrow: t('appHome.spotifyDisabled'), description: t('appHome.consoleSpotifyDisabled'), primary: t('appHome.tryShowcaseStage'), secondary: t('appHome.viewConnectGuide') }
       : lastLocalDemoSong
@@ -341,6 +341,30 @@ export default function AppHome() {
           </nav>
 
           <div className="flex items-center gap-2">
+            {/* The connect action used to live only on /library and behind a secondary button that
+                said 「播放自己的音樂」 - a name that describes playback, not the sign-in it actually
+                opens. It is the one thing a new visitor has to do, so it sits in the chrome: accent
+                while disconnected, a quiet connected state afterwards. */}
+            {!youtubeConnected && (
+              <button
+                type="button"
+                onClick={() => setShowConnectModal(true)}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[#62f5c4] px-3 py-2 text-xs font-extrabold text-black shadow-[0_6px_20px_rgba(98,245,196,0.25)] transition hover:brightness-110 active:scale-95 sm:px-4"
+              >
+                <Link2 aria-hidden="true" className="h-4 w-4" />
+                {t('appHome.navConnect')}
+              </button>
+            )}
+            {youtubeConnected && (
+              <button
+                type="button"
+                onClick={() => setShowConnectModal(true)}
+                className="hidden min-h-11 items-center gap-1.5 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs font-bold text-emerald-200 transition hover:bg-emerald-400/20 active:scale-95 sm:inline-flex"
+              >
+                <Check aria-hidden="true" className="h-4 w-4" />
+                {t('appHome.navConnect')}
+              </button>
+            )}
             {youtubeConnected && youtubeProfile && <div className="hidden items-center gap-2 rounded-full border border-[#ff3d57]/30 bg-[#ff3d57]/10 px-2 py-1 sm:flex"><span className="relative"><img src={youtubeProfile.avatarUrl} alt={t('appHome.ytAvatarAlt')} className="h-7 w-7 rounded-full object-cover" /><span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 animate-pulse rounded-full bg-emerald-400 ring-2 ring-[#111720]" /></span><span className="max-w-24 truncate text-[11px] font-bold text-white">{youtubeProfile.name}</span></div>}
             {deferredPrompt && <button type="button" onClick={handleInstall} className="hidden rounded-xl border border-[#62f5c4]/25 bg-[#62f5c4]/10 px-3 py-2 text-xs font-bold text-[#62f5c4] transition hover:bg-[#62f5c4]/20 sm:block">{t('appHome.addToHome')}</button>}
             <button type="button" onClick={() => navigate('/library')} className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-slate-300 transition hover:border-[#62f5c4]/40 hover:bg-[#62f5c4]/10 hover:text-[#62f5c4] active:scale-95 md:hidden" aria-label={t('appHome.myLibraryAria')}>

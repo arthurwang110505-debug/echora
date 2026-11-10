@@ -660,8 +660,12 @@ export default function Player() {
               stage - in 'full' the lyric column is right there, and two copies of the same line
               is worse than one. Hidden while the tuning panel is open, so it never sits under a
               settings slider. */}
+          {/* `hidden sm:block` used to hide this on phones, which is where a compact readout is
+              most useful. The only reason it was hidden is the width: at 320px a corner card would
+              run under the chrome, so the inset is tighter and the card spans the row instead of
+              hugging its text. `max-w` on the component still caps it on a wide screen. */}
           {lyricsIsland && displayMode === 'stage' && !showTuning && !isChromeHidden && stageLines.length > 0 && (
-            <div className="pointer-events-none absolute bottom-24 left-4 z-30 hidden sm:block">
+            <div className="pointer-events-none absolute bottom-24 left-3 right-3 z-30 sm:right-auto sm:left-4">
               <LyricsIsland
                 currentTime={islandTime}
                 currentLineIndex={activeLineIndex}
