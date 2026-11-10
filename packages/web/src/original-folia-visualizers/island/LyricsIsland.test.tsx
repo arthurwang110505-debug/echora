@@ -67,8 +67,10 @@ const mount = async (props: Partial<React.ComponentProps<typeof LyricsIsland>> =
 };
 
 /** The lit copies are the ones carrying a clip-path straight after mount. */
+// The lit copy is identified by its clip, not by `aria-hidden` - the attribute sits on the wrapper
+// that hides both copies from assistive tech, so filtering on it would now match the wrappers.
 const litWords = () =>
-  Array.from(host.querySelectorAll<HTMLElement>('span[aria-hidden="true"]'))
+  Array.from(host.querySelectorAll<HTMLElement>('span'))
     .filter(node => node.style.clipPath !== '');
 
 beforeEach(() => {
@@ -143,9 +145,30 @@ describe('LyricsIsland', () => {
     expect(host.querySelector('[role="button"]')).toBeNull();
   });
 
-  it('exposes the line to assistive tech as a live region', async () => {
+  it('announces the line once, not once per drawn copy', async () => {
+    // Each word is rendered twice (dim base, lit overlay). Without `aria-hidden` on the pair, the
+    // line reads as "lai lai lai lai lai lai" - which is what the no-word-timing path below also
+    // guards against.
     await mount();
     const live = host.querySelector('[aria-live="polite"]');
     expect(live?.textContent).toContain('lai lai lai');
+    expect(host.querySelectorAll('[aria-live="polite"]')).toHaveLength(1);
+
+    // The visible text is doubled by design; the announced text must not be.
+    const announced = live?.textContent ?? '';
+    expect(announced.match(/lai/g) ?? []).toHaveLength(3);
+  });
+
+  it('keeps the visible line out of the accessibility tree', async () => {
+    // The line is announced from the live region. If the drawn words stay in the tree as well, a
+    // screen reader meets the same line twice - once as static text, once as the live update. The
+    // dim base copy is the one that leaks, because the lit copy already carries `aria-hidden`.
+    await mount();
+    const seen = Array.from(host.querySelectorAll('span'))
+      .filter(node => node.textContent?.trim() === 'lai' && node.closest('[aria-hidden="true"]') === null);
+    expect(seen).toHaveLength(0);
+
+    const announced = host.querySelector('[aria-live="polite"]')?.textContent ?? '';
+    expect(announced.match(/lai/g) ?? []).toHaveLength(3);
   });
 });

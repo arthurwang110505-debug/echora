@@ -186,15 +186,22 @@ export const LyricsIsland: React.FC<LyricsIslandProps> = ({
 
   if (!visible || !line) return null;
 
+  // Each word is drawn twice: a dim copy that is always fully visible, and a lit copy clipped to the
+  // fraction sung so far. Both carry the same text, which would make a screen reader - and anything
+  // reading `textContent`, including tests - see every word twice ("我是我是"). So the wrapper is
+  // `aria-hidden` and the line is announced once, from the live region below. That also keeps the
+  // wipe out of the accessibility tree, where it describes nothing useful.
   const wordElements = hasWordTiming
     ? words.map((word, index) => (
-        <span key={`${index}-${word.text}`} className="relative inline-block whitespace-pre">
-          {/* The dim base copy is always fully drawn, so the line's silhouette does not change
-              width as the wipe passes over it. */}
+        <span
+          key={`${index}-${word.text}`}
+          aria-hidden="true"
+          className="relative inline-block whitespace-pre"
+        >
+          {/* Always fully drawn, so the line's silhouette does not change width as the wipe passes. */}
           <span style={{ opacity: tuning.upcomingWordOpacity }}>{word.text}</span>
           <span
             ref={element => { wordFillRefs.current[index] = element; }}
-            aria-hidden="true"
             className="absolute inset-0 whitespace-pre"
             style={{ color: theme.accentColor, clipPath: 'inset(0 100% 0 0)' }}
           >
