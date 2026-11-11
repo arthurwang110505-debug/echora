@@ -10,6 +10,7 @@ import { useSpotifyCredentialStore } from '../store/spotifyCredentialStore';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import LyriclessSoundscapeStage from '../components/LyriclessSoundscapeStage';
+import { shouldShowLyriclessSoundscape } from '../playback/stageFallback';
 import { CoverImage, PanelSkeleton, PlayerSkeleton, StageSkeleton } from '../components/LoadingSkeletons';
 import { adjustLyricsOffset, getActiveLyricIndex, LYRICS_OFFSET_STEP_SECONDS, offsetForLineStart } from '../utils/lyrics/activeLine';
 import { lazyWithRetry } from '../utils/recovery';
@@ -466,7 +467,16 @@ export default function Player() {
   });
   const queueSources = Array.from(new Set(playlist.map(song => song.source)));
   const queueLabel = queueSources.length > 1 ? t('player.queueMixed') : queueSources[0] === 'ytmusic' ? t('player.queueYt') : queueSources[0] === 'spotify' ? t('player.queueSpotify') : queueSources[0] === 'local' ? t('player.queueLocal') : t('player.queueCurrent');
-  const showLyriclessSoundscape = !isLoadingLyrics && !currentLyrics?.lines?.length;
+  // Without lyrics the stage is swapped wholesale for the soundscape - cover art, particles,
+  // waveform - which means the selected visualizer never mounts at all. That is fine for the scene
+  // directors, which would have nothing to draw, but the island is a *readout*: it can say why it
+  // is empty, and that sentence is more useful than another picture of the album cover. So it is
+  // exempt, and picking Island on a lyric-less song explains itself instead of silently vanishing.
+  const showLyriclessSoundscape = shouldShowLyriclessSoundscape({
+    isLoadingLyrics,
+    lineCount: currentLyrics?.lines?.length ?? 0,
+    visualizerMode: activeVisualizer,
+  });
   const lyricsStageStatus = (() => {
     if (isLoadingLyrics || lyricsStatus === 'loading') return { title: t('player.loadingLyrics'), copy: t('player.loadingLyricsHint') };
     if (currentSong.source === 'ytmusic' && !isPlaying && !youtubeError) return { title: playbackState === 'buffering' || playbackState === 'loading' ? t('player.ytPreparing') : t('player.ytWaiting'), copy: t('player.ytWaitingHint') };
