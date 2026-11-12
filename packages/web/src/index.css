@@ -627,7 +627,12 @@
 .echora-page-skeleton,
 .echora-player-skeleton {
   position: relative;
+  /* `100dvh` after `100vh` is the progressive-enhancement pair used in App.css: a browser that
+     understands the dynamic viewport unit gets it, and one that does not keeps the old value.
+     Plain `100vh` is wrong on mobile Safari - it ignores the collapsing URL bar, so the frame is
+     taller than the screen and the bottom of a skeleton page sits off-screen. */
   min-height: 100vh;
+  min-height: 100dvh;
   overflow: hidden;
   color: #f8fafc;
   background: #07090e;
@@ -638,6 +643,7 @@
 .echora-route-skeleton {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
   flex-direction: column;
   align-items: center;
   justify-content: center;

@@ -1,0 +1,42 @@
+# Dependabot keeps the supply chain visible between audits.
+#
+# A music player is mostly a dependency graph: React, Vite, Workbox, Pixi, three separate OAuth
+# clients. None of that is worth hand-bumping, and pinning versions without watching them is how
+# a package quietly goes stale and then becomes urgent.
+#
+# Grouped so this does not become a weekly wall of pull requests: a security bump always arrives
+# on its own (so it can be reviewed and merged immediately), while routine minor/patch updates
+# arrive as one batch per ecosystem.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: master
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Asia/Taipei
+    open-pull-requests-limit: 5
+    # Never touch the runtime on its own: a major React or Vite jump needs a human reading the
+    # migration guide, not a green CI run.
+    ignore:
+      - dependency-name: react
+        update-types: ['version-update:semver-major']
+      - dependency-name: react-dom
+        update-types: ['version-update:semver-major']
+      - dependency-name: vite
+        update-types: ['version-update:semver-major']
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: ['minor', 'patch']
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: master
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3

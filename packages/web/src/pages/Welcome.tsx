@@ -214,7 +214,7 @@ export default function Welcome() {
     <div
       ref={rootRef}
       data-landing
-      className="landing-root relative min-h-screen overflow-x-clip bg-[#07090e] font-sans text-slate-100 selection:bg-[#62f5c4] selection:text-black"
+      className="landing-root relative min-h-dvh overflow-x-clip bg-[#07090e] font-sans text-slate-100 selection:bg-[#62f5c4] selection:text-black"
       style={{
         ['--stage-accent' as string]: MODE_SCENES[0].theme.accentColor,
         ['--stage-primary' as string]: MODE_SCENES[0].theme.primaryColor,
