@@ -1,4 +1,8 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { IncomingMessage } from 'node:http';
+import { readJsonBody, BodyError } from '../_lib/body';
+import { respond, methodNotAllowed, type ApiResponse } from '../_lib/http';
+import { DailyCeiling, RateLimiter, clientKey } from '../_lib/limits';
+import { isAllowedRequest, requestHostname } from '../_lib/origin';
 // The prompt and its parser live at the repo root because the browser also imports them: the prompt
 // a user copies out has to be the one this endpoint sends. Same layout as upstream's shared/.
 import {
@@ -21,11 +25,6 @@ import {
 //
 // A null row is a *rejected* line, not a failure: it keeps the default Intl.Segmenter split, which is
 // correct output. A run where every row was rejected is a 502.
-
-type ApiResponse = ServerResponse & {
-    status?: (code: number) => ApiResponse;
-    json?: (payload: unknown) => void;
-};
 
 type ApiRequest = IncomingMessage & {
     method?: string;
@@ -51,41 +50,13 @@ const UPSTREAM_TIMEOUT_MS = 25_000;
 // instances do not share state, so this blunts bursts rather than enforcing a quota).
 const RATE_LIMIT_MAX = 8;
 const RATE_LIMIT_WINDOW_MS = 60_000;
-const rateBuckets = new Map<string, number[]>();
+const limiter = new RateLimiter(RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS);
 
-const ALLOWED_ORIGINS = (process.env.ECHORA_ALLOWED_ORIGINS || '')
-    .split(',')
-    .map(origin => origin.trim())
-    .filter(Boolean);
-
-const sendJson = (response: ApiResponse, status: number, payload: unknown) => {
-    response.statusCode = status;
-    response.setHeader('Content-Type', 'application/json; charset=utf-8');
-    response.end(JSON.stringify(payload));
-};
-
-const readBody = async (request: ApiRequest): Promise<SegmentRequest> => {
-    if (request.body && typeof request.body === 'object') return request.body as SegmentRequest;
-
-    const declaredLength = Number(request.headers['content-length'] || 0);
-    if (declaredLength > MAX_BODY_BYTES) throw new Error('請求內容過大。');
-
-    let raw = '';
-    let received = 0;
-    for await (const chunk of request) {
-        received += String(chunk).length;
-        if (received > MAX_BODY_BYTES) throw new Error('請求內容過大。');
-        raw += String(chunk);
-    }
-    if (!raw.trim()) return {};
-
-    try {
-        const parsed = JSON.parse(raw);
-        return parsed && typeof parsed === 'object' ? parsed as SegmentRequest : {};
-    } catch {
-        throw new Error('請求內容不是有效的 JSON。');
-    }
-};
+// A segmentation run is a paid generation, and one is issued per lyric batch during an import.
+// The ceiling is higher than the theme endpoint's because a single song import legitimately uses
+// several, but it still bounds what one instance will ever spend in a day.
+const DAILY_GENERATION_CEILING = 500;
+const ceiling = new DailyCeiling(DAILY_GENERATION_CEILING);
 
 /** Guards the request before any credential or network work happens. */
 const readLines = (body: SegmentRequest): string[] => {
@@ -108,128 +79,99 @@ const getContent = (payload: unknown): string => {
     return '';
 };
 
-const readClientIp = (request: ApiRequest): string => {
-    const forwarded = request.headers['x-forwarded-for'];
-    const first = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-    if (typeof first === 'string' && first.trim()) return first.split(',')[0].trim();
-    return request.socket?.remoteAddress || 'unknown';
-};
-
-const isRateLimited = (clientKey: string): boolean => {
-    const now = Date.now();
-    const bucket = (rateBuckets.get(clientKey) || []).filter(ts => now - ts < RATE_LIMIT_WINDOW_MS);
-    if (bucket.length >= RATE_LIMIT_MAX) {
-        rateBuckets.set(clientKey, bucket);
-        return true;
-    }
-    bucket.push(now);
-    rateBuckets.set(clientKey, bucket);
-    return false;
-};
-
-const isAllowedOrigin = (origin: string | undefined): boolean => {
-    // Non-browser requests (curl, same-origin fetches) do not send Origin.
-    if (!origin) return true;
-    let hostname = '';
-    try {
-        hostname = new URL(origin).hostname.toLowerCase();
-    } catch {
-        return false;
-    }
-    if (ALLOWED_ORIGINS.length > 0) {
-        return ALLOWED_ORIGINS.some(allowed => {
-            try {
-                return new URL(allowed).hostname.toLowerCase() === hostname;
-            } catch {
-                return allowed.toLowerCase() === hostname;
-            }
-        });
-    }
-    // Default policy: the deployed *.vercel.app host and local development only.
-    return /(^|\.)vercel\.app$/.test(hostname) || hostname === 'localhost' || hostname === '127.0.0.1';
-};
-
 export default async function handler(request: ApiRequest, response: ApiResponse) {
-    if (request.method !== 'POST') {
-        response.setHeader('Allow', 'POST');
-        sendJson(response, 405, { error: '只支援 POST。' });
-        return;
+    if (request.method !== 'POST') return methodNotAllowed(response, 'POST');
+
+    const headers = request.headers as Record<string, string | string[] | undefined>;
+    if (!isAllowedRequest(headers.origin, { sameOrigin: requestHostname(headers) })) {
+        return respond(response, 403, { error: '不允許的來源。' });
     }
 
-    if (!isAllowedOrigin(request.headers.origin)) {
-        sendJson(response, 403, { error: '不允許的來源。' });
-        return;
-    }
-
-    if (isRateLimited(readClientIp(request))) {
-        sendJson(response, 429, { error: '請求過於頻繁，請稍後再試。' });
-        return;
+    const { allowed, retryAfterSeconds } = limiter.take(clientKey(headers, request.socket?.remoteAddress || 'unknown'));
+    if (!allowed) {
+        response.setHeader('Retry-After', String(retryAfterSeconds));
+        return respond(response, 429, { error: '請求過於頻繁，請稍後再試。' });
     }
 
     const apiKey = process.env.AGNES_API_KEY;
     if (!apiKey) {
-        sendJson(response, 503, { error: 'AI 詞切分服務尚未完成設定，請稍後再試。' });
-        return;
+        return respond(response, 503, { error: 'AI 詞切分服務尚未完成設定，請稍後再試。' });
     }
 
+    let lines: string[];
     try {
-        const lines = readLines(await readBody(request));
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+        lines = readLines(await readJsonBody(request, MAX_BODY_BYTES) as SegmentRequest);
+    } catch (error) {
+        if (error instanceof BodyError) return respond(response, error.status, { error: error.message });
+        // `readLines` throws plain Errors for a missing or oversized line list: those are the
+        // caller's to fix, so they stay 400.
+        return respond(response, 400, { error: error instanceof Error ? error.message : '請求內容有誤。' });
+    }
+
+    // Every accepted batch is a billed model call, so the ceiling gates right before it and only
+    // after validation - a malformed request must not spend the day's allowance.
+    if (!ceiling.take()) {
+        console.warn('[Agnes AI] daily segmentation ceiling reached', { ceiling: DAILY_GENERATION_CEILING });
+        return respond(response, 429, { error: 'AI 詞切分服務今天的額度已用完，請稍後再試。' });
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+    try {
+        const upstream = await fetch(`${AGNES_BASE_URL}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: AGNES_MODEL,
+                messages: [
+                    { role: 'system', content: buildSegmentationSystemPrompt() },
+                    { role: 'user', content: buildSegmentationSourcePrompt(lines) },
+                ],
+                // Splitting text at word boundaries is mechanical; there is nothing to sample
+                // for, and temperature is the one knob that can make a line come back rewritten.
+                temperature: 0,
+                max_tokens: SEGMENTATION_MAX_OUTPUT_TOKENS,
+                response_format: { type: 'json_object' },
+            }),
+            signal: controller.signal,
+        });
+
+        const payload = await upstream.json().catch(() => null);
+        if (!upstream.ok) {
+            console.error('[Agnes AI] segmentation upstream failed', { status: upstream.status });
+            return respond(response, 502, { error: `AI 詞切分服務請求失敗（HTTP ${upstream.status}），請稍後再試。` });
+        }
+
+        const content = getContent(payload);
+        if (!content) {
+            return respond(response, 502, { error: 'AI 詞切分服務沒有回傳內容。' });
+        }
+
         try {
-            const upstream = await fetch(`${AGNES_BASE_URL}/chat/completions`, {
-                method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                    Authorization: `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    model: AGNES_MODEL,
-                    messages: [
-                        { role: 'system', content: buildSegmentationSystemPrompt() },
-                        { role: 'user', content: buildSegmentationSourcePrompt(lines) },
-                    ],
-                    // Splitting text at word boundaries is mechanical; there is nothing to sample
-                    // for, and temperature is the one knob that can make a line come back rewritten.
-                    temperature: 0,
-                    max_tokens: SEGMENTATION_MAX_OUTPUT_TOKENS,
-                    response_format: { type: 'json_object' },
-                }),
-                signal: controller.signal,
-            });
-
-            const payload = await upstream.json().catch(() => null);
-            if (!upstream.ok) {
-                console.error('[Agnes AI] segmentation upstream failed', { status: upstream.status });
-                sendJson(response, 502, { error: `AI 詞切分服務請求失敗（HTTP ${upstream.status}），請稍後再試。` });
-                return;
+            const { boundaries, rejections } = parseSegmentationResponse(content, lines);
+            if (rejections.length > 0) {
+                console.warn(`[segment] ${rejections.length}/${lines.length} lines rejected; first: ${rejections[0]}`);
             }
-
-            const content = getContent(payload);
-            if (!content) {
-                sendJson(response, 502, { error: 'AI 詞切分服務沒有回傳內容。' });
-                return;
-            }
-
-            try {
-                const { boundaries, rejections } = parseSegmentationResponse(content, lines);
-                if (rejections.length > 0) {
-                    console.warn(`[segment] ${rejections.length}/${lines.length} lines rejected; first: ${rejections[0]}`);
-                }
-                sendJson(response, 200, { lines: boundaries });
-            } catch (error) {
-                // The response is the only evidence of why a run was rejected, and it is gone once
-                // this throws. Server logs are the one place a deployment can see it.
-                console.error('[segment] rejected model response:', String(content).slice(0, 4000));
-                sendJson(response, 502, { error: error instanceof Error ? error.message : '詞切分結果無法解析。' });
-            }
-        } finally {
-            clearTimeout(timer);
+            return respond(response, 200, { lines: boundaries });
+        } catch (error) {
+            // The response is the only evidence of why a run was rejected, and it is gone once
+            // this throws. Server logs are the one place a deployment can see it.
+            console.error('[segment] rejected model response:', String(content).slice(0, 4000));
+            return respond(response, 502, { error: error instanceof Error ? error.message : '詞切分結果無法解析。' });
         }
     } catch (error) {
         const aborted = error instanceof Error && error.name === 'AbortError';
         console.error('[Agnes AI] segmentation proxy error', error instanceof Error ? error.message : error);
-        sendJson(response, aborted ? 504 : 400, { error: aborted ? 'AI 詞切分服務逾時，請稍後再試。' : error instanceof Error ? error.message : '詞切分失敗。' });
+        // Anything reaching here is the upstream's fault: the request was already validated, so
+        // there is nothing the caller could change. 502/504, never 400.
+        return respond(response, aborted ? 504 : 502, {
+            error: aborted ? 'AI 詞切分服務逾時，請稍後再試。' : 'AI 詞切分服務暫時無法使用。',
+        });
+    } finally {
+        clearTimeout(timer);
     }
 }

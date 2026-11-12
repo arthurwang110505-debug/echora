@@ -44,4 +44,7 @@ export const ROUTE_LOCALE_BUNDLES: Record<string, LocaleBundleName | null> = {
   './pages/Privacy': 'legal',
   './pages/Terms': 'legal',
   './pages/ObsStage': null,
+  // Shell-only for the same reason as the overlay: its four strings are chrome, and a missing route
+  // should not have to download a bundle before it can say it is missing.
+  './pages/NotFound': null,
 };

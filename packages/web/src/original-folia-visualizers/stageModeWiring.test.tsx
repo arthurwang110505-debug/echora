@@ -11,6 +11,8 @@
 // registry; `scripts/check-visualizer-types.mjs` type-checks it.
 import { motionValue } from 'framer-motion';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Theme } from '../types';
 import { VISUALIZER_OPTIONS } from '../components/player/panel/stageOptions';
@@ -56,6 +58,26 @@ describe('visualizer modes', () => {
         expect(new Set(picker).size, 'the picker lists a mode twice').toBe(picker.length);
         expect([...picker].sort()).toEqual([...registered].sort());
         for (const mode of picker) expect(hasVisualizerMode(mode), `${mode} is not registered`).toBe(true);
+    });
+
+    it('admits every registered mode into the stage whitelist', async () => {
+        // `OriginalFoliaVisualizerStage` keeps its own `MODES` list and silently rewrites anything
+        // it does not recognise to "classic". That list is what the player actually renders from,
+        // so a mode can be listed in the picker, registered, tested - and still never appear:
+        // selecting it just draws classic. The island shipped like that and read as "the feature
+        // is broken". A source-level assertion is the only way to catch it here, because the list
+        // is a module constant and the component needs a whole player to mount.
+        const source = readFileSync(
+            path.resolve(process.cwd(), 'src/components/OriginalFoliaVisualizerStage.tsx'),
+            'utf8',
+        );
+        const listMatch = source.match(/const MODES: OriginalMode\[\] = \[([\s\S]*?)\];/);
+        expect(listMatch, 'the stage MODES list moved or was renamed').not.toBeNull();
+        const admitted = [...listMatch![1].matchAll(/"([a-z]+)"/g)].map(match => match[1]);
+
+        for (const entry of VISUALIZER_REGISTRY) {
+            expect(admitted, `${entry.mode} falls back to classic on the stage`).toContain(entry.mode);
+        }
     });
 
     it('gives every mode its own entry, a label, a seed and a tuning', () => {

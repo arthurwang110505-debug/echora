@@ -10,9 +10,12 @@
     "bench": "pnpm --filter=@echora/web bench",
     "check:shell": "node scripts/check-shell-closure.mjs",
     "test:e2e": "pnpm --filter=@echora/web exec playwright test",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "check:api": "tsc --noEmit -p api/tsconfig.json",
+    "test:api": "corepack pnpm --filter=@echora/web exec vitest run src/api"
   },
   "devDependencies": {
+    "@types/node": "^20.19.43",
     "prettier": "^3.2.5",
     "turbo": "^2.0.0",
     "typescript": "^5.4.5"

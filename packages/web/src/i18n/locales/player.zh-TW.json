@@ -308,7 +308,9 @@
     "waitingForMusic": "等待音樂…",
     "default": "預設",
     "livePreview": "即時預覽",
-    "visualizerIsland": "靈動詞島"
+    "visualizerIsland": "靈動詞島",
+    "islandEmpty": "這首歌沒有歌詞。\n靈動詞島需要歌詞才能顯示。",
+    "islandNoWordTiming": "這首歌的歌詞沒有逐字時間，只能整行顯示。"
   },
   "options": {
     "temperaAddLayerImage": "新增圖片",

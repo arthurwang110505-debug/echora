@@ -17,6 +17,9 @@ const Welcome = lazyWithRetry(withLocaleBundle('home', () => import('./pages/Wel
 const AppHome = lazyWithRetry(withLocaleBundle('home', () => import('./pages/AppHome')), 'route-app-home');
 const Player = lazyWithRetry(withLocaleBundle('player', () => import('./pages/Player')), 'route-player');
 const Settings = lazyWithRetry(withLocaleBundle('settings', () => import('./pages/Settings')), 'route-settings');
+// The 404 page needs the shell's own strings, so it takes no bundle of its own - but it is still a
+// dynamic import: nothing on a working route should ever pay for the page that means "you are lost".
+const NotFound = lazyWithRetry(() => import('./pages/NotFound'), 'route-not-found');
 const Library = lazyWithRetry(withLocaleBundle('library', () => import('./pages/Library')), 'route-library');
 const Privacy = lazyWithRetry(withLocaleBundle('legal', () => import('./pages/Privacy')), 'route-privacy');
 const Terms = lazyWithRetry(withLocaleBundle('legal', () => import('./pages/Terms')), 'route-terms');
@@ -96,6 +99,9 @@ const router = createBrowserRouter([
       { path: '/privacy', element: <Privacy /> },
       { path: '/terms', element: <Terms /> },
       { path: '/obs', element: <ObsStage /> },
+      // Catch-all last: without it an unknown path reached the error boundary, which is written
+      // for a failed chunk load and tells the user to clear their cache.
+      { path: '*', element: <NotFound /> },
     ],
   },
 ]);

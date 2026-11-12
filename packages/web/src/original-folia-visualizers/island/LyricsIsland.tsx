@@ -21,6 +21,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, type MotionValue } from 'framer-motion';
 import type { IslandTuning, Theme } from '../../types';
 import { DEFAULT_ISLAND_TUNING } from '../../types';
+import i18n from '../../i18n';
 import { resolveThemeFontStack, resolveThemeFontWeight } from '../../utils/fontStacks';
 import {
   clampUnit,
@@ -184,17 +185,53 @@ export const LyricsIsland: React.FC<LyricsIslandProps> = ({
   const words = useMemo(() => line?.words ?? [], [line]);
   const hasWordTiming = words.length > 0;
 
-  if (!visible || !line) return null;
+  if (!visible) return null;
 
+  // No line to draw. The component used to return null here, which in the visualizer mode left an
+  // empty stage: pick Island, see nothing, conclude the feature is broken. Saying why costs one
+  // small card and turns a silent failure into a readable state.
+  if (!line) {
+    return (
+      <div
+        className={`pointer-events-none select-none ${className ?? ''}`}
+        style={{
+          padding: `${style.padY}px ${style.padX}px`,
+          borderRadius: style.radius,
+          maxWidth: style.maxWidth,
+          background: `linear-gradient(135deg, ${theme.backgroundColor}f2, ${theme.backgroundColor}dd)`,
+          border: `1px dashed ${theme.primaryColor}33`,
+          backdropFilter: 'blur(18px)',
+          WebkitBackdropFilter: 'blur(18px)',
+          fontFamily,
+          color: theme.primaryColor,
+        }}
+      >
+        <p
+          className="whitespace-pre-line text-center leading-relaxed"
+          style={{ fontSize: style.translation, opacity: 0.72 }}
+        >
+          {i18n.t('ui.islandEmpty')}
+        </p>
+      </div>
+    );
+  }
+
+  // Each word is drawn twice: a dim copy that is always fully visible, and a lit copy clipped to the
+  // fraction sung so far. Both carry the same text, which would make a screen reader - and anything
+  // reading `textContent`, including tests - see every word twice ("我是我是"). So the wrapper is
+  // `aria-hidden` and the line is announced once, from the live region below. That also keeps the
+  // wipe out of the accessibility tree, where it describes nothing useful.
   const wordElements = hasWordTiming
     ? words.map((word, index) => (
-        <span key={`${index}-${word.text}`} className="relative inline-block whitespace-pre">
-          {/* The dim base copy is always fully drawn, so the line's silhouette does not change
-              width as the wipe passes over it. */}
+        <span
+          key={`${index}-${word.text}`}
+          aria-hidden="true"
+          className="relative inline-block whitespace-pre"
+        >
+          {/* Always fully drawn, so the line's silhouette does not change width as the wipe passes. */}
           <span style={{ opacity: tuning.upcomingWordOpacity }}>{word.text}</span>
           <span
             ref={element => { wordFillRefs.current[index] = element; }}
-            aria-hidden="true"
             className="absolute inset-0 whitespace-pre"
             style={{ color: theme.accentColor, clipPath: 'inset(0 100% 0 0)' }}
           >

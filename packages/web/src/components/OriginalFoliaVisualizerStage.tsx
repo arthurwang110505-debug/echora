@@ -28,7 +28,8 @@ type OriginalMode =
   | "sonnet"
   | "claddagh"
   | "diorama"
-  | "tilt";
+  | "tilt"
+  | "island";
 
 interface Props {
   lines: Line[];
@@ -84,6 +85,7 @@ const MODES: OriginalMode[] = [
   "claddagh",
   "diorama",
   "tilt",
+  "island",
 ];
 
 // Each mode's scene ships in its own chunk (see lazyVisualizer). After the player

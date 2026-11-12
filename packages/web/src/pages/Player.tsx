@@ -8,7 +8,9 @@ import { useTheme } from '../contexts/ThemeProvider';
 import YouTubePlayer from '../components/YouTubePlayer';
 import { useSpotifyCredentialStore } from '../store/spotifyCredentialStore';
 import { useDialogFocus } from '../hooks/useDialogFocus';
+import { useScreenWakeLock } from '../hooks/useScreenWakeLock';
 import LyriclessSoundscapeStage from '../components/LyriclessSoundscapeStage';
+import { shouldShowLyriclessSoundscape } from '../playback/stageFallback';
 import { CoverImage, PanelSkeleton, PlayerSkeleton, StageSkeleton } from '../components/LoadingSkeletons';
 import { adjustLyricsOffset, getActiveLyricIndex, LYRICS_OFFSET_STEP_SECONDS, offsetForLineStart } from '../utils/lyrics/activeLine';
 import { lazyWithRetry } from '../utils/recovery';
@@ -133,6 +135,11 @@ export default function Player() {
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isThemeQuickEditorOpen, setIsThemeQuickEditorOpen] = useState(false);
   const stageRootRef = useRef<HTMLDivElement>(null);
+
+  // The stage is meant to be watched hands-off for a whole song, so the screen must not dim
+  // underneath it. Held only on the stage while playing: on the normal player page the user is
+  // interacting, and keeping the display awake there would just drain the battery.
+  useScreenWakeLock({ enabled: displayMode === 'stage' && isPlaying });
   const spotifyAvailable = useSpotifyCredentialStore((state) => Boolean(state.clientId));
   const demoMode = location.state?.demo === true || new URLSearchParams(location.search).get('demo') === '1';
   const isYouTubeVideoMode = isYouTubeVideo(currentSong);
@@ -460,7 +467,16 @@ export default function Player() {
   });
   const queueSources = Array.from(new Set(playlist.map(song => song.source)));
   const queueLabel = queueSources.length > 1 ? t('player.queueMixed') : queueSources[0] === 'ytmusic' ? t('player.queueYt') : queueSources[0] === 'spotify' ? t('player.queueSpotify') : queueSources[0] === 'local' ? t('player.queueLocal') : t('player.queueCurrent');
-  const showLyriclessSoundscape = !isLoadingLyrics && !currentLyrics?.lines?.length;
+  // Without lyrics the stage is swapped wholesale for the soundscape - cover art, particles,
+  // waveform - which means the selected visualizer never mounts at all. That is fine for the scene
+  // directors, which would have nothing to draw, but the island is a *readout*: it can say why it
+  // is empty, and that sentence is more useful than another picture of the album cover. So it is
+  // exempt, and picking Island on a lyric-less song explains itself instead of silently vanishing.
+  const showLyriclessSoundscape = shouldShowLyriclessSoundscape({
+    isLoadingLyrics,
+    lineCount: currentLyrics?.lines?.length ?? 0,
+    visualizerMode: activeVisualizer,
+  });
   const lyricsStageStatus = (() => {
     if (isLoadingLyrics || lyricsStatus === 'loading') return { title: t('player.loadingLyrics'), copy: t('player.loadingLyricsHint') };
     if (currentSong.source === 'ytmusic' && !isPlaying && !youtubeError) return { title: playbackState === 'buffering' || playbackState === 'loading' ? t('player.ytPreparing') : t('player.ytWaiting'), copy: t('player.ytWaitingHint') };
@@ -654,8 +670,12 @@ export default function Player() {
               stage - in 'full' the lyric column is right there, and two copies of the same line
               is worse than one. Hidden while the tuning panel is open, so it never sits under a
               settings slider. */}
+          {/* `hidden sm:block` used to hide this on phones, which is where a compact readout is
+              most useful. The only reason it was hidden is the width: at 320px a corner card would
+              run under the chrome, so the inset is tighter and the card spans the row instead of
+              hugging its text. `max-w` on the component still caps it on a wide screen. */}
           {lyricsIsland && displayMode === 'stage' && !showTuning && !isChromeHidden && stageLines.length > 0 && (
-            <div className="pointer-events-none absolute bottom-24 left-4 z-30 hidden sm:block">
+            <div className="pointer-events-none absolute bottom-24 left-3 right-3 z-30 sm:right-auto sm:left-4">
               <LyricsIsland
                 currentTime={islandTime}
                 currentLineIndex={activeLineIndex}

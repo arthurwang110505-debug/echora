@@ -9,6 +9,9 @@ export default defineConfig({
     alias: {
       '@echora/core': resolve(root, '../core/src/index.ts'),
       '@shared': resolve(root, '../../shared'),
+      // The API routes are deployed from `api/` at the repo root, outside every workspace package.
+      // Their shared helpers are unit-tested from here, where a working vitest already exists.
+      '@api': resolve(root, '../../api'),
     },
   },
   test: {

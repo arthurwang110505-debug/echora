@@ -1,9 +1,10 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
-
-type ApiResponse = ServerResponse & {
-  status?: (code: number) => ApiResponse;
-  json?: (payload: unknown) => void;
-};
+import { createHash } from 'node:crypto';
+import type { IncomingMessage } from 'node:http';
+import { readJsonBody, BodyError } from '../_lib/body';
+import { ensureContrast, isHexColor } from '../_lib/color';
+import { respond, methodNotAllowed, type ApiResponse } from '../_lib/http';
+import { DailyCeiling, RateLimiter, clientKey } from '../_lib/limits';
+import { isAllowedRequest, requestHostname } from '../_lib/origin';
 
 type ApiRequest = IncomingMessage & {
   method?: string;
@@ -29,33 +30,33 @@ type ThemeRequest = {
   songTitle?: unknown;
 };
 
-const AGNES_BASE_URL = 'https://apihub.agnes-ai.com/v1';
+const AGNES_BASE_URL = process.env.AGNES_BASE_URL || 'https://apihub.agnes-ai.com/v1';
 const AGNES_MODEL = process.env.AGNES_MODEL || 'agnes-2.0-flash';
-const COLOR_PATTERN = /^#[0-9a-f]{3,8}$/i;
 const MAX_LYRICS_LENGTH = 2_000;
 const MAX_BODY_BYTES = 32_000;
 
-// Upstream call budget: abort slow responses so a stalled Agnes call cannot hold
-// the serverless function (and its billed execution time) open indefinitely.
+// Upstream call budget: abort slow responses so a stalled Agnes call cannot hold the serverless
+// function (and its billed execution time) open indefinitely.
 const UPSTREAM_TIMEOUT_MS = 12_000;
 
-// In-memory theme cache. Keyed by the full prompt context so the same song never
-// pays for a second generation within the TTL. State resets on cold start, which
-// is the accepted trade-off of the zero-extra-infrastructure option.
+// Enough for one theme object twice over. Without it the model can run to its own default limit,
+// which is billed against the same balance as a useful answer.
+const MAX_OUTPUT_TOKENS = 1_200;
+
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+// A paid generation behind every request: this is the number that decides what a bad day costs.
+// Per instance, so the effective ceiling is `live instances × this` - see api/_lib/limits.ts.
+const DAILY_GENERATION_CEILING = 300;
+
+// In-memory theme cache, keyed by a SHA-256 of the prompt context.
 const CACHE_TTL_MS = 10 * 60_000;
 const CACHE_MAX_ENTRIES = 50;
 const themeCache = new Map<string, { expiresAt: number; value: ThemeResponse }>();
 
-// In-memory per-client rate limit. Serverless instances may not share this state,
-// but it still blunts bursts from a single caller.
-const RATE_LIMIT_MAX = 10;
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const rateBuckets = new Map<string, number[]>();
-
-const ALLOWED_ORIGINS = (process.env.ECHORA_ALLOWED_ORIGINS || '')
-  .split(',')
-  .map(origin => origin.trim())
-  .filter(Boolean);
+const limiter = new RateLimiter(RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS);
+const ceiling = new DailyCeiling(DAILY_GENERATION_CEILING);
 
 const FALLBACK_THEME: ThemeResponse = {
   light: {
@@ -76,41 +77,12 @@ const FALLBACK_THEME: ThemeResponse = {
   },
 };
 
-const sendJson = (response: ApiResponse, status: number, payload: unknown) => {
-  response.statusCode = status;
-  response.setHeader('Content-Type', 'application/json; charset=utf-8');
-  response.end(JSON.stringify(payload));
-};
-
-const readBody = async (request: ApiRequest): Promise<ThemeRequest> => {
-  if (request.body && typeof request.body === 'object') return request.body as ThemeRequest;
-
-  const declaredLength = Number(request.headers['content-length'] || 0);
-  if (declaredLength > MAX_BODY_BYTES) throw new Error('請求內容過大。');
-
-  let raw = '';
-  let received = 0;
-  for await (const chunk of request) {
-    received += String(chunk).length;
-    if (received > MAX_BODY_BYTES) throw new Error('請求內容過大。');
-    raw += String(chunk);
-  }
-  if (!raw.trim()) return {};
-
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed as ThemeRequest : {};
-  } catch {
-    throw new Error('請求內容不是有效的 JSON。');
-  }
-};
-
 const stringValue = (value: unknown, fallback: string): string => (
   typeof value === 'string' && value.trim() ? value.trim() : fallback
 );
 
 const colorValue = (value: unknown, fallback: string): string => (
-  typeof value === 'string' && COLOR_PATTERN.test(value.trim()) ? value.trim() : fallback
+  isHexColor(value) ? value.trim() : fallback
 );
 
 const parseJsonContent = (content: string): unknown => {
@@ -121,11 +93,7 @@ const parseJsonContent = (content: string): unknown => {
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
   if (start < 0 || end <= start) throw new Error('AI 主題服務回傳的格式無法解析。');
-  try {
-    return JSON.parse(cleaned.slice(start, end + 1));
-  } catch {
-    throw new Error('AI 主題服務回傳的內容不是有效的 JSON。');
-  }
+  return JSON.parse(cleaned.slice(start, end + 1));
 };
 
 const normalizeSide = (value: unknown, fallback: ThemeSide): ThemeSide => {
@@ -146,12 +114,17 @@ const normalizeSide = (value: unknown, fallback: ThemeSide): ThemeSide => {
     ? source.lyricsIcons.filter((icon): icon is string => typeof icon === 'string' && Boolean(icon.trim())).slice(0, 12)
     : undefined;
 
+  const backgroundColor = colorValue(source.backgroundColor, fallback.backgroundColor);
+
   return {
     name: stringValue(source.name, fallback.name).slice(0, 80),
-    backgroundColor: colorValue(source.backgroundColor, fallback.backgroundColor),
-    primaryColor: colorValue(source.primaryColor, fallback.primaryColor),
-    accentColor: colorValue(source.accentColor, fallback.accentColor),
-    secondaryColor: colorValue(source.secondaryColor, fallback.secondaryColor),
+    backgroundColor,
+    // The model has no idea that a theme is mostly a readability problem, so the check happens
+    // here. Without it a perfectly valid answer can produce a stage whose lyrics are invisible.
+    // `ensureContrast` keeps the hue and only moves the lightness, so a good answer is untouched.
+    primaryColor: ensureContrast(colorValue(source.primaryColor, fallback.primaryColor), backgroundColor),
+    accentColor: ensureContrast(colorValue(source.accentColor, fallback.accentColor), backgroundColor),
+    secondaryColor: ensureContrast(colorValue(source.secondaryColor, fallback.secondaryColor), backgroundColor),
     ...(wordColors?.length ? { wordColors } : {}),
     ...(lyricsIcons?.length ? { lyricsIcons } : {}),
     fontStyle,
@@ -184,136 +157,118 @@ const buildPrompt = (request: ThemeRequest): string => {
   const lyrics = stringValue(request.lyricsText, '').slice(0, MAX_LYRICS_LENGTH);
   const title = stringValue(request.songTitle, 'Echora showcase').slice(0, 160);
   const isPureMusic = Boolean(request.isPureMusic);
-  return `You are the visual theme designer for Echora, an immersive music lyrics player. Create one light and one dark theme based on the song context below. Return JSON only, without markdown or commentary, using exactly this structure: {"light":{"name":"...","backgroundColor":"#hex","primaryColor":"#hex","accentColor":"#hex","secondaryColor":"#hex","wordColors":[{"word":"...","color":"#hex"}],"lyricsIcons":["Heart"],"fontStyle":"sans"},"dark":{"name":"...","backgroundColor":"#hex","primaryColor":"#hex","accentColor":"#hex","secondaryColor":"#hex","wordColors":[{"word":"...","color":"#hex"}],"lyricsIcons":["Cloud"],"fontStyle":"sans"}}. Use only valid CSS hex colors and fontStyle sans, serif, or mono. Keep wordColors concise and use Lucide icon names only. Song title: ${title}. Pure music: ${isPureMusic}. Lyrics or audio context: ${lyrics || '[instrumental / no lyrics]'}`;
+  return `You are the visual theme designer for Echora, an immersive music lyrics player. Create one light and one dark theme based on the song context below. Return JSON only, without markdown or commentary, using exactly this structure: {"light":{"name":"...","backgroundColor":"#hex","primaryColor":"#hex","accentColor":"#hex","secondaryColor":"#hex","wordColors":[{"word":"...","color":"#hex"}],"lyricsIcons":["Heart"],"fontStyle":"sans"},"dark":{"name":"...","backgroundColor":"#hex","primaryColor":"#hex","accentColor":"#hex","secondaryColor":"#hex","wordColors":[{"word":"...","color":"#hex"}],"lyricsIcons":["Cloud"],"fontStyle":"sans"}}. Use only valid CSS hex colors (3, 6 or 8 digits) and fontStyle sans, serif, or mono. The primaryColor must be clearly readable against backgroundColor: aim for a WCAG contrast ratio of at least 4.5. Keep wordColors concise and use Lucide icon names only. Song title: ${title}. Pure music: ${isPureMusic}. Lyrics or audio context: ${lyrics || '[instrumental / no lyrics]'}`;
 };
 
-/** Deterministic, collision-resistant-enough cache key for the prompt context. */
+/**
+ * Cache key for the prompt context.
+ *
+ * This used to be a 32-bit djb2 hash, which is small enough that two different songs collide by
+ * birthday: a few thousand titles in a shared instance is enough. A collision is not a crash, it is
+ * one song silently wearing another song's theme - the kind of bug nobody reports.
+ */
 const cacheKeyFor = (request: ThemeRequest): string => {
   const seed = `${stringValue(request.songTitle, '')}|${stringValue(request.lyricsText, '').slice(0, MAX_LYRICS_LENGTH)}|${Boolean(request.isPureMusic)}`;
-  let hash = 5381;
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = ((hash << 5) + hash + seed.charCodeAt(i)) >>> 0;
-  }
-  return `theme:${hash.toString(36)}`;
-};
-
-const readClientIp = (request: ApiRequest): string => {
-  const forwarded = request.headers['x-forwarded-for'];
-  const first = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-  if (typeof first === 'string' && first.trim()) return first.split(',')[0].trim();
-  return request.socket?.remoteAddress || 'unknown';
-};
-
-const isRateLimited = (clientKey: string): boolean => {
-  const now = Date.now();
-  const bucket = (rateBuckets.get(clientKey) || []).filter(ts => now - ts < RATE_LIMIT_WINDOW_MS);
-  if (bucket.length >= RATE_LIMIT_MAX) {
-    rateBuckets.set(clientKey, bucket);
-    return true;
-  }
-  bucket.push(now);
-  rateBuckets.set(clientKey, bucket);
-  return false;
-};
-
-const isAllowedOrigin = (origin: string | undefined): boolean => {
-  // Non-browser requests (curl, same-origin fetches) do not send Origin.
-  if (!origin) return true;
-  let hostname = '';
-  try {
-    hostname = new URL(origin).hostname.toLowerCase();
-  } catch {
-    return false;
-  }
-  if (ALLOWED_ORIGINS.length > 0) {
-    return ALLOWED_ORIGINS.some(allowed => {
-      try {
-        return new URL(allowed).hostname.toLowerCase() === hostname;
-      } catch {
-        return allowed.toLowerCase() === hostname;
-      }
-    });
-  }
-  // Default policy: the deployed *.vercel.app host and local development only.
-  return /(^|\.)vercel\.app$/.test(hostname) || hostname === 'localhost' || hostname === '127.0.0.1';
+  // `node:crypto` is available in the Node runtime this function deploys to.
+  return `theme:${createHash('sha256').update(seed).digest('hex').slice(0, 32)}`;
 };
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {
-  if (request.method !== 'POST') {
-    response.setHeader('Allow', 'POST');
-    sendJson(response, 405, { error: '只支援 POST。' });
-    return;
+  if (request.method !== 'POST') return methodNotAllowed(response, 'POST');
+
+  const headers = request.headers as Record<string, string | string[] | undefined>;
+  if (!isAllowedRequest(headers.origin, { sameOrigin: requestHostname(headers) })) {
+    return respond(response, 403, { error: '不允許的來源。' });
   }
 
-  if (!isAllowedOrigin(request.headers.origin)) {
-    sendJson(response, 403, { error: '不允許的來源。' });
-    return;
-  }
-
-  if (isRateLimited(readClientIp(request))) {
-    sendJson(response, 429, { error: '請求過於頻繁，請稍後再試。' });
-    return;
+  const { allowed, retryAfterSeconds } = limiter.take(clientKey(headers, request.socket?.remoteAddress || 'unknown'));
+  if (!allowed) {
+    response.setHeader('Retry-After', String(retryAfterSeconds));
+    return respond(response, 429, { error: '請求過於頻繁，請稍後再試。' });
   }
 
   const apiKey = process.env.AGNES_API_KEY;
   if (!apiKey) {
-    sendJson(response, 503, { error: 'AI 主題服務尚未完成設定，請稍後再試。' });
-    return;
+    return respond(response, 503, { error: 'AI 主題服務尚未完成設定，請稍後再試。' });
   }
 
+  let requestBody: ThemeRequest;
   try {
-    const requestBody = await readBody(request);
-    const cacheKey = cacheKeyFor(requestBody);
-    const cached = themeCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      sendJson(response, 200, cached.value);
-      return;
+    requestBody = await readJsonBody(request, MAX_BODY_BYTES) as ThemeRequest;
+  } catch (error) {
+    if (error instanceof BodyError) return respond(response, error.status, { error: error.message });
+    throw error;
+  }
+
+  const cacheKey = cacheKeyFor(requestBody);
+  const cached = themeCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return respond(response, 200, cached.value);
+  }
+
+  // Only a cache *miss* can spend money, so this is where the ceiling belongs: a repeated song is
+  // free and must not be refused for being the 301st request of the day.
+  if (!ceiling.take()) {
+    console.warn('[Agnes AI] daily generation ceiling reached', { ceiling: DAILY_GENERATION_CEILING });
+    return respond(response, 429, { error: 'AI 主題服務今天的額度已用完，請稍後再試。' });
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+  try {
+    const upstream = await fetch(`${AGNES_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: AGNES_MODEL,
+        messages: [{ role: 'user', content: buildPrompt(requestBody) }],
+        temperature: 0.7,
+        // Both were missing, and both are why a run could come back as prose or as a truncated
+        // object - a 400 for the caller when the problem was upstream.
+        max_tokens: MAX_OUTPUT_TOKENS,
+        response_format: { type: 'json_object' },
+      }),
+      signal: controller.signal,
+    });
+
+    const payload = await upstream.json().catch(() => null);
+    if (!upstream.ok) {
+      console.error('[Agnes AI] upstream request failed', { status: upstream.status });
+      return respond(response, 502, { error: `AI 主題服務請求失敗（HTTP ${upstream.status}），請稍後再試。` });
     }
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+    const content = getContent(payload);
+    if (!content) {
+      return respond(response, 502, { error: 'AI 主題服務沒有回傳可用的主題內容。' });
+    }
+
+    let theme: ThemeResponse;
     try {
-      const upstream = await fetch(`${AGNES_BASE_URL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: AGNES_MODEL,
-          messages: [{ role: 'user', content: buildPrompt(requestBody) }],
-          temperature: 0.7,
-        }),
-        signal: controller.signal,
-      });
-
-      const payload = await upstream.json().catch(() => null);
-      if (!upstream.ok) {
-        console.error('[Agnes AI] upstream request failed', { status: upstream.status });
-        sendJson(response, 502, { error: `AI 主題服務請求失敗（HTTP ${upstream.status}），請稍後再試。` });
-        return;
-      }
-
-      const content = getContent(payload);
-      if (!content) {
-        sendJson(response, 502, { error: 'AI 主題服務沒有回傳可用的主題內容。' });
-        return;
-      }
-
-      const theme = normalizeTheme(parseJsonContent(content));
-      if (themeCache.size >= CACHE_MAX_ENTRIES) {
-        const oldest = themeCache.keys().next().value;
-        if (oldest) themeCache.delete(oldest);
-      }
-      themeCache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, value: theme });
-      sendJson(response, 200, theme);
-    } finally {
-      clearTimeout(timer);
+      theme = normalizeTheme(parseJsonContent(content));
+    } catch (error) {
+      // A model that answered with something unparseable is an upstream fault. This used to fall
+      // through to the outer catch and become a 400, telling the client to fix its own request.
+      console.error('[theme] unusable model response:', String(content).slice(0, 2000));
+      return respond(response, 502, { error: error instanceof Error ? error.message : 'AI 主題服務回傳的格式無法解析。' });
     }
+
+    if (themeCache.size >= CACHE_MAX_ENTRIES) {
+      const oldest = themeCache.keys().next().value;
+      if (oldest) themeCache.delete(oldest);
+    }
+    themeCache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, value: theme });
+    return respond(response, 200, theme);
   } catch (error) {
     const aborted = error instanceof Error && error.name === 'AbortError';
     console.error('[Agnes AI] theme proxy error', error instanceof Error ? error.message : error);
-    sendJson(response, aborted ? 504 : 400, { error: aborted ? 'AI 主題服務逾時，請稍後再試。' : error instanceof Error ? error.message : 'AI 主題生成失敗。' });
+    return respond(response, aborted ? 504 : 502, {
+      error: aborted ? 'AI 主題服務逾時，請稍後再試。' : 'AI 主題生成失敗，請稍後再試。',
+    });
+  } finally {
+    clearTimeout(timer);
   }
 }

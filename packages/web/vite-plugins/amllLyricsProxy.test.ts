@@ -131,13 +131,28 @@ describe('amll lyrics proxy: passing a document through', () => {
     expect(state.body).toBe(TTML);
   });
 
-  it('marks the response cacheable, because a published lyric file does not change', async () => {
+  it('caches at the CDN, not only in the browser', async () => {
+    // `max-age` alone is a browser cache: Vercel's edge keys on `s-maxage`, so a header without it
+    // meant every request for the same song reached the community database.
     vi.stubGlobal('fetch', vi.fn(async () => new Response(TTML, { status: 200 })));
     const handler = await loadHandler();
 
     const { response, state } = createResponse();
     await handler(request('/api/lyrics/amll?platform=ncm&id=347230'), response);
-    expect(state.headers['cache-control']).toContain('max-age=');
+    const cacheControl = String(state.headers['cache-control']);
+    expect(cacheControl).toContain('s-maxage=');
+    expect(cacheControl).toContain('stale-while-revalidate=');
+  });
+
+  it('also caches a miss, so a song the database lacks is not asked for repeatedly', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('not found', { status: 404 })));
+    const handler = await loadHandler();
+
+    const { response, state } = createResponse();
+    await handler(request('/api/lyrics/amll?platform=ncm&id=999999999'), response);
+    expect(state.statusCode).toBe(404);
+    // Shorter than a hit, but present: a missing song stays missing for a while.
+    expect(String(state.headers['cache-control'])).toContain('s-maxage=3600');
   });
 
   it('treats a missing song as a normal 404, not a failure', async () => {

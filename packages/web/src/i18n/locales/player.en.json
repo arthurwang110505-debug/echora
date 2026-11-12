@@ -308,7 +308,9 @@
     "waitingForMusic": "Waiting for music…",
     "default": "Default",
     "livePreview": "Live preview",
-    "visualizerIsland": "Lyrics island"
+    "visualizerIsland": "Lyrics island",
+    "islandEmpty": "This song has no lyrics.\nThe island needs lyrics to appear.",
+    "islandNoWordTiming": "These lyrics have no word timing, so the island shows whole lines."
   },
   "options": {
     "temperaAddLayerImage": "Add image",

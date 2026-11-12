@@ -67,5 +67,11 @@
     "hintSearchLimited": "稍候再試，或直接從已同步的私人歌單選曲。",
     "hintEmptyLibrary": "請確認歌單存在於同一個 YouTube 帳戶。",
     "timeout": "連線逾時，請檢查網路後再試。"
+  },
+  "notFound": {
+    "title": "找不到這個頁面",
+    "copy": "這個網址不存在，可能是打錯字或連結已經失效。",
+    "goBack": "回上一頁",
+    "goHome": "回到音樂庫"
   }
 }

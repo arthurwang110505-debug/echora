@@ -37,6 +37,10 @@
     overflow-y: auto;
     user-select: text;
     -webkit-tap-highlight-color: transparent;
+    /* Drops the 300ms double-tap-to-zoom delay without forbidding pinch zoom. This is what replaces
+       `user-scalable=no` in the viewport meta: the delay was the real annoyance there, and the
+       ability to zoom is an accessibility requirement (WCAG 1.4.4). */
+    touch-action: manipulation;
   }
 
   h1, h2, h3, .font-heading {

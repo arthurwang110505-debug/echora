@@ -67,5 +67,11 @@
     "hintSearchLimited": "Try again shortly, or pick a track from your synced library.",
     "hintEmptyLibrary": "Check that the playlists belong to the same YouTube account.",
     "timeout": "The connection timed out. Check your network and try again."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "copy": "That address does not exist. It may be a typo, or the link may be out of date.",
+    "goBack": "Go back",
+    "goHome": "Back to library"
   }
 }
