@@ -55,7 +55,7 @@ function RouteErrorBoundary() {
   const isChunkError = isChunkLoadError(error);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#07090e] p-6 text-slate-100">
+    <main className="flex min-h-dvh items-center justify-center bg-[#07090e] p-6 text-slate-100">
       <section role="alert" className="w-full max-w-md rounded-3xl border border-white/15 bg-[#111720] p-7 text-center shadow-2xl">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#62f5c4]">Echora recovery</p>
         <h1 className="mt-3 text-2xl font-black text-white">{t('appHome.pageLoadError')}</h1>

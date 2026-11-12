@@ -8,7 +8,7 @@ export default function Privacy() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#07090e] font-sans text-slate-200 selection:bg-[#62f5c4] selection:text-black">
+    <div className="min-h-dvh bg-[#07090e] font-sans text-slate-200 selection:bg-[#62f5c4] selection:text-black">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -left-40 -top-56 h-[32rem] w-[32rem] rounded-full bg-emerald-500/10 blur-[120px]" />
         <div className="absolute -bottom-64 -right-32 h-[34rem] w-[34rem] rounded-full bg-indigo-600/10 blur-[130px]" />

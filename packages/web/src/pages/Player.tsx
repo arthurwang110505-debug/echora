@@ -666,16 +666,23 @@ export default function Player() {
             </Suspense>
           )}
           {/* 靈動詞島: an opt-in readout over the stage. Bottom-left because the chrome lives
-              bottom-centre and the panel hotspot owns the bottom-right corner. Only over the
-              stage - in 'full' the lyric column is right there, and two copies of the same line
-              is worse than one. Hidden while the tuning panel is open, so it never sits under a
-              settings slider. */}
+              bottom-centre and the panel hotspot owns the bottom-right corner. Hidden while the
+              tuning panel is open, so it never sits under a settings slider.
+
+              It used to be stage-only, on the reasoning that 'full' already shows the lyric
+              column. That is true for the visualizer modes, which are scenes, but the island is a
+              readout: leaving the immersive stage is a layout change, not a request to turn the
+              readout off. Toggling it off with the panel button is how it goes away. */}
           {/* `hidden sm:block` used to hide this on phones, which is where a compact readout is
               most useful. The only reason it was hidden is the width: at 320px a corner card would
               run under the chrome, so the inset is tighter and the card spans the row instead of
               hugging its text. `max-w` on the component still caps it on a wide screen. */}
-          {lyricsIsland && displayMode === 'stage' && !showTuning && !isChromeHidden && stageLines.length > 0 && (
-            <div className="pointer-events-none absolute bottom-24 left-3 right-3 z-30 sm:right-auto sm:left-4">
+          {lyricsIsland && !showTuning && !isChromeHidden && (
+            <div
+              className={`pointer-events-none absolute z-30 left-3 right-3 sm:right-auto sm:left-4 ${
+                displayMode === 'stage' ? 'bottom-24' : 'bottom-20'
+              }`}
+            >
               <LyricsIsland
                 currentTime={islandTime}
                 currentLineIndex={activeLineIndex}
