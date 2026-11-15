@@ -12,7 +12,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Echora Stage" />
+    <!-- Must match the manifest's `short_name`. iOS takes the home-screen label from this tag and
+         Android from the manifest; when they disagree the same app installs under two names. -->
+    <meta name="apple-mobile-web-app-title" content="Echora" />
     <link rel="apple-touch-icon" href="/echora-icon-180.png" />
     <meta name="application-name" content="Echora" />
     <meta
@@ -29,7 +31,21 @@
     <!-- Google Fonts: Outfit & Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Weights are the ones the UI actually uses: 400 normal, 500 medium, 600 semibold,
+         700 bold, 800 extrabold, 900 black. 300 (light) was requested and never applied.
+         `media="print"` + `onload` is the standard non-blocking stylesheet swap: the browser
+         fetches it off the critical path and flips it to `all` once it arrives, so a slow or
+         blocked Google Fonts never holds up first paint. `display=swap` already covers the text
+         itself; this covers the stylesheet request. -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      media="print"
+      onload="this.media='all'"
+    >
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+    </noscript>
 
     <title>Echora - 沉浸式動態歌詞音樂舞台</title>
 

@@ -74,11 +74,14 @@ const litWords = () =>
     .filter(node => node.style.clipPath !== '');
 
 beforeEach(() => {
-  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
-    callback(0);
-    return 1;
-  });
-  vi.stubGlobal('cancelAnimationFrame', () => undefined);
+  // One frame per macrotask, *not* synchronous. A synchronous stub made any rAF loop recurse
+  // until the stack died - which it did, once the wave glyph started animating. Scheduling on a
+  // timer keeps a single frame per flush (deterministic for the assertions) while letting the
+  // cleanup run between frames, exactly like a browser.
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => (
+    window.setTimeout(() => callback(performance.now()), 0) as unknown as number
+  ));
+  vi.stubGlobal('cancelAnimationFrame', (handle: number) => window.clearTimeout(handle));
 });
 
 afterEach(() => {
@@ -177,5 +180,44 @@ describe('LyricsIsland', () => {
 
     const announced = host.querySelector('[aria-live="polite"]')?.textContent ?? '';
     expect(announced.match(/lai/g) ?? []).toHaveLength(3);
+  });
+});
+
+// The pill is the feature. These specs pin the *shape* that was wrong: it has to read as a system
+// Dynamic Island - a fully rounded capsule hung from the top, with the source glyph and the
+// artwork at the two caps - not as a small card with a progress ring beside the text.
+describe('LyricsIsland — Dynamic Island geometry', () => {
+  it('is a capsule, not a rounded card', async () => {
+    await mount();
+    const pill = host.firstElementChild as HTMLElement;
+    // Any radius smaller than half the height leaves visible corners and stops being a pill.
+    expect(pill.style.borderRadius).toBe('999px');
+  });
+
+  it('carries the audio glyph on the left and the artwork on the right', async () => {
+    await mount({ coverUrl: 'https://example.test/art.jpg' } as never);
+    const pill = host.firstElementChild as HTMLElement;
+    // Two svgs sit at the left cap: the progress ring (circles) and the wave glyph (rects).
+    const glyph = Array.from(pill.querySelectorAll('svg'))
+      .find(candidate => candidate.querySelector('rect') !== null);
+    const img = pill.querySelector('img');
+    expect(glyph, 'the wave glyph is missing from the left cap').toBeDefined();
+    // The glyph is decorative: five bars, hidden from assistive tech.
+    expect(glyph?.querySelectorAll('rect')).toHaveLength(5);
+    expect(glyph?.getAttribute('aria-hidden')).toBe('true');
+    expect(img?.getAttribute('src')).toBe('https://example.test/art.jpg');
+  });
+
+  it('drops the artwork cap when there is no cover, instead of leaving a hole', async () => {
+    await mount();
+    expect(host.firstElementChild?.querySelector('img')).toBeNull();
+  });
+
+  it('keeps the pill a fixed height as the line changes', async () => {
+    // Both text rows truncate. A wrapping line would grow the pill and make it jump every time a
+    // long lyric arrived.
+    await mount();
+    const rows = Array.from(host.firstElementChild?.querySelectorAll('.truncate') ?? []);
+    expect(rows.length).toBeGreaterThanOrEqual(2);
   });
 });

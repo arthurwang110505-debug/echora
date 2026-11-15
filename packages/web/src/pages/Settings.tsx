@@ -159,7 +159,7 @@ export default function Settings() {
       : t('settings.agnesUnknown');
 
   return (
-    <div className="settings-page min-h-screen bg-[#07090e] pb-8 font-sans text-white selection:bg-[#62f5c4] selection:text-black">
+    <div className="settings-page min-h-dvh bg-[#07090e] pb-8 font-sans text-white selection:bg-[#62f5c4] selection:text-black">
       <header className="sticky top-0 z-30 flex items-center border-b border-white/10 bg-[#0d111a]/90 px-4 py-3 backdrop-blur-2xl sm:px-6 sm:py-4">
         <button type="button" onClick={() => navigate('/app')} aria-label={t('settings.back')} className="mr-4 rounded-2xl border border-white/10 p-2.5 text-white transition-all hover:bg-white/10 btn-spring">
           <ArrowLeft aria-hidden="true" className="h-5 w-5" strokeWidth={2.5} />

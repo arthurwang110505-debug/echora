@@ -305,3 +305,48 @@ describe('Player page — 全螢幕 chrome', () => {
     expect(byLabel(t('panel.exitFullscreen'))).toBeUndefined();
   });
 });
+
+// The island is a readout, not a scene. These specs pin the two rules that were wrong: it must
+// survive leaving the immersive stage (a layout change, not a request to hide it), and it must
+// still be reachable from the panel toggle.
+describe('Player page — 靈動詞島 visibility', () => {
+  const lyrics = {
+    title: 'x',
+    artist: 'y',
+    isWordByWord: true,
+    availability: 'available' as const,
+    lines: [
+      { fullText: '第一行歌詞', startTime: 0, endTime: 5000, words: [{ text: '第一行', startTime: 0, endTime: 2500 }] },
+    ],
+  };
+
+  const islandText = () => host?.textContent?.includes('第一行歌詞') ?? false;
+
+  beforeEach(() => {
+    useStageStore.setState({ lyricsIsland: true });
+    usePlayerStore.setState({ currentLyrics: lyrics as never, lyricsStatus: 'available' });
+  });
+
+  it('stays on screen after leaving the immersive stage', async () => {
+    // The bug: the island was `displayMode === 'stage'`, so滑出全螢幕 made it vanish even though
+    // the toggle still read "on". Reported exactly that way.
+    usePlayerStore.setState({ displayMode: 'full' });
+    await mount();
+    expect(islandText()).toBe(true);
+  });
+
+  it('also shows inside the immersive stage', async () => {
+    usePlayerStore.setState({ displayMode: 'stage' });
+    await mount();
+    expect(islandText()).toBe(true);
+  });
+
+  it('disappears only when the user turns it off', async () => {
+    usePlayerStore.setState({ displayMode: 'full' });
+    await mount();
+    expect(islandText()).toBe(true);
+
+    await act(async () => { useStageStore.setState({ lyricsIsland: false }); });
+    expect(islandText()).toBe(false);
+  });
+});

@@ -76,7 +76,7 @@ export default function Library() {
     : t('library.notSynced');
 
   return (
-    <div className="min-h-screen bg-[#07090e] pb-[calc(8rem+env(safe-area-inset-bottom))] font-sans text-white selection:bg-[#62f5c4] selection:text-black sm:pb-32">
+    <div className="min-h-dvh bg-[#07090e] pb-[calc(8rem+env(safe-area-inset-bottom))] font-sans text-white selection:bg-[#62f5c4] selection:text-black sm:pb-32">
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-[#0d111a]/80 px-5 py-4 backdrop-blur-2xl sm:px-6">
         <div className="flex items-center gap-3">
           <button

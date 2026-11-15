@@ -43,6 +43,30 @@ export default defineConfig(({ mode }) => {
           // Installed users must land directly in the app shell / playlist picker.
           // The landing page at / stays the public website entry for new visitors.
           start_url: '/app',
+          // A stable install identity. Without it Chrome derives the id from `start_url`, so
+          // changing the entry point later would register as a different app and orphan the
+          // existing installs.
+          id: '/app',
+          categories: ['music', 'entertainment'],
+          // Long-press shortcuts on the installed icon. Both are real routes that work without
+          // an account: the stage falls back to the local showcase, the library explains what to
+          // connect.
+          shortcuts: [
+            {
+              name: '開啟歌詞舞台',
+              short_name: '舞台',
+              description: '直接進入沉浸式歌詞舞台',
+              url: '/player?demo=1',
+              icons: [{ src: 'echora-icon-192.png', sizes: '192x192', type: 'image/png' }],
+            },
+            {
+              name: '我的音樂庫',
+              short_name: '音樂庫',
+              description: '查看已連接的音樂與歌單',
+              url: '/library',
+              icons: [{ src: 'echora-icon-192.png', sizes: '192x192', type: 'image/png' }],
+            },
+          ],
           icons: [
             {
               src: 'echora-icon-192.png',
