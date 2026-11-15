@@ -37,12 +37,19 @@ const VisualizerIsland: React.FC<VisualizerSharedProps> = (props) => {
       audioBands={audioBands}
       sharedProps={props}
     >
-      <div className="absolute inset-0 z-10 flex items-center justify-center px-6">
+      {/* Hung from the top edge, centred - the island's whole point is that it sits where a phone's
+          Dynamic Island does, not in the middle of the frame. `items-start` keeps it there when the
+          card is short; the wrapper is pointer-transparent so stage clicks still land. */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center px-6"
+        style={{ paddingTop: 'calc(1.25rem + env(safe-area-inset-top, 0px))' }}
+      >
         <LyricsIsland
           currentTime={currentTime}
           currentLineIndex={currentLineIndex}
           lines={lines}
           theme={theme}
+          coverUrl={props.coverUrl}
           size={isPreviewMode ? 'compact' : 'regular'}
           paused={paused}
           onSeekLine={onLyricLineSeek}

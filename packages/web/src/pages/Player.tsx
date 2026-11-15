@@ -673,21 +673,22 @@ export default function Player() {
               column. That is true for the visualizer modes, which are scenes, but the island is a
               readout: leaving the immersive stage is a layout change, not a request to turn the
               readout off. Toggling it off with the panel button is how it goes away. */}
-          {/* `hidden sm:block` used to hide this on phones, which is where a compact readout is
-              most useful. The only reason it was hidden is the width: at 320px a corner card would
-              run under the chrome, so the inset is tighter and the card spans the row instead of
-              hugging its text. `max-w` on the component still caps it on a wide screen. */}
+          {/* Top-centre, hung from the top edge like the iOS Dynamic Island it models: that is where
+              a "island" lives, and it is the one strip of the stage no other chrome claims. It is
+              offset by the safe-area inset so it does not sit under a notch or the status bar on an
+              installed PWA, and it is `pointer-events-none` at the wrapper so the stage behind it
+              stays clickable. */}
           {lyricsIsland && !showTuning && !isChromeHidden && (
             <div
-              className={`pointer-events-none absolute z-30 left-3 right-3 sm:right-auto sm:left-4 ${
-                displayMode === 'stage' ? 'bottom-24' : 'bottom-20'
-              }`}
+              className="pointer-events-none absolute left-1/2 top-3 z-30 flex -translate-x-1/2 justify-center px-3"
+              style={{ top: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}
             >
               <LyricsIsland
                 currentTime={islandTime}
                 currentLineIndex={activeLineIndex}
                 lines={stageLines}
                 theme={islandTheme}
+                coverUrl={currentSong?.coverUrl}
                 size="compact"
                 paused={!isPlaying}
                 onSeekLine={seek}
